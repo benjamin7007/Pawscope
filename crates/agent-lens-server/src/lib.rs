@@ -23,6 +23,7 @@ pub fn build_app(adapter: Arc<dyn AgentAdapter>) -> (Router, AppState) {
         .route("/api/sessions", get(api::list_sessions))
         .route("/api/sessions/{id}", get(api::get_detail))
         .route("/api/overview", get(api::overview))
+        .route("/api/activity", get(api::activity))
         .route("/ws", get(ws::ws_handler))
         .fallback(assets::static_handler)
         .with_state(state.clone());
