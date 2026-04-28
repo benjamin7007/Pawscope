@@ -32,6 +32,7 @@ path = "src/main.rs"
 agent-lens-core = { path = "crates/agent-lens-core" }
 agent-lens-copilot = { path = "crates/agent-lens-copilot" }
 agent-lens-server = { path = "crates/agent-lens-server" }
+axum = { version = "0.8", features = ["ws"] }
 clap = { version = "4", features = ["derive"] }
 tokio.workspace = true
 anyhow.workspace = true
