@@ -1,0 +1,46 @@
+[workspace]
+resolver = "2"
+members = ["crates/agent-lens-core", "crates/agent-lens-copilot", "crates/agent-lens-server"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.87"
+license = "MIT"
+
+[workspace.dependencies]
+anyhow = "1"
+thiserror = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[package]
+name = "agent-lens"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "agent-lens"
+path = "src/main.rs"
+
+[dependencies]
+agent-lens-core = { path = "crates/agent-lens-core" }
+agent-lens-copilot = { path = "crates/agent-lens-copilot" }
+agent-lens-server = { path = "crates/agent-lens-server" }
+clap = { version = "4", features = ["derive"] }
+tokio.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+open = "5"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = true
