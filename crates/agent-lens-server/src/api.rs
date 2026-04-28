@@ -22,6 +22,13 @@ pub async fn get_detail(Path(id): Path<String>, State(s): State<AppState>) -> im
     }
 }
 
+pub async fn activity(State(s): State<AppState>) -> impl IntoResponse {
+    match s.adapter.activity_hourly(24).await {
+        Ok(b) => Json(serde_json::json!({ "hours": 24, "buckets": b })).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
 pub async fn overview(State(s): State<AppState>) -> impl IntoResponse {
     let sessions = match s.adapter.list_sessions().await {
         Ok(v) => v,

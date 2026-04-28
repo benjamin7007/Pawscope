@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchOverview } from '../api';
+import { fetchOverview, fetchActivity } from '../api';
 
 type Overview = {
   total_sessions: number;
@@ -41,8 +41,54 @@ function BarList({ entries, max, color }: { entries: [string, number][]; max: nu
   );
 }
 
+function ActivityHeatmap({ buckets }: { buckets: number[] }) {
+  const total = buckets.reduce((a, b) => a + b, 0);
+  const max = buckets.reduce((a, b) => Math.max(a, b), 0);
+  const now = new Date();
+  const startHour = (now.getHours() + 1) % 24;
+
+  const intensity = (v: number): string => {
+    if (v === 0) return 'bg-slate-800/60';
+    const ratio = max > 0 ? v / max : 0;
+    if (ratio < 0.25) return 'bg-emerald-900/70';
+    if (ratio < 0.5) return 'bg-emerald-700';
+    if (ratio < 0.75) return 'bg-emerald-500';
+    return 'bg-emerald-400';
+  };
+
+  return (
+    <section className="rounded-lg bg-slate-900/40 border border-slate-800">
+      <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
+        <h3 className="text-xs uppercase tracking-wider text-slate-400">24h activity</h3>
+        <span className="text-[11px] text-slate-500">{total.toLocaleString()} events</span>
+      </header>
+      <div className="p-4">
+        <div className="grid grid-cols-24 gap-1" style={{ gridTemplateColumns: `repeat(${buckets.length}, minmax(0,1fr))` }}>
+          {buckets.map((v, i) => {
+            const hour = (startHour + i) % 24;
+            const hoursAgo = buckets.length - 1 - i;
+            const label = `${hoursAgo === 0 ? 'now' : `${hoursAgo}h ago`} · ${String(hour).padStart(2, '0')}:00 · ${v} events`;
+            return (
+              <div
+                key={i}
+                title={label}
+                className={`h-8 rounded ${intensity(v)} hover:ring-1 hover:ring-slate-500 transition`}
+              />
+            );
+          })}
+        </div>
+        <div className="mt-2 flex justify-between text-[10px] text-slate-500">
+          <span>{buckets.length}h ago</span>
+          <span>now</span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function OverviewPanel() {
   const [data, setData] = useState<Overview | null>(null);
+  const [activity, setActivity] = useState<number[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
@@ -51,6 +97,9 @@ export function OverviewPanel() {
       fetchOverview()
         .then(d => !cancelled && setData(d))
         .catch(e => !cancelled && setErr(String(e)));
+      fetchActivity()
+        .then(d => !cancelled && setActivity(d.buckets ?? []))
+        .catch(() => {});
     };
     load();
     const t = setInterval(load, 15000);
@@ -91,6 +140,8 @@ export function OverviewPanel() {
           <HeroStat label="Turns" value={data.total_turns.toLocaleString()} />
           <HeroStat label="Tool calls" value={totalTools.toLocaleString()} />
         </section>
+
+        {activity && <ActivityHeatmap buckets={activity} />}
 
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="rounded-lg bg-slate-900/40 border border-slate-800">

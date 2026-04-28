@@ -91,6 +91,51 @@ impl AgentAdapter for CopilotAdapter {
     async fn watch(&self, tx: mpsc::Sender<SessionEvent>) -> Result<()> {
         watcher::run(self.root.clone(), self.state.clone(), tx).await
     }
+
+    async fn activity_hourly(&self, hours: u32) -> Result<Vec<u64>> {
+        use chrono::{DateTime, Utc};
+        let hours = hours.max(1) as usize;
+        let now = Utc::now();
+        let window_start = now - chrono::Duration::hours(hours as i64);
+        let mut buckets = vec![0u64; hours];
+
+        let entries = match std::fs::read_dir(&self.root) {
+            Ok(e) => e,
+            Err(_) => return Ok(buckets),
+        };
+        for entry in entries.flatten() {
+            if !entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                continue;
+            }
+            let path = entry.path().join("events.jsonl");
+            let Ok(file) = std::fs::File::open(&path) else {
+                continue;
+            };
+            use std::io::{BufRead, BufReader};
+            let reader = BufReader::new(file);
+            for line in reader.lines().map_while(std::result::Result::ok) {
+                let Ok(v) = serde_json::from_str::<serde_json::Value>(&line) else {
+                    continue;
+                };
+                let Some(ts) = v.get("timestamp").and_then(|t| t.as_str()) else {
+                    continue;
+                };
+                let Ok(dt) = DateTime::parse_from_rfc3339(ts) else {
+                    continue;
+                };
+                let dt = dt.with_timezone(&Utc);
+                if dt < window_start || dt > now {
+                    continue;
+                }
+                let elapsed = (now - dt).num_hours() as usize;
+                if elapsed < hours {
+                    let idx = hours - 1 - elapsed;
+                    buckets[idx] += 1;
+                }
+            }
+        }
+        Ok(buckets)
+    }
 }
 
 #[cfg(test)]
