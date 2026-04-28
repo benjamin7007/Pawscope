@@ -6,6 +6,10 @@ export async function fetchDetail(id: string) {
   const r = await fetch(`/api/sessions/${id}`);
   return r.json();
 }
+export async function fetchOverview() {
+  const r = await fetch('/api/overview');
+  return r.json();
+}
 export function connectWs(onEvent: (ev: any) => void): WebSocket {
   const ws = new WebSocket(`ws://${location.host}/ws`);
   ws.onmessage = e => { try { onEvent(JSON.parse(e.data)); } catch {} };
