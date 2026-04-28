@@ -2,8 +2,8 @@
 {"type":"session.model_change","data":{"newModel":"claude-opus-4.7"},"timestamp":"2026-04-28T13:55:09.726Z"}
 {"type":"user.message","data":{"text":"hi"},"timestamp":"2026-04-28T13:55:10.000Z"}
 {"type":"assistant.turn_start","data":{},"timestamp":"2026-04-28T13:55:10.500Z"}
-{"type":"tool.execution_start","data":{"name":"bash"},"timestamp":"2026-04-28T13:55:11.000Z"}
-{"type":"tool.execution_complete","data":{"name":"bash"},"timestamp":"2026-04-28T13:55:12.000Z"}
+{"type":"tool.execution_start","data":{"toolName":"bash"},"timestamp":"2026-04-28T13:55:11.000Z"}
+{"type":"tool.execution_complete","data":{"toolName":"bash"},"timestamp":"2026-04-28T13:55:12.000Z"}
 {"type":"skill.invoked","data":{"name":"brainstorming"},"timestamp":"2026-04-28T13:55:13.000Z"}
 {"type":"assistant.message","data":{"text":"hello"},"timestamp":"2026-04-28T13:55:14.000Z"}
 {"type":"assistant.turn_end","data":{},"timestamp":"2026-04-28T13:55:15.000Z"}

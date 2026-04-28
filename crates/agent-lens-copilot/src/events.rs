@@ -52,7 +52,7 @@ pub fn parse_incremental(path: &Path, state: &mut ParseState) -> anyhow::Result<
             "assistant.message" => state.detail.assistant_messages += 1,
             "assistant.turn_end" => state.detail.turns += 1,
             "tool.execution_start" => {
-                if let Some(name) = ev.data.get("name").and_then(|v| v.as_str()) {
+                if let Some(name) = ev.data.get("toolName").and_then(|v| v.as_str()) {
                     *state.detail.tools_used.entry(name.to_string()).or_default() += 1;
                 }
             }
