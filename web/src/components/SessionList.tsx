@@ -33,26 +33,43 @@ function repoLabel(s: Session): string {
   return s.repo || '(no repo)';
 }
 
+type SortMode = 'recent' | 'oldest' | 'repo';
+
 export function SessionList({ items, onSelect, selected }: Props) {
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [agentFilter, setAgentFilter] = useState<string>('all');
+  const [activeOnly, setActiveOnly] = useState(false);
+  const [sortMode, setSortMode] = useState<SortMode>('recent');
+
+  const agents = useMemo(
+    () => Array.from(new Set(items.map(s => s.agent))).sort(),
+    [items]
+  );
 
   const { active, byRepo, repoOrder, total } = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const filtered = q
-      ? items.filter(s =>
-          (s.id?.toLowerCase().includes(q)) ||
-          (s.repo?.toLowerCase().includes(q)) ||
-          (s.summary?.toLowerCase().includes(q)) ||
-          (s.branch?.toLowerCase().includes(q))
-        )
-      : items;
+    const filtered = items.filter(s => {
+      if (agentFilter !== 'all' && s.agent !== agentFilter) return false;
+      if (activeOnly && s.status !== 'active') return false;
+      if (!q) return true;
+      return (
+        (s.id?.toLowerCase().includes(q)) ||
+        (s.repo?.toLowerCase().includes(q)) ||
+        (s.summary?.toLowerCase().includes(q)) ||
+        (s.branch?.toLowerCase().includes(q))
+      );
+    });
 
-    const sorted = [...filtered].sort((a, b) => {
+    const cmp = (a: Session, b: Session) => {
+      if (sortMode === 'repo') {
+        return (a.repo ?? '').localeCompare(b.repo ?? '');
+      }
       const ta = a.last_event_at ? new Date(a.last_event_at).getTime() : 0;
       const tb = b.last_event_at ? new Date(b.last_event_at).getTime() : 0;
-      return tb - ta;
-    });
+      return sortMode === 'oldest' ? ta - tb : tb - ta;
+    };
+    const sorted = [...filtered].sort(cmp);
 
     const active = sorted.filter(s => s.status === 'active');
     const inactive = sorted.filter(s => s.status !== 'active');
@@ -65,13 +82,14 @@ export function SessionList({ items, onSelect, selected }: Props) {
       byRepo.set(k, arr);
     }
     const repoOrder = Array.from(byRepo.keys()).sort((a, b) => {
+      if (sortMode === 'repo') return a.localeCompare(b);
       const la = byRepo.get(a)![0].last_event_at ?? '';
       const lb = byRepo.get(b)![0].last_event_at ?? '';
-      return lb.localeCompare(la);
+      return sortMode === 'oldest' ? la.localeCompare(lb) : lb.localeCompare(la);
     });
 
     return { active, byRepo, repoOrder, total: filtered.length };
-  }, [items, query]);
+  }, [items, query, agentFilter, activeOnly, sortMode]);
 
   const toggle = (key: string) =>
     setCollapsed(prev => ({ ...prev, [key]: !prev[key] }));
@@ -138,6 +156,40 @@ export function SessionList({ items, onSelect, selected }: Props) {
           placeholder="Search id, repo, summary…"
           className="w-full px-2.5 py-1.5 text-xs bg-slate-900 border border-slate-800 rounded text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-slate-600"
         />
+        <div className="flex items-center gap-1.5 mt-2">
+          <select
+            value={agentFilter}
+            onChange={e => setAgentFilter(e.target.value)}
+            title="Filter by agent"
+            className="flex-1 min-w-0 px-2 py-1 text-[11px] bg-slate-900 border border-slate-800 rounded text-slate-300 focus:outline-none focus:border-slate-600"
+          >
+            <option value="all">All agents</option>
+            {agents.map(a => (
+              <option key={a} value={a}>{a}</option>
+            ))}
+          </select>
+          <select
+            value={sortMode}
+            onChange={e => setSortMode(e.target.value as SortMode)}
+            title="Sort"
+            className="flex-1 min-w-0 px-2 py-1 text-[11px] bg-slate-900 border border-slate-800 rounded text-slate-300 focus:outline-none focus:border-slate-600"
+          >
+            <option value="recent">Recent</option>
+            <option value="oldest">Oldest</option>
+            <option value="repo">Repo A→Z</option>
+          </select>
+          <button
+            onClick={() => setActiveOnly(v => !v)}
+            title="Show only active sessions"
+            className={`px-2 py-1 text-[11px] rounded border transition-colors flex-shrink-0 ${
+              activeOnly
+                ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300'
+                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            ● Live
+          </button>
+        </div>
       </div>
       <div className="flex-1 overflow-y-auto py-2">
         {renderGroup('active', 'Active', active, 'text-emerald-400')}
