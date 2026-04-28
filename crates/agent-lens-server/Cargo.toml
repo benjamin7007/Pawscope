@@ -1,0 +1,6 @@
+[package]
+name = "agent-lens-server"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
