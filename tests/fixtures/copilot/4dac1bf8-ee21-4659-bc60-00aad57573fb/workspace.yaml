@@ -1,0 +1,10 @@
+id: 4dac1bf8-ee21-4659-bc60-00aad57573fb
+cwd: /Users/test/repo
+git_root: /Users/test/repo
+repository: test/repo
+host_type: github
+branch: master
+summary: Building feature X
+summary_count: 0
+created_at: 2026-04-28T13:55:08.267Z
+updated_at: 2026-04-28T13:55:49.762Z
