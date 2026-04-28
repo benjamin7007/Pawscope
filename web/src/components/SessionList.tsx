@@ -144,7 +144,7 @@ export function SessionList({ items, onSelect, selected }: Props) {
   };
 
   return (
-    <aside className="w-80 border-r border-slate-800 flex flex-col bg-slate-950/50">
+    <aside className="flex-1 flex flex-col min-h-0">
       <div className="px-4 pt-4 pb-3 border-b border-slate-800">
         <div className="flex items-baseline justify-between mb-2">
           <h2 className="text-sm font-semibold text-slate-200">Sessions</h2>
