@@ -25,6 +25,16 @@ type Subagent = {
   active: boolean;
 };
 
+type Realm = {
+  name: string;
+  sessions: number;
+  active: number;
+  turns: number;
+  tool_calls: number;
+  last_event_at: string | null;
+  agents: string[];
+};
+
 type Overview = {
   total_sessions: number;
   active_sessions: number;
@@ -38,6 +48,7 @@ type Overview = {
   subagent_count?: number;
   subagent_active?: number;
   top_subagents?: Subagent[];
+  top_realms?: Realm[];
 };
 
 function HeroStat({ label, value, accent }: { label: string; value: React.ReactNode; accent?: string }) {
@@ -468,6 +479,84 @@ export function OverviewPanel({ onOpenSession }: { onOpenSession?: (id: string) 
                   </span>
                 </li>
               ))}
+            </ul>
+          </section>
+        )}
+
+        {data.top_realms && data.top_realms.length > 0 && (
+          <section className="rounded-lg bg-gradient-to-br from-amber-950/30 via-slate-900/40 to-slate-900/40 border border-amber-900/30">
+            <header className="px-4 py-2.5 border-b border-amber-900/30 flex items-baseline justify-between">
+              <h3 className="text-xs uppercase tracking-wider text-amber-300 font-semibold">
+                <span className="mr-1.5">👑</span> 君主谱 · Top realms
+              </h3>
+              <span className="text-[11px] text-slate-500">{data.top_realms.length} ranked by turns</span>
+            </header>
+            <ul>
+              {data.top_realms.map((r, i) => {
+                const rankBadge =
+                  i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`;
+                const rankColor =
+                  i === 0
+                    ? 'text-amber-300'
+                    : i === 1
+                      ? 'text-slate-300'
+                      : i === 2
+                        ? 'text-orange-400'
+                        : 'text-slate-500';
+                const isRepo = r.name.includes('/') && !r.name.startsWith('~/');
+                return (
+                  <li
+                    key={r.name}
+                    className="px-4 py-2.5 flex items-center gap-3 text-sm border-b border-slate-800/40 last:border-b-0"
+                  >
+                    <span className={`tabular-nums w-8 text-center text-base ${rankColor}`}>
+                      {rankBadge}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-slate-100 font-mono text-[13px] truncate" title={r.name}>
+                        {isRepo ? (
+                          <>
+                            <span className="text-slate-400">{r.name.split('/')[0]}/</span>
+                            <span className="text-slate-100">{r.name.split('/').slice(1).join('/')}</span>
+                          </>
+                        ) : (
+                          r.name
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        {r.agents.map(a => (
+                          <span
+                            key={a}
+                            className="w-2 h-2 rounded-full"
+                            style={{ background: AGENT_COLORS[a] ?? '#64748b' }}
+                            title={a}
+                          />
+                        ))}
+                        {r.active > 0 && (
+                          <span className="ml-1 inline-flex items-center gap-1 text-[10px] text-emerald-300">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            {r.active} active
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 flex-shrink-0 text-xs tabular-nums">
+                      <span className="text-right">
+                        <div className="text-slate-200 font-semibold">{r.sessions}</div>
+                        <div className="text-[10px] text-slate-600">sessions</div>
+                      </span>
+                      <span className="text-right">
+                        <div className="text-amber-300 font-semibold">{r.turns.toLocaleString()}</div>
+                        <div className="text-[10px] text-slate-600">turns</div>
+                      </span>
+                      <span className="text-right">
+                        <div className="text-violet-300 font-semibold">{r.tool_calls.toLocaleString()}</div>
+                        <div className="text-[10px] text-slate-600">tools</div>
+                      </span>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           </section>
         )}
