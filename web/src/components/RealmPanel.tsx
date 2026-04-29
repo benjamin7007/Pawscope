@@ -231,6 +231,69 @@ export function RealmPanel({
           </div>
         </section>
 
+        {data.subagents.length > 0 && (
+          <section className="rounded-lg bg-slate-900/40 border border-slate-800">
+            <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
+              <h3 className="text-xs uppercase tracking-wider text-slate-400">Top subagents</h3>
+              <span className="text-[11px] text-slate-500">
+                {data.subagents.length} dispatch{data.subagents.length === 1 ? '' : 'es'}
+                {' · '}
+                {data.subagents.filter(s => s.active).length} active
+              </span>
+            </header>
+            <ul className="divide-y divide-slate-800/60">
+              {(() => {
+                const groups = new Map<string, { type: string; count: number; turns: number; tool_calls: number; active: number; sample: string | null }>();
+                for (const s of data.subagents) {
+                  const key = s.agent_type || 'unknown';
+                  const g = groups.get(key) ?? { type: key, count: 0, turns: 0, tool_calls: 0, active: 0, sample: null };
+                  g.count += 1;
+                  g.turns += s.turns;
+                  g.tool_calls += s.tool_calls;
+                  if (s.active) g.active += 1;
+                  if (!g.sample && s.description) g.sample = s.description;
+                  groups.set(key, g);
+                }
+                const rows = [...groups.values()].sort((a, b) => b.tool_calls - a.tool_calls || b.turns - a.turns).slice(0, 10);
+                const maxTools = Math.max(1, ...rows.map(r => r.tool_calls));
+                return rows.map(r => (
+                  <li key={r.type} className="px-4 py-2.5 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 items-center">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-sm text-indigo-200 truncate">{r.type}</span>
+                        <span className="text-[11px] text-slate-500 tabular-nums">×{r.count}</span>
+                        {r.active > 0 && (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-emerald-300">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            {r.active} live
+                          </span>
+                        )}
+                      </div>
+                      {r.sample && (
+                        <div className="text-[11px] text-slate-500 truncate mt-0.5" title={r.sample}>
+                          {r.sample}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 text-[11px] tabular-nums">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-20 h-1.5 rounded bg-slate-800 overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-indigo-500 to-violet-400"
+                            style={{ width: `${(r.tool_calls / maxTools) * 100}%` }}
+                          />
+                        </div>
+                        <span className="text-slate-300 w-12 text-right">{r.tool_calls.toLocaleString()}</span>
+                      </div>
+                      <span className="text-slate-500 w-14 text-right">{r.turns.toLocaleString()} turns</span>
+                    </div>
+                  </li>
+                ));
+              })()}
+            </ul>
+          </section>
+        )}
+
         <section className="rounded-lg bg-slate-900/40 border border-slate-800">
           <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
             <h3 className="text-xs uppercase tracking-wider text-slate-400">Sessions in this realm</h3>
