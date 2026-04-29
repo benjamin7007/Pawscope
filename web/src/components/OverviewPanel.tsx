@@ -1,5 +1,17 @@
 import { useEffect, useState } from 'react';
-import { fetchOverview, fetchActivity, fetchActivityGrid } from '../api';
+import { fetchOverview, fetchActivity, fetchActivityGrid, fetchSessions } from '../api';
+
+type Session = {
+  id: string;
+  agent: string;
+  cwd: string;
+  repo: string | null;
+  branch: string | null;
+  summary: string;
+  model: string | null;
+  status: string;
+  last_event_at: string;
+};
 
 type Subagent = {
   session_id: string;
@@ -253,10 +265,75 @@ function ActivityHeatmap({ buckets }: { buckets: number[] }) {
   );
 }
 
+function LiveTicker({ sessions }: { sessions: Session[] }) {
+  if (sessions.length === 0) return null;
+  return (
+    <section className="rounded-lg bg-slate-900/40 border border-slate-800 overflow-hidden">
+      <header className="px-4 py-2 border-b border-slate-800 flex items-center gap-2">
+        <span className="relative flex h-2 w-2">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
+        </span>
+        <h3 className="text-xs uppercase tracking-wider text-emerald-300 font-semibold">LIVE</h3>
+        <span className="text-[11px] text-slate-500">{sessions.length} active now</span>
+      </header>
+      <div className="px-4 py-3 flex gap-3 overflow-x-auto">
+        {sessions.map(s => (
+          <div
+            key={s.id}
+            className="flex-shrink-0 min-w-[260px] max-w-[320px] rounded-md bg-slate-900/70 border border-slate-700 px-3 py-2.5"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <span
+                className="px-1.5 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider"
+                style={{
+                  background: `${AGENT_COLORS[s.agent] ?? '#64748b'}22`,
+                  color: AGENT_COLORS[s.agent] ?? '#94a3b8',
+                  border: `1px solid ${AGENT_COLORS[s.agent] ?? '#64748b'}55`,
+                }}
+              >
+                {s.agent}
+              </span>
+              {s.model && (
+                <span className="text-[10px] text-slate-500 font-mono truncate">{s.model}</span>
+              )}
+              <span className="ml-auto text-[10px] text-slate-500" title={new Date(s.last_event_at).toLocaleString()}>
+                {tickerAgo(s.last_event_at)}
+              </span>
+            </div>
+            <div className="text-sm text-slate-200 truncate" title={s.summary || s.id}>
+              {s.summary || <span className="font-mono text-xs text-slate-500">{s.id.slice(0, 12)}</span>}
+            </div>
+            {(s.repo || s.branch) && (
+              <div className="text-[11px] text-slate-500 mt-0.5 truncate">
+                {s.repo && <span className="font-mono">{s.repo}</span>}
+                {s.repo && s.branch && <span className="text-slate-700"> · </span>}
+                {s.branch && <span className="text-slate-400">{s.branch}</span>}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function tickerAgo(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  const s = Math.floor(ms / 1000);
+  if (s < 5) return 'just now';
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m`;
+  return `${Math.floor(m / 60)}h`;
+}
+
 export function OverviewPanel() {
   const [data, setData] = useState<Overview | null>(null);
   const [activity, setActivity] = useState<number[] | null>(null);
   const [grid, setGrid] = useState<number[][] | null>(null);
+  const [active, setActive] = useState<Session[]>([]);
+  const [, forceTick] = useState(0);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
@@ -272,11 +349,21 @@ export function OverviewPanel() {
         .then(d => !cancelled && setGrid(d.grid ?? null))
         .catch(() => {});
     };
+    const loadActive = () => {
+      fetchSessions()
+        .then((s: Session[]) => !cancelled && setActive(s.filter(x => x.status === 'active')))
+        .catch(() => {});
+    };
     load();
+    loadActive();
     const t = setInterval(load, 15000);
+    const ta = setInterval(loadActive, 5000);
+    const tick = setInterval(() => forceTick(v => v + 1), 1000);
     return () => {
       cancelled = true;
       clearInterval(t);
+      clearInterval(ta);
+      clearInterval(tick);
     };
   }, []);
 
@@ -301,6 +388,7 @@ export function OverviewPanel() {
       </header>
 
       <div className="p-6 space-y-6">
+        <LiveTicker sessions={active} />
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <HeroStat label="Sessions" value={data.total_sessions} />
           <HeroStat
