@@ -94,6 +94,123 @@ pub struct SessionDetail {
     pub tokens_in: u64,
     #[serde(default)]
     pub tokens_out: u64,
+    /// Structured agent ↔ LLM ↔ tool conversation log. Populated only by
+    /// adapters that support the full flow (Copilot in v0.6). Not exposed
+    /// on summary-flavored API responses to keep payloads small; the
+    /// `/api/sessions/:id/conversation` endpoint serves the full log.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub conversation: Option<ConversationLog>,
+}
+
+// ============================================================================
+// Conversation flow (v0.6) — Copilot only for now.
+// ============================================================================
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ConversationLog {
+    /// Monotonically increasing version, bumped on each mutation. Used by
+    /// WebSocket clients to detect missed updates and request resync via
+    /// `/api/sessions/:id/conversation?since_version=N`.
+    pub version: u64,
+    #[serde(default)]
+    pub system_prompts: Vec<SystemPromptMarker>,
+    #[serde(default)]
+    pub compaction_markers: Vec<CompactionMarker>,
+    #[serde(default)]
+    pub interactions: Vec<Interaction>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SystemPromptMarker {
+    pub at: DateTime<Utc>,
+    pub content: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompactionMarker {
+    pub started_at: DateTime<Utc>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub completed_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum UserMessageKind {
+    /// A genuine human-typed message.
+    Human,
+    /// Synthetic context injected by the runtime (skill loads, reminders,
+    /// system notifications). The user did not type these.
+    InjectedContext,
+}
+
+impl Default for UserMessageKind {
+    fn default() -> Self { Self::Human }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Interaction {
+    pub interaction_id: String,
+    pub started_at: DateTime<Utc>,
+    #[serde(default)]
+    pub kind: UserMessageKind,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub user_message_raw: Option<String>,
+    /// What the LLM actually received (datetime + reminders injected).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub user_message_transformed: Option<String>,
+    #[serde(default)]
+    pub turns: Vec<AssistantTurn>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AssistantTurn {
+    pub turn_id: String,
+    pub started_at: DateTime<Utc>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub completed_at: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub items: Vec<TurnItem>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum TurnItem {
+    AssistantMessage {
+        at: DateTime<Utc>,
+        content: String,
+    },
+    Tool(TurnToolCall),
+    Subagent(SubagentScope),
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct TurnToolCall {
+    pub call_id: String,
+    pub name: String,
+    pub at: DateTime<Utc>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub args_summary: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub result_snippet: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub success: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SubagentScope {
+    pub subagent_id: String,
+    pub started_at: DateTime<Utc>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub completed_at: Option<DateTime<Utc>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_type: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub task: Option<String>,
+    /// Tool calls and assistant messages emitted while the subagent ran.
+    #[serde(default)]
+    pub items: Vec<TurnItem>,
 }
 
 #[cfg(test)]

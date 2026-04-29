@@ -1,7 +1,7 @@
 //! Fan-out adapter that combines multiple `AgentAdapter`s into one.
 
 use async_trait::async_trait;
-use pawscope_core::{AgentAdapter, Result, SessionDetail, SessionEvent, SessionMeta};
+use pawscope_core::{AgentAdapter, ConversationLog, Result, SessionDetail, SessionEvent, SessionMeta};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -92,6 +92,15 @@ impl AgentAdapter for MultiAdapter {
             }
         }
         Ok(grid)
+    }
+
+    async fn get_conversation(&self, session_id: &str) -> Result<Option<ConversationLog>> {
+        for a in &self.adapters {
+            if let Ok(Some(c)) = a.get_conversation(session_id).await {
+                return Ok(Some(c));
+            }
+        }
+        Ok(None)
     }
 }
 

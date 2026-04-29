@@ -23,6 +23,31 @@ pub async fn get_detail(Path(id): Path<String>, State(s): State<AppState>) -> im
     }
 }
 
+#[derive(Deserialize)]
+pub struct ConversationQuery {
+    /// If provided, the server may omit interactions/turns at or below this
+    /// version when sending deltas. v1 always returns the full log;
+    /// `since_version` is reserved for future delta optimisations.
+    #[serde(default)]
+    pub since_version: Option<u64>,
+}
+
+pub async fn get_conversation(
+    Path(id): Path<String>,
+    Query(_q): Query<ConversationQuery>,
+    State(s): State<AppState>,
+) -> impl IntoResponse {
+    match s.adapter.get_conversation(&id).await {
+        Ok(Some(c)) => Json(c).into_response(),
+        Ok(None) => (
+            StatusCode::NOT_FOUND,
+            "conversation log not available for this adapter",
+        )
+            .into_response(),
+        Err(e) => (StatusCode::NOT_FOUND, e.to_string()).into_response(),
+    }
+}
+
 pub async fn sessions_tokens(State(s): State<AppState>) -> impl IntoResponse {
     let sessions = match s.adapter.list_sessions().await {
         Ok(v) => v,
