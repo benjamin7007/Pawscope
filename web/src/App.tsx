@@ -70,7 +70,7 @@ export default function App() {
         <SessionList items={sessions} onSelect={setSelected} selected={selected} />
       </div>
       {view === 'overview' ? (
-        <OverviewPanel />
+        <OverviewPanel onOpenSession={setSelected} />
       ) : (
         <SessionDetail meta={sessions.find(s => s.id === selected)} detail={detail} />
       )}

@@ -265,7 +265,7 @@ function ActivityHeatmap({ buckets }: { buckets: number[] }) {
   );
 }
 
-function LiveTicker({ sessions }: { sessions: Session[] }) {
+function LiveTicker({ sessions, onOpen }: { sessions: Session[]; onOpen?: (id: string) => void }) {
   if (sessions.length === 0) return null;
   return (
     <section className="rounded-lg bg-slate-900/40 border border-slate-800 overflow-hidden">
@@ -279,9 +279,11 @@ function LiveTicker({ sessions }: { sessions: Session[] }) {
       </header>
       <div className="px-4 py-3 flex gap-3 overflow-x-auto">
         {sessions.map(s => (
-          <div
+          <button
             key={s.id}
-            className="flex-shrink-0 min-w-[260px] max-w-[320px] rounded-md bg-slate-900/70 border border-slate-700 px-3 py-2.5"
+            type="button"
+            onClick={() => onOpen?.(s.id)}
+            className="flex-shrink-0 min-w-[260px] max-w-[320px] text-left rounded-md bg-slate-900/70 border border-slate-700 px-3 py-2.5 cursor-pointer transition-colors hover:bg-slate-800/80 hover:border-emerald-500/50"
           >
             <div className="flex items-center gap-2 mb-1">
               <span
@@ -311,7 +313,7 @@ function LiveTicker({ sessions }: { sessions: Session[] }) {
                 {s.branch && <span className="text-slate-400">{s.branch}</span>}
               </div>
             )}
-          </div>
+          </button>
         ))}
       </div>
     </section>
@@ -328,7 +330,7 @@ function tickerAgo(iso: string): string {
   return `${Math.floor(m / 60)}h`;
 }
 
-export function OverviewPanel() {
+export function OverviewPanel({ onOpenSession }: { onOpenSession?: (id: string) => void } = {}) {
   const [data, setData] = useState<Overview | null>(null);
   const [activity, setActivity] = useState<number[] | null>(null);
   const [grid, setGrid] = useState<number[][] | null>(null);
@@ -398,7 +400,7 @@ export function OverviewPanel() {
       </header>
 
       <div className="p-6 space-y-6">
-        <LiveTicker sessions={active} />
+        <LiveTicker sessions={active} onOpen={onOpenSession} />
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <HeroStat label="Sessions" value={data.total_sessions} />
           <HeroStat
