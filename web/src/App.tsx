@@ -5,10 +5,13 @@ import { SessionList } from './components/SessionList';
 import { SessionDetail } from './components/SessionDetail';
 import { OverviewPanel } from './components/OverviewPanel';
 import { RealmPanel } from './components/RealmPanel';
+import { LangToggle } from './components/LangToggle';
+import { useT } from './i18n';
 
 type View = 'overview' | 'session' | 'realm';
 
 export default function App() {
+  const { t } = useT();
   const [sessions, setSessions] = useState<any[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [detail, setDetail] = useState<any>(null);
@@ -52,7 +55,7 @@ export default function App() {
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
             }`}
           >
-            ◇ Overview
+            {t('nav.overview')}
           </button>
           <button
             onClick={() => setView('session')}
@@ -62,13 +65,16 @@ export default function App() {
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
             }`}
           >
-            ⌖ Session
+            {t('nav.session')}
             {activeCount > 0 && (
               <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px]">
                 {activeCount}
               </span>
             )}
           </button>
+          <div className="px-2 flex items-center border-l border-slate-800">
+            <LangToggle />
+          </div>
         </nav>
         <SessionList
           items={sessions}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { fetchRealm, subscribeEvents } from '../api';
+import { useT } from '../i18n';
 
 const AGENT_COLORS: Record<string, string> = {
   copilot: '#34d399',
@@ -103,10 +104,13 @@ function bucketDowHour(hourly: number[]): { grid: number[][]; max: number; total
 }
 
 function Heatmap({ hourly }: { hourly: number[] }) {
+  const { t, lang } = useT();
   const { grid, max, total } = bucketDowHour(hourly);
-  const dows = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const dows = lang === 'zh'
+    ? ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+    : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   if (total === 0) {
-    return <div className="text-xs text-slate-600 py-4 text-center">No activity in last 14 days</div>;
+    return <div className="text-xs text-slate-600 py-4 text-center">{t('heat.no_activity')}</div>;
   }
   return (
     <div className="text-[10px]">
@@ -122,16 +126,16 @@ function Heatmap({ hourly }: { hourly: number[] }) {
         ))}
       </div>
       <div className="flex items-center justify-end gap-1.5 mt-2 text-slate-500">
-        <span>less</span>
-        {[0.05, 0.2, 0.4, 0.7, 1].map(t => (
+        <span>{t('heat.less')}</span>
+        {[0.05, 0.2, 0.4, 0.7, 1].map(level => (
           <div
-            key={t}
+            key={level}
             className="w-3 h-3 rounded-sm"
-            style={{ background: `rgba(251, 191, 36, ${t})` }}
+            style={{ background: `rgba(251, 191, 36, ${level})` }}
           />
         ))}
-        <span>more</span>
-        <span className="ml-3 text-slate-400 tabular-nums">peak {max.toLocaleString()}/h</span>
+        <span>{t('heat.more')}</span>
+        <span className="ml-3 text-slate-400 tabular-nums">{t('heat.peak')} {max.toLocaleString()}/h</span>
       </div>
     </div>
   );
@@ -170,6 +174,7 @@ export function RealmPanel({
 }) {
   const [data, setData] = useState<RealmDetail | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const { t } = useT();
 
   useEffect(() => {
     let cancelled = false;
@@ -179,7 +184,7 @@ export function RealmPanel({
         .catch(e => !cancelled && setErr(String(e)));
     };
     load();
-    const t = setInterval(load, 15000);
+    const timer = setInterval(load, 15000);
     const unsub = subscribeEvents(ev => {
       if (cancelled) return;
       if (ev.kind === 'session_list_changed' || ev.kind === 'detail_updated' || ev.kind === 'closed') {
@@ -188,13 +193,13 @@ export function RealmPanel({
     });
     return () => {
       cancelled = true;
-      clearInterval(t);
+      clearInterval(timer);
       unsub();
     };
   }, [name]);
 
   if (err) return <main className="flex-1 p-8 text-rose-400 text-sm">{err}</main>;
-  if (!data) return <main className="flex-1 p-8 text-slate-500 text-sm">Loading realm…</main>;
+  if (!data) return <main className="flex-1 p-8 text-slate-500 text-sm">{t('realm.loading')}</main>;
 
   const daily = aggregateDaily(data.activity_336h);
   const thisWeek = daily.slice(7).reduce((a, b) => a + b, 0);
@@ -208,7 +213,7 @@ export function RealmPanel({
           onClick={onBack}
           className="text-[11px] text-slate-500 hover:text-slate-300 mb-2 inline-flex items-center gap-1"
         >
-          ← back to overview
+          {t('realm.back')}
         </button>
         <div className="flex items-baseline gap-3">
           <span className="text-2xl">👑</span>
@@ -236,28 +241,28 @@ export function RealmPanel({
       <div className="p-6 space-y-6">
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="rounded-lg bg-slate-900/70 border border-slate-800 px-5 py-4">
-            <div className="text-[10px] uppercase tracking-wider text-slate-500">Sessions</div>
+            <div className="text-[10px] uppercase tracking-wider text-slate-500">{t('stat.sessions')}</div>
             <div className="text-3xl font-semibold mt-1 tabular-nums text-slate-100">{data.total_sessions}</div>
           </div>
           <div className="rounded-lg bg-slate-900/70 border border-slate-800 px-5 py-4">
-            <div className="text-[10px] uppercase tracking-wider text-slate-500">Turns</div>
+            <div className="text-[10px] uppercase tracking-wider text-slate-500">{t('stat.turns')}</div>
             <div className="text-3xl font-semibold mt-1 tabular-nums text-amber-300">{data.total_turns.toLocaleString()}</div>
           </div>
           <div className="rounded-lg bg-slate-900/70 border border-slate-800 px-5 py-4">
-            <div className="text-[10px] uppercase tracking-wider text-slate-500">Tool calls</div>
+            <div className="text-[10px] uppercase tracking-wider text-slate-500">{t('stat.tool_calls')}</div>
             <div className="text-3xl font-semibold mt-1 tabular-nums text-violet-300">{data.total_tool_calls.toLocaleString()}</div>
           </div>
           <div className="rounded-lg bg-slate-900/70 border border-slate-800 px-5 py-4">
-            <div className="text-[10px] uppercase tracking-wider text-slate-500">Subagents</div>
+            <div className="text-[10px] uppercase tracking-wider text-slate-500">{t('stat.subagents')}</div>
             <div className="text-3xl font-semibold mt-1 tabular-nums text-indigo-300">{data.subagents.length}</div>
           </div>
         </section>
 
         <section className="rounded-lg bg-slate-900/40 border border-slate-800 p-4">
           <header className="flex items-baseline justify-between mb-2">
-            <h3 className="text-xs uppercase tracking-wider text-slate-400">14-day activity (turns)</h3>
+            <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.activity14')}</h3>
             <span className="text-[11px] text-slate-500">
-              this 7d: <span className="text-emerald-300">{thisWeek.toLocaleString()}</span> · prev 7d:{' '}
+              {t('realm.this7d')}: <span className="text-emerald-300">{thisWeek.toLocaleString()}</span> · {t('realm.prev7d')}:{' '}
               <span className="text-slate-300">{prevWeek.toLocaleString()}</span>
             </span>
           </header>
@@ -273,8 +278,8 @@ export function RealmPanel({
 
         <section className="rounded-lg bg-slate-900/40 border border-slate-800 p-4">
           <header className="flex items-baseline justify-between mb-3">
-            <h3 className="text-xs uppercase tracking-wider text-slate-400">Activity heatmap (14 days · weekday × hour)</h3>
-            <span className="text-[11px] text-slate-500">your local time</span>
+            <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.heatmap')}</h3>
+            <span className="text-[11px] text-slate-500">{t('heat.local_time')}</span>
           </header>
           <Heatmap hourly={data.activity_336h} />
         </section>
@@ -282,7 +287,7 @@ export function RealmPanel({
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="rounded-lg bg-slate-900/40 border border-slate-800">
             <header className="px-4 py-2.5 border-b border-slate-800">
-              <h3 className="text-xs uppercase tracking-wider text-slate-400">Top tools</h3>
+              <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.top_tools')}</h3>
             </header>
             <ul className="p-3 space-y-1.5">
               {data.tools_used.slice(0, 12).map(([k, v]) => (
@@ -301,7 +306,7 @@ export function RealmPanel({
           </div>
           <div className="rounded-lg bg-slate-900/40 border border-slate-800">
             <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
-              <h3 className="text-xs uppercase tracking-wider text-slate-400">Skills invoked</h3>
+              <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.skills_invoked')}</h3>
               <span className="text-[11px] text-slate-500">{data.skills_invoked.length}</span>
             </header>
             <ul className="p-3 flex flex-wrap gap-1.5">
@@ -321,9 +326,9 @@ export function RealmPanel({
         {data.subagents.length > 0 && (
           <section className="rounded-lg bg-slate-900/40 border border-slate-800">
             <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
-              <h3 className="text-xs uppercase tracking-wider text-slate-400">Top subagents</h3>
+              <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.top_subagents')}</h3>
               <span className="text-[11px] text-slate-500">
-                {data.subagents.length} dispatch{data.subagents.length === 1 ? '' : 'es'}
+                {data.subagents.length} {data.subagents.length === 1 ? t('misc.dispatch') : t('misc.dispatches')}
                 {' · '}
                 {data.subagents.filter(s => s.active).length} active
               </span>
@@ -383,7 +388,7 @@ export function RealmPanel({
 
         <section className="rounded-lg bg-slate-900/40 border border-slate-800">
           <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
-            <h3 className="text-xs uppercase tracking-wider text-slate-400">Sessions in this realm</h3>
+            <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.sessions_in_realm')}</h3>
             <span className="text-[11px] text-slate-500">{data.sessions.length} total</span>
           </header>
           <ul className="divide-y divide-slate-800/60">
