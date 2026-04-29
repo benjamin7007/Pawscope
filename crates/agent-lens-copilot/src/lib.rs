@@ -82,6 +82,9 @@ impl AgentAdapter for CopilotAdapter {
 
     async fn get_detail(&self, session_id: &str) -> Result<SessionDetail> {
         let path = self.root.join(session_id).join("events.jsonl");
+        if !path.exists() {
+            return Err(CoreError::NotFound(session_id.to_string()));
+        }
         let mut guard = self.state.write().unwrap();
         let st = guard.entry(session_id.to_string()).or_default();
         let _ = events::parse_incremental(&path, st);
