@@ -12,6 +12,7 @@ import { SidebarResizer } from './components/SidebarResizer';
 import { ProgressBar } from './components/ProgressBar';
 import { ToastContainer } from './components/ToastContainer';
 import { Breadcrumbs } from './components/Breadcrumbs';
+import { CommandPalette } from './components/CommandPalette';
 import { LangToggle } from './components/LangToggle';
 import { ThemeToggle } from './components/ThemeToggle';
 import { useT } from './i18n';
@@ -36,6 +37,7 @@ export default function App() {
   const [pendingCategory, setPendingCategory] = useState<{ name: string; n: number } | null>(null);
   const [labels, setLabels] = useState<LabelMap>({});
   const [history, setHistory] = useState<ViewSnapshot[]>([]);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
     const v = parseInt(localStorage.getItem('pawscope.sidebarWidth') ?? '', 10);
     return Number.isFinite(v) && v >= 280 && v <= 720 ? v : 384;
@@ -72,6 +74,18 @@ export default function App() {
     });
     return () => ws.close();
   }, [selected]);
+
+  // Cmd/Ctrl+K opens command palette globally.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setPaletteOpen(o => !o);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   // Fetch detail when `selected` changes (route to session view is handled by navigate()).
   useEffect(() => {
@@ -208,6 +222,12 @@ export default function App() {
             {t('nav.prompts')}
           </button>
           <div className="px-2 flex items-center gap-1 border-l border-slate-800">
+            <button
+              type="button"
+              onClick={() => setPaletteOpen(true)}
+              title={t('palette.tooltip')}
+              className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[10px] text-slate-400 hover:text-slate-200 font-mono"
+            >⌘K</button>
             <ThemeToggle />
             <LangToggle />
           </div>
@@ -272,6 +292,16 @@ export default function App() {
           )}
         </div>
       </main>
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        sessions={sessions}
+        onOpenSession={(id) => selectSession(id)}
+        onOpenSkill={(name) => {
+          setPendingSkill(p => ({ name, n: (p?.n ?? 0) + 1 }));
+          navigate({ view: 'skills' });
+        }}
+      />
     </div>
   );
 }
