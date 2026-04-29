@@ -966,20 +966,13 @@ export function SessionDetail({ meta, detail, onOpenSkill, label, onSetLabel, on
                   ? 'text-cyan-300 border-cyan-400 bg-slate-900/60'
                   : 'text-slate-400 border-transparent hover:text-slate-200'
               }`}
-              disabled={meta.agent !== 'copilot'}
-              title={meta.agent !== 'copilot' ? t('flow.copilot_only') : ''}
             >
               {t('tab.conversation')}
-              {meta.agent !== 'copilot' && <span className="ml-1 text-[9px] text-slate-600">(copilot)</span>}
             </button>
           </nav>
 
           {tab === 'conversation' ? (
-            meta.agent === 'copilot' ? (
-              <ConversationFlow sessionId={meta.id} />
-            ) : (
-              <div className="px-6 py-8 text-sm text-slate-500">{t('flow.copilot_only')}</div>
-            )
+            <ConversationFlow sessionId={meta.id} />
           ) : (
         <div className="p-6 space-y-6">
           <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
