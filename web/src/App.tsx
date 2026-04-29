@@ -38,6 +38,7 @@ export default function App() {
   const [labels, setLabels] = useState<LabelMap>({});
   const [history, setHistory] = useState<ViewSnapshot[]>([]);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [tokensMap, setTokensMap] = useState<Record<string, { in: number; out: number }>>({});
   const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
     const v = parseInt(localStorage.getItem('pawscope.sidebarWidth') ?? '', 10);
     return Number.isFinite(v) && v >= 280 && v <= 720 ? v : 384;
@@ -62,6 +63,7 @@ export default function App() {
 
   useEffect(() => {
     fetchSessions().then(setSessions);
+    fetch('/api/sessions/tokens').then(r => r.ok ? r.json() : {}).then(setTokensMap).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -240,6 +242,7 @@ export default function App() {
           onClearRealmFilter={() => setRealmFilter(null)}
           labels={labels}
           onToggleStar={toggleStar}
+          tokensMap={tokensMap}
         />
       </div>
       <SidebarResizer onResize={setSidebarWidth} />
