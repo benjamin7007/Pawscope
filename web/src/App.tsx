@@ -4,8 +4,9 @@ import { fetchSessions, fetchDetail, connectWs } from './api';
 import { SessionList } from './components/SessionList';
 import { SessionDetail } from './components/SessionDetail';
 import { OverviewPanel } from './components/OverviewPanel';
+import { RealmPanel } from './components/RealmPanel';
 
-type View = 'overview' | 'session';
+type View = 'overview' | 'session' | 'realm';
 
 export default function App() {
   const [sessions, setSessions] = useState<any[]>([]);
@@ -13,6 +14,7 @@ export default function App() {
   const [detail, setDetail] = useState<any>(null);
   const [view, setView] = useState<View>('overview');
   const [realmFilter, setRealmFilter] = useState<string | null>(null);
+  const [realmPage, setRealmPage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSessions().then(setSessions);
@@ -80,9 +82,17 @@ export default function App() {
         <OverviewPanel
           onOpenSession={setSelected}
           onOpenRealm={(name: string) => {
-            setRealmFilter(name);
-            setSelected(null);
-            setView('session');
+            setRealmPage(name);
+            setView('realm');
+          }}
+        />
+      ) : view === 'realm' && realmPage ? (
+        <RealmPanel
+          name={realmPage}
+          onOpenSession={setSelected}
+          onBack={() => {
+            setRealmPage(null);
+            setView('overview');
           }}
         />
       ) : (

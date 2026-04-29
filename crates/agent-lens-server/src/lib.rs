@@ -29,6 +29,7 @@ pub fn build_app(adapter: Arc<dyn AgentAdapter>) -> (Router, AppState) {
         .route("/api/overview", get(api::overview))
         .route("/api/activity", get(api::activity))
         .route("/api/activity/grid", get(api::activity_grid))
+        .route("/api/realms", get(api::realm_detail))
         .route("/api/events", get(sse::sse_handler))
         .route("/ws", get(ws::ws_handler))
         .fallback(assets::static_handler)

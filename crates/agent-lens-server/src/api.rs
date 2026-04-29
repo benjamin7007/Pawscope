@@ -227,3 +227,148 @@ pub async fn overview(State(s): State<AppState>) -> impl IntoResponse {
     }))
     .into_response()
 }
+
+#[derive(serde::Deserialize)]
+pub struct RealmQuery {
+    pub name: String,
+}
+
+pub async fn realm_detail(
+    axum::extract::Query(q): axum::extract::Query<RealmQuery>,
+    State(s): State<AppState>,
+) -> impl IntoResponse {
+    use std::collections::BTreeMap;
+    let target = q.name;
+    let sessions = match s.adapter.list_sessions().await {
+        Ok(v) => v,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    };
+
+    let realm_key = |sess: &agent_lens_core::SessionMeta| -> String {
+        sess.repo.clone().unwrap_or_else(|| {
+            sess.cwd
+                .file_name()
+                .and_then(|s| s.to_str())
+                .map(|s| format!("~/{}", s))
+                .unwrap_or_else(|| sess.cwd.display().to_string())
+        })
+    };
+
+    let in_realm: Vec<_> = sessions
+        .iter()
+        .filter(|s| realm_key(s) == target)
+        .cloned()
+        .collect();
+    if in_realm.is_empty() {
+        return (
+            StatusCode::NOT_FOUND,
+            format!("realm not found: {}", target),
+        )
+            .into_response();
+    }
+
+    let mut total_turns: u64 = 0;
+    let mut total_tools: u64 = 0;
+    let mut tools_used: HashMap<String, u64> = HashMap::new();
+    let mut skills_invoked: HashMap<String, u64> = HashMap::new();
+    let mut activity_336 = vec![0u64; 336];
+    let mut subagents: Vec<serde_json::Value> = Vec::new();
+    let mut session_summaries: Vec<serde_json::Value> = Vec::new();
+
+    let mut handles = Vec::new();
+    for sess in &in_realm {
+        let adapter = s.adapter.clone();
+        let id = sess.id.clone();
+        handles.push(tokio::spawn(async move {
+            let detail = adapter.get_detail(&id).await;
+            let activity = adapter.session_activity_hourly(&id, 336).await.ok();
+            (id, detail, activity)
+        }));
+    }
+    let mut detail_map: BTreeMap<String, agent_lens_core::SessionDetail> = BTreeMap::new();
+    let mut activity_map: BTreeMap<String, Vec<u64>> = BTreeMap::new();
+    for h in handles {
+        if let Ok((sid, Ok(d), act)) = h.await {
+            if let Some(buckets) = &act {
+                if buckets.len() == 336 {
+                    for (i, v) in buckets.iter().enumerate() {
+                        activity_336[i] += v;
+                    }
+                }
+            }
+            total_turns += d.turns as u64;
+            for (k, v) in &d.tools_used {
+                *tools_used.entry(k.clone()).or_default() += *v as u64;
+                total_tools += *v as u64;
+            }
+            for k in &d.skills_invoked {
+                *skills_invoked.entry(k.clone()).or_default() += 1;
+            }
+            for sa in &d.subagents {
+                subagents.push(serde_json::json!({
+                    "session_id": sid,
+                    "id": sa.id,
+                    "turns": sa.turns,
+                    "tool_calls": sa.tool_calls,
+                    "agent_type": sa.agent_type,
+                    "description": sa.description,
+                    "active": sa.active,
+                }));
+            }
+            detail_map.insert(sid.clone(), d);
+            if let Some(a) = act {
+                activity_map.insert(sid, a);
+            }
+        }
+    }
+
+    for sess in &in_realm {
+        let d = detail_map.get(&sess.id);
+        session_summaries.push(serde_json::json!({
+            "id": sess.id,
+            "agent": sess.agent,
+            "summary": sess.summary,
+            "branch": sess.branch,
+            "status": sess.status,
+            "model": sess.model,
+            "started_at": sess.started_at,
+            "last_event_at": sess.last_event_at,
+            "turns": d.map(|x| x.turns).unwrap_or(0),
+            "tool_calls": d.map(|x| x.tools_used.values().map(|&v| v as u64).sum::<u64>()).unwrap_or(0),
+        }));
+    }
+
+    let mut tools_sorted: Vec<_> = tools_used.into_iter().collect();
+    tools_sorted.sort_by(|a, b| b.1.cmp(&a.1));
+    let mut skills_sorted: Vec<_> = skills_invoked.into_iter().collect();
+    skills_sorted.sort_by(|a, b| b.1.cmp(&a.1));
+    subagents.sort_by(|a, b| {
+        let ta = a.get("turns").and_then(|x| x.as_u64()).unwrap_or(0);
+        let tb = b.get("turns").and_then(|x| x.as_u64()).unwrap_or(0);
+        tb.cmp(&ta)
+    });
+
+    let agents: std::collections::BTreeSet<_> = in_realm
+        .iter()
+        .map(|s| {
+            serde_json::to_value(s.agent)
+                .ok()
+                .and_then(|v| v.as_str().map(|x| x.to_string()))
+                .unwrap_or_default()
+        })
+        .collect();
+
+    Json(serde_json::json!({
+        "name": target,
+        "agents": agents.into_iter().collect::<Vec<_>>(),
+        "total_sessions": in_realm.len(),
+        "total_turns": total_turns,
+        "total_tool_calls": total_tools,
+        "tools_used": tools_sorted.into_iter().take(15).collect::<Vec<_>>(),
+        "skills_invoked": skills_sorted.into_iter().collect::<Vec<_>>(),
+        "subagents": subagents.into_iter().take(10).collect::<Vec<_>>(),
+        "activity_336h": activity_336,
+        "sessions": session_summaries,
+    }))
+    .into_response()
+}

@@ -19,6 +19,12 @@ export async function fetchActivityGrid() {
   return r.json();
 }
 
+export async function fetchRealm(name: string) {
+  const r = await fetch(`/api/realms?name=${encodeURIComponent(name)}`);
+  if (!r.ok) throw new Error(`realm fetch ${r.status}`);
+  return r.json();
+}
+
 export type SessionEventMsg =
   | { kind: 'session_list_changed' }
   | { kind: 'detail_updated'; session_id: string; detail: unknown }
