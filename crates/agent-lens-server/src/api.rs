@@ -79,6 +79,7 @@ pub async fn overview(State(s): State<AppState>) -> impl IntoResponse {
         sessions_prev_week: u64,
         turns_this_week: u64,
         turns_prev_week: u64,
+        daily14: [u64; 14],
         last_event_at: Option<chrono::DateTime<chrono::Utc>>,
         agents: std::collections::BTreeSet<String>,
     }
@@ -144,6 +145,13 @@ pub async fn overview(State(s): State<AppState>) -> impl IntoResponse {
                             let this: u64 = buckets[168..336].iter().sum();
                             r.turns_this_week += this;
                             r.turns_prev_week += prev;
+                            for d in 0..14 {
+                                let mut s = 0u64;
+                                for h in 0..24 {
+                                    s += buckets[d * 24 + h];
+                                }
+                                r.daily14[d] += s;
+                            }
                         }
                     }
                 }
@@ -187,6 +195,7 @@ pub async fn overview(State(s): State<AppState>) -> impl IntoResponse {
                 "sessions_prev_week": r.sessions_prev_week,
                 "turns_this_week": r.turns_this_week,
                 "turns_prev_week": r.turns_prev_week,
+                "daily14": r.daily14,
                 "last_event_at": r.last_event_at,
                 "agents": r.agents.into_iter().collect::<Vec<_>>(),
             })

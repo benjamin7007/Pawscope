@@ -35,6 +35,7 @@ type Realm = {
   sessions_prev_week: number;
   turns_this_week: number;
   turns_prev_week: number;
+  daily14?: number[];
   last_event_at: string | null;
   agents: string[];
 };
@@ -86,6 +87,39 @@ function TrendBadge({ curr, prev }: { curr: number; prev: number }) {
     >
       {up ? '▲' : '▼'} {up ? '+' : ''}{pct}%
     </span>
+  );
+}
+
+function MiniSpark({ values }: { values: number[] }) {
+  const max = Math.max(1, ...values);
+  const w = 56;
+  const h = 18;
+  const n = values.length;
+  if (n === 0) return null;
+  const pts = values
+    .map((v, i) => `${(i / Math.max(1, n - 1)) * w},${h - (v / max) * h}`)
+    .join(' ');
+  return (
+    <svg width={w} height={h} className="flex-shrink-0" aria-hidden>
+      <polyline
+        points={pts}
+        fill="none"
+        stroke="#fbbf24"
+        strokeWidth={1.2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        vectorEffect="non-scaling-stroke"
+        opacity={0.85}
+      />
+      {values[n - 1] > 0 && (
+        <circle
+          cx={w}
+          cy={h - (values[n - 1] / max) * h}
+          r={1.6}
+          fill="#fbbf24"
+        />
+      )}
+    </svg>
   );
 }
 
@@ -590,6 +624,9 @@ export function OverviewPanel({
                       </div>
                     </div>
                     <div className="flex items-center gap-4 flex-shrink-0 text-xs tabular-nums">
+                      {r.daily14 && r.daily14.some(v => v > 0) && (
+                        <MiniSpark values={r.daily14} />
+                      )}
                       <span className="text-right">
                         <div className="text-slate-200 font-semibold">{r.sessions}</div>
                         <div className="text-[10px] text-slate-600">sessions</div>
