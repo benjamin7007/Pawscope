@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { fetchToolsTrend, type ToolTrendResponse } from '../api';
+import { fetchToolsBucket, fetchToolsTrend, type BucketHit, type ToolTrendResponse } from '../api';
 import { useT } from '../i18n';
 
 const COLORS = [
@@ -14,12 +14,15 @@ const RANGES: { key: '24h' | '7d' | '30d'; hours: number }[] = [
   { key: '30d', hours: 720 },
 ];
 
-export function ToolTrend() {
+export function ToolTrend({ onOpenSession }: { onOpenSession?: (id: string) => void }) {
   const { t } = useT();
   const [range, setRange] = useState<'24h' | '7d' | '30d'>('7d');
   const [data, setData] = useState<ToolTrendResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
+  const [drill, setDrill] = useState<{ idx: number; since: string; until: string; hits: BucketHit[] | null }>(
+    { idx: -1, since: '', until: '', hits: null },
+  );
 
   useEffect(() => {
     setLoading(true);
@@ -118,6 +121,18 @@ export function ToolTrend() {
                 return (
                   <g
                     key={i}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => {
+                      const bucketHourSpan = data.hours / data.totals.length;
+                      const untilTs = endTs - (data.totals.length - 1 - i) * 3600_000;
+                      const sinceTs = untilTs - bucketHourSpan * 3600_000;
+                      const since = new Date(sinceTs).toISOString();
+                      const until = new Date(untilTs).toISOString();
+                      setDrill({ idx: i, since, until, hits: null });
+                      fetchToolsBucket(since, until)
+                        .then((hits) => setDrill({ idx: i, since, until, hits }))
+                        .catch(() => setDrill({ idx: i, since, until, hits: [] }));
+                    }}
                     onMouseEnter={(e) => {
                       const rect = (e.currentTarget.ownerSVGElement as SVGSVGElement).getBoundingClientRect();
                       setHover({
@@ -201,6 +216,45 @@ export function ToolTrend() {
                 </div>
               ))}
             </div>
+
+            {drill.idx >= 0 && (
+              <div className="mt-4 border-t border-slate-800 pt-3">
+                <div className="flex items-center gap-2 text-[11px] text-slate-400 mb-2">
+                  <span className="font-mono text-slate-200">
+                    {new Date(drill.since).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    {' → '}
+                    {new Date(drill.until).toLocaleString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                  <span className="text-slate-500">·</span>
+                  <span>{drill.hits ? `${drill.hits.length} sessions` : '…'}</span>
+                  <button
+                    onClick={() => setDrill({ idx: -1, since: '', until: '', hits: null })}
+                    className="ml-auto text-slate-500 hover:text-slate-200 text-xs"
+                  >✕</button>
+                </div>
+                {drill.hits && drill.hits.length === 0 ? (
+                  <div className="text-[11px] text-slate-600 py-2">no sessions in this bucket</div>
+                ) : (
+                  <ul className="divide-y divide-slate-800/60">
+                    {(drill.hits ?? []).map((h) => (
+                      <li
+                        key={h.session_id}
+                        onClick={() => onOpenSession?.(h.session_id)}
+                        className="py-1.5 px-1 flex items-center gap-2 cursor-pointer hover:bg-slate-800/40 rounded"
+                      >
+                        <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-800/70 text-slate-300 font-mono">
+                          {h.agent}
+                        </span>
+                        <span className="text-[11px] text-slate-300 font-mono truncate flex-1">
+                          {h.cwd ?? h.session_id}
+                        </span>
+                        <span className="text-[11px] tabular-nums text-cyan-300">{h.count}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
           </>
         )}
       </div>
