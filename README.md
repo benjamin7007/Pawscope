@@ -1,4 +1,13 @@
+<div align="center">
+
+<img src="./docs/screenshots/01-overview.png" alt="Pawscope overview dashboard"/>
+
 # Pawscope 🐾
+
+**A local web dashboard for inspecting your CLI agent sessions in real time.**
+
+Stop wondering what `copilot`, `claude`, and `codex` are actually doing across five terminal windows.
+One panel. Read-only. No daemon. Local by default.
 
 [English](./README.md) · [简体中文](./README.zh-CN.md)
 
@@ -7,34 +16,96 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.87+-orange?logo=rust&logoColor=white)](https://www.rust-lang.org)
 
-> A local web dashboard for inspecting the runtime state of CLI agent sessions.
-> Stop wondering what your agent is actually doing across five terminal windows.
+</div>
 
-![Pawscope overview](./docs/screenshot.png)
+---
+
+## What it does
+
+Pawscope reads the state your CLI agents already write to disk
+(`~/.copilot/session-state/`, `~/.claude/projects/`, `~/.codex/state_*.sqlite`)
+and renders it as a single, live-updating dashboard:
+
+- **See what's running.** Every active session, every conversation, in one place.
+- **See what it cost.** Per-turn token usage, model-aware USD estimates, daily budget tracking.
+- **See what it touched.** Tools called, skills loaded, files mentioned, prompts asked.
+- **Catch problems early.** Hot files, dangerous tools, dormant sessions, peak hours, cost outliers.
+
+No telemetry. No cloud. No login. The binary boots, scans your home directory, opens your browser. That's it.
+
+---
+
+## Highlights
 
 <table>
 <tr>
-<td width="50%"><img src="./docs/screenshot-skills.png" alt="Skills page with category donut and grouped list"/></td>
-<td width="50%"><img src="./docs/screenshot-session.png" alt="Session detail with turn / message stats and tool histogram"/></td>
+<td width="33%" valign="top">
+
+### 🔍 Conversation flow
+Cross-agent visualization of every interaction — user prompt → assistant turns → tool calls → sub-agent threads — color-coded and timestamped. Works for Claude, Copilot, and Codex sessions equally.
+
+</td>
+<td width="33%" valign="top">
+
+### 💰 Token & cost tracking
+Per-turn token chips (↓in / ↑out / cache / $) on every assistant message, plus a session-level rollup with by-model breakdown. Pricing table covers Opus 3.x–4.7, Sonnet 3.5–4.6, Haiku, GPT-5, GPT-5-Codex, GPT-4.1, GPT-4o.
+
+</td>
+<td width="33%" valign="top">
+
+### 🛠 Skills discovery
+Auto-detects skill libraries across `~/.claude/skills/`, `~/.copilot/skills/`, project-local `.github/skills/`, and `.agents/skills/`. Categorized donut, usage counts, project-skill content viewer, taxonomy with 240+ entries.
+
+</td>
 </tr>
 <tr>
-<td align="center"><sub><b>Skills</b> — local skills grouped by category, with a usage donut</sub></td>
-<td align="center"><sub><b>Session detail</b> — turns, in / out messages, ranked tool histogram</sub></td>
+<td width="33%" valign="top">
+
+### 🔀 Prompt clustering
+Toggle-on grouping of similar prompts using token-overlap (Jaccard ≥ 0.45). See repeated requests at a glance and surface patterns across sessions.
+
+</td>
+<td width="33%" valign="top">
+
+### ⚖️ Side-by-side compare
+Shift+click two sessions in the sidebar → instant diff: stats, top tools, top skills, tool overlap (shared / only-left / only-right), and prompt-overlap analysis.
+
+</td>
+<td width="33%" valign="top">
+
+### 📥 Daily / weekly digests
+One click exports a Markdown digest for the last 24h or 7d — activity, cost, hot files, dangerous tool calls, top tools/skills, peak hours.
+
+</td>
 </tr>
 </table>
 
 ---
 
-## Why
+## Tour
 
-When you're juggling several `copilot`, `claude`, or `codex` sessions in different terminals, you can't see at a glance:
+<table>
+<tr>
+<td width="50%"><a href="./docs/screenshots/02-session.png"><img src="./docs/screenshots/02-session.png" alt="Session detail"/></a></td>
+<td width="50%"><a href="./docs/screenshots/03-flow.png"><img src="./docs/screenshots/03-flow.png" alt="Conversation flow"/></a></td>
+</tr>
+<tr>
+<td align="center"><sub><b>Session detail</b> — turns, messages, tool histogram, token budget</sub></td>
+<td align="center"><sub><b>Conversation flow</b> — full prompt / response / tool-call timeline</sub></td>
+</tr>
+<tr>
+<td width="50%"><a href="./docs/screenshots/04-skills.png"><img src="./docs/screenshots/04-skills.png" alt="Skills page"/></a></td>
+<td width="50%"><a href="./docs/screenshots/05-prompts.png"><img src="./docs/screenshots/05-prompts.png" alt="Prompts search"/></a></td>
+</tr>
+<tr>
+<td align="center"><sub><b>Skills</b> — local skills grouped by category, with a usage donut</sub></td>
+<td align="center"><sub><b>Prompts</b> — full-text search across all sessions, optional clustering</sub></td>
+</tr>
+</table>
 
-- which skills are loaded
-- which tools have run
-- how many turns deep each conversation is
-- which sessions are still alive
+> All screenshots use the synthetic demo dataset from `scripts/gen-demo-home.py` — no real session data is ever bundled with the README.
 
-Pawscope reads the state each CLI already writes to disk (e.g. `~/.copilot/session-state/`) and renders it in a single panel that updates in real time. **Read-only. No daemon. Local-only by default.**
+---
 
 ## Install
 
@@ -58,7 +129,7 @@ tar -xzf pawscope.tar.gz
 ./pawscope-aarch64-apple-darwin/pawscope serve
 ```
 
-Each archive ships with a matching `.sha256` for verification.
+Each archive ships with a matching `.sha256`.
 
 ### From source
 
@@ -67,6 +138,10 @@ git clone https://github.com/benjamin7007/Pawscope.git
 cd Pawscope
 cargo install --path .          # or: cargo build --release
 ```
+
+Requires Rust 1.87+. The web bundle is built and embedded automatically.
+
+---
 
 ## Quick start
 
@@ -79,38 +154,60 @@ pawscope serve                  # opens http://127.0.0.1:7777 in your browser
 | `--bind`     | `127.0.0.1:7777`     | local-only by default            |
 | `--no-open`  | off                  | skip auto-launching the browser  |
 
+> **Tip:** Cmd/Ctrl+K opens the command palette. Shift+click two sessions in the sidebar to compare them. The 📥 buttons in the Overview header export a Markdown digest.
+
+---
+
 ## Architecture
 
 ![Pawscope architecture](./docs/architecture.png)
 
-- **Adapter trait** — `AgentAdapter` in `pawscope-core` makes V2 (Claude Code) and V3 (Codex) pure additions: implement the trait, register the adapter.
+- **Adapter trait** — `AgentAdapter` in `pawscope-core` makes new CLIs pure additions: implement the trait, register the adapter. Claude / Copilot / Codex are the three built-ins.
 - **Single binary** — `pawscope-server` (axum) embeds the React 19 SPA via `rust-embed` at build time; no separate static-file step at runtime.
 - **No daemon** — `pawscope serve` is a regular CLI process; close the terminal and it's gone.
-- **Local only** — binds `127.0.0.1` by default, no auth token, no telemetry.
+- **Local only** — binds `127.0.0.1` by default. No auth, no telemetry, no outbound calls.
+
+---
 
 ## Roadmap
 
-| Version | Scope |
-|---|---|
-| v0.1 (released) | Copilot CLI sessions · real-time updates · embedded UI |
-| v0.2 (released) | Claude Code adapter · multi-adapter fan-out · activity heatmap |
-| v0.3 (released) | Codex CLI adapter (`~/.codex/state_*.sqlite`) |
-| **v0.4** (released) | Skills coverage · prompts search · tool-call trend with drilldown · star+tag sessions · perf cache · UI polish (skeletons, toasts, progress bar, draggable sidebar, virtual scroll) |
-| v0.5 | Skill marketplace + one-click install across CLIs · session comparison · keyboard shortcuts |
+| Version | Focus | Status |
+|---|---|---|
+| v0.1 | Copilot CLI sessions · real-time updates · embedded UI | ✅ |
+| v0.2 | Claude Code adapter · multi-adapter fan-out · activity heatmap | ✅ |
+| v0.3 | Codex CLI adapter (`~/.codex/state_*.sqlite`) | ✅ |
+| v0.4 | Skills coverage · prompts search · tool-call drilldown · star+tag · UI polish | ✅ |
+| v0.5 | Cost estimation · model pricing · cost analytics · 6 power features (replay etc.) | ✅ |
+| v0.6 | Conversation flow visualization · cross-agent unified timeline | ✅ |
+| v0.7 | Skills taxonomy (244 entries) · project-local skill discovery | ✅ |
+| v0.8 | Per-turn token tracking · session rollup · model-aware cost | ✅ |
+| v0.9 | Digest export · prompt clustering · side-by-side session compare | ✅ |
+| **v1.0** | **API freeze · documentation · public release** | 🚧 |
+
+---
 
 ## Project layout
 
 ```text
 crates/
-  pawscope-core/      # AgentAdapter trait, shared types, errors
-  pawscope-copilot/   # V1 backend: Copilot CLI session-state reader
-  pawscope-claude/    # V2 backend (planned)
-  pawscope-codex/     # V3 backend (planned)
+  pawscope-core/      # AgentAdapter trait, shared types, pricing table
+  pawscope-copilot/   # Copilot CLI session-state reader
+  pawscope-claude/    # Claude Code session reader
+  pawscope-codex/     # Codex CLI sqlite + rollout reader
   pawscope-server/    # axum REST + WebSocket + embedded SPA
 src/main.rs           # CLI entrypoint
 web/                  # React 19 + Vite + Tailwind 4 dashboard
-e2e/                  # Playwright smoke tests
+e2e/                  # Playwright smoke tests + screenshot capture
+tests/                # Cross-adapter integration tests
 ```
+
+---
+
+## Privacy
+
+Everything runs on your machine. Pawscope reads from `~/.copilot/`, `~/.claude/`, `~/.codex/` and similar local paths only. There is no analytics endpoint, no update check, and the server binds to loopback by default. Bind it elsewhere at your own risk.
+
+---
 
 ## License
 
