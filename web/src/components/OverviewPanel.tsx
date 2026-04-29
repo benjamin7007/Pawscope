@@ -56,6 +56,8 @@ type Overview = {
   total_tokens_in?: number;
   total_tokens_out?: number;
   tokens_by_agent?: Record<string, { in: number; out: number }>;
+  tokens_daily7_in?: number[];
+  tokens_daily7_out?: number[];
   tools_used: Record<string, number>;
   skills_invoked: Record<string, number>;
   subagent_count?: number;
@@ -464,10 +466,14 @@ function TokenUsageSection({
   tokensIn,
   tokensOut,
   byAgent,
+  daily7In,
+  daily7Out,
 }: {
   tokensIn: number;
   tokensOut: number;
   byAgent: Record<string, { in: number; out: number }>;
+  daily7In: number[];
+  daily7Out: number[];
 }) {
   const { t } = useT();
   const total = tokensIn + tokensOut;
@@ -475,6 +481,18 @@ function TokenUsageSection({
     .map(([name, v]) => ({ name, total: v.in + v.out, in: v.in, out: v.out }))
     .filter((e) => e.total > 0)
     .sort((a, b) => b.total - a.total);
+
+  const days = Math.max(daily7In.length, daily7Out.length);
+  const dayMax = Math.max(
+    1,
+    ...Array.from({ length: days }, (_, i) => (daily7In[i] ?? 0) + (daily7Out[i] ?? 0)),
+  );
+  const dayLabels = Array.from({ length: days }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (days - 1 - i));
+    return d.toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' });
+  });
+
   return (
     <section className="rounded-lg bg-slate-900/40 border border-slate-800">
       <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
@@ -483,7 +501,7 @@ function TokenUsageSection({
           {fmtTokens(tokensIn)} {t('misc.token_in_arrow')} · {fmtTokens(tokensOut)} {t('misc.token_out_arrow')} · <span className="text-slate-300">{fmtTokens(total)}</span>
         </span>
       </header>
-      <div className="px-4 py-4 space-y-3">
+      <div className="px-4 py-4 space-y-4">
         {/* Stacked bar by agent */}
         <div className="flex h-6 rounded-md overflow-hidden bg-slate-950/50 border border-slate-800/60">
           {entries.map((e) => {
@@ -517,6 +535,53 @@ function TokenUsageSection({
             );
           })}
         </div>
+        {/* 7-day trend (input bottom, output top, stacked) */}
+        {days > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] uppercase tracking-wider text-slate-500">{t('sec.token_trend7')}</span>
+              <span className="text-[10px] text-slate-600 flex items-center gap-3">
+                <span className="flex items-center gap-1">
+                  <span className="inline-block w-2 h-2 rounded-sm bg-emerald-500/70" />
+                  {t('misc.token_in_arrow')}
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="inline-block w-2 h-2 rounded-sm bg-violet-500/70" />
+                  {t('misc.token_out_arrow')}
+                </span>
+              </span>
+            </div>
+            <div className="flex items-end gap-1.5 h-24">
+              {Array.from({ length: days }).map((_, i) => {
+                const inv = daily7In[i] ?? 0;
+                const outv = daily7Out[i] ?? 0;
+                const tot = inv + outv;
+                const inPct = tot === 0 ? 0 : (inv / dayMax) * 100;
+                const outPct = tot === 0 ? 0 : (outv / dayMax) * 100;
+                return (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-1 group">
+                    <div className="w-full flex flex-col-reverse h-20 rounded-sm overflow-hidden bg-slate-950/40 border border-slate-800/40 relative">
+                      <div
+                        className="bg-emerald-500/70 group-hover:bg-emerald-400/80 transition-colors"
+                        style={{ height: `${inPct}%` }}
+                      />
+                      <div
+                        className="bg-violet-500/70 group-hover:bg-violet-400/80 transition-colors"
+                        style={{ height: `${outPct}%` }}
+                      />
+                      {tot > 0 && (
+                        <div className="absolute inset-x-0 -top-5 text-center text-[9px] text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity tabular-nums whitespace-nowrap">
+                          {fmtTokens(tot)}
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-[9px] text-slate-500 tabular-nums">{dayLabels[i]}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );
@@ -644,6 +709,8 @@ export function OverviewPanel({
             tokensIn={data.total_tokens_in ?? 0}
             tokensOut={data.total_tokens_out ?? 0}
             byAgent={data.tokens_by_agent ?? {}}
+            daily7In={data.tokens_daily7_in ?? []}
+            daily7Out={data.tokens_daily7_out ?? []}
           />
         )}
 
