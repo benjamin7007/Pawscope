@@ -12,6 +12,7 @@ export default function App() {
   const [selected, setSelected] = useState<string | null>(null);
   const [detail, setDetail] = useState<any>(null);
   const [view, setView] = useState<View>('overview');
+  const [realmFilter, setRealmFilter] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSessions().then(setSessions);
@@ -67,10 +68,23 @@ export default function App() {
             )}
           </button>
         </nav>
-        <SessionList items={sessions} onSelect={setSelected} selected={selected} />
+        <SessionList
+          items={sessions}
+          onSelect={setSelected}
+          selected={selected}
+          realmFilter={realmFilter}
+          onClearRealmFilter={() => setRealmFilter(null)}
+        />
       </div>
       {view === 'overview' ? (
-        <OverviewPanel onOpenSession={setSelected} />
+        <OverviewPanel
+          onOpenSession={setSelected}
+          onOpenRealm={(name: string) => {
+            setRealmFilter(name);
+            setSelected(null);
+            setView('session');
+          }}
+        />
       ) : (
         <SessionDetail meta={sessions.find(s => s.id === selected)} detail={detail} />
       )}

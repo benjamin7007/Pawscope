@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 type Session = {
   id: string;
   agent: string;
+  cwd?: string | null;
   repo?: string | null;
   branch?: string | null;
   summary?: string | null;
@@ -14,6 +15,8 @@ type Props = {
   items: Session[];
   onSelect: (id: string) => void;
   selected: string | null;
+  realmFilter?: string | null;
+  onClearRealmFilter?: () => void;
 };
 
 function timeAgo(iso?: string | null): string {
@@ -33,9 +36,16 @@ function repoLabel(s: Session): string {
   return s.repo || '(no repo)';
 }
 
+function sessionRealmKey(s: Session): string {
+  if (s.repo) return s.repo;
+  const cwd = s.cwd ?? '';
+  const parts = cwd.split('/').filter(Boolean);
+  return parts.length ? `~/${parts[parts.length - 1]}` : cwd;
+}
+
 type SortMode = 'recent' | 'oldest' | 'repo';
 
-export function SessionList({ items, onSelect, selected }: Props) {
+export function SessionList({ items, onSelect, selected, realmFilter, onClearRealmFilter }: Props) {
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [agentFilter, setAgentFilter] = useState<string>('all');
@@ -50,6 +60,7 @@ export function SessionList({ items, onSelect, selected }: Props) {
   const { active, byRepo, repoOrder, total } = useMemo(() => {
     const q = query.trim().toLowerCase();
     const filtered = items.filter(s => {
+      if (realmFilter && sessionRealmKey(s) !== realmFilter) return false;
       if (agentFilter !== 'all' && s.agent !== agentFilter) return false;
       if (activeOnly && s.status !== 'active') return false;
       if (!q) return true;
@@ -89,7 +100,7 @@ export function SessionList({ items, onSelect, selected }: Props) {
     });
 
     return { active, byRepo, repoOrder, total: filtered.length };
-  }, [items, query, agentFilter, activeOnly, sortMode]);
+  }, [items, query, agentFilter, activeOnly, sortMode, realmFilter]);
 
   const toggle = (key: string) =>
     setCollapsed(prev => ({ ...prev, [key]: !prev[key] }));
@@ -150,6 +161,21 @@ export function SessionList({ items, onSelect, selected }: Props) {
           <h2 className="text-sm font-semibold text-slate-200">Sessions</h2>
           <span className="text-[10px] text-slate-500">{total} total</span>
         </div>
+        {realmFilter && (
+          <div className="mb-2 flex items-center gap-1.5 px-2 py-1 rounded bg-amber-500/10 border border-amber-500/30">
+            <span className="text-[10px] uppercase tracking-wider text-amber-300">Realm</span>
+            <span className="font-mono text-[11px] text-amber-100 truncate flex-1" title={realmFilter}>
+              {realmFilter}
+            </span>
+            <button
+              onClick={onClearRealmFilter}
+              className="text-amber-300 hover:text-amber-100 text-xs leading-none px-1"
+              title="Clear realm filter"
+            >
+              ×
+            </button>
+          </div>
+        )}
         <input
           value={query}
           onChange={e => setQuery(e.target.value)}
