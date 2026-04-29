@@ -1,4 +1,4 @@
-use pawscope_core::types::SessionDetail;
+use pawscope_core::types::{SessionDetail, ToolCall};
 use serde::Deserialize;
 use std::io::{BufRead, BufReader, Seek, SeekFrom};
 use std::path::Path;
@@ -9,6 +9,8 @@ struct Event<'a> {
     kind: &'a str,
     #[serde(default)]
     data: serde_json::Value,
+    #[serde(default)]
+    timestamp: Option<String>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -48,12 +50,46 @@ pub fn parse_incremental(path: &Path, state: &mut ParseState) -> anyhow::Result<
             Err(_) => continue,
         };
         match ev.kind {
-            "user.message" => state.detail.user_messages += 1,
+            "user.message" => {
+                state.detail.user_messages += 1;
+                if let Some(content) = ev.data.get("content").and_then(|v| v.as_str()) {
+                    let id = ev
+                        .data
+                        .get("interactionId")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string())
+                        .unwrap_or_else(|| format!("p{}", state.detail.prompts.len()));
+                    if !state.detail.prompts.iter().any(|p| p.id == id) {
+                        let snippet: String = content.chars().take(120).collect();
+                        let timestamp = ev
+                            .timestamp
+                            .as_deref()
+                            .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
+                            .map(|dt| dt.with_timezone(&chrono::Utc));
+                        state.detail.prompts.push(pawscope_core::PromptSummary {
+                            id,
+                            timestamp,
+                            snippet,
+                            text: content.to_string(),
+                        });
+                    }
+                }
+            }
             "assistant.message" => state.detail.assistant_messages += 1,
             "assistant.turn_end" => state.detail.turns += 1,
             "tool.execution_start" => {
                 if let Some(name) = ev.data.get("toolName").and_then(|v| v.as_str()) {
                     *state.detail.tools_used.entry(name.to_string()).or_default() += 1;
+                    if let Some(ts) = ev
+                        .timestamp
+                        .as_deref()
+                        .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
+                    {
+                        state.detail.tool_calls.push(ToolCall {
+                            name: name.to_string(),
+                            timestamp: ts.with_timezone(&chrono::Utc),
+                        });
+                    }
                 }
             }
             "skill.invoked" => {

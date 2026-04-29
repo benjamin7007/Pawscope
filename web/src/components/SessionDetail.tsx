@@ -33,6 +33,7 @@ type Detail = {
     active?: boolean;
   }[];
   prompts?: { id: string; timestamp: string | null; snippet: string; text?: string }[];
+  tool_calls?: { name: string; timestamp: string }[];
 };
 
 type Props = { meta: Meta | undefined; detail: Detail | null; onOpenSkill?: (name: string) => void };
@@ -238,6 +239,8 @@ export function SessionDetail({ meta, detail, onOpenSkill }: Props) {
             <StatCard label={t('stat.tool_calls')} value={toolsTotal} hint={`${tools.length} ${t('misc.unique')}`} />
           </section>
 
+          <ToolTimeline calls={detail.tool_calls ?? []} />
+
           <section className="rounded-lg bg-slate-900/40 border border-slate-800">
             <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
               <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.tools_used')}</h3>
@@ -415,5 +418,80 @@ export function SessionDetail({ meta, detail, onOpenSkill }: Props) {
         </div>
       )}
     </main>
+  );
+}
+
+const TIMELINE_COLORS = [
+  '#22d3ee', '#34d399', '#a78bfa', '#fbbf24', '#fb7185',
+  '#fb923c', '#60a5fa', '#f472b6', '#4ade80', '#facc15',
+];
+
+function ToolTimeline({ calls }: { calls: { name: string; timestamp: string }[] }) {
+  const { t } = useT();
+  if (!calls || calls.length === 0) {
+    return (
+      <section className="rounded-lg bg-slate-900/40 border border-slate-800">
+        <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
+          <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.tool_timeline')}</h3>
+          <span className="text-[11px] text-slate-500">0</span>
+        </header>
+        <div className="px-4 py-6 text-xs text-slate-600 text-center">{t('timeline.empty')}</div>
+      </section>
+    );
+  }
+  const times = calls.map(c => new Date(c.timestamp).getTime()).filter(n => Number.isFinite(n));
+  const min = Math.min(...times);
+  const max = Math.max(...times);
+  const span = Math.max(max - min, 1);
+  const colorMap = new Map<string, string>();
+  let colorIdx = 0;
+  for (const c of calls) {
+    if (!colorMap.has(c.name)) {
+      colorMap.set(c.name, TIMELINE_COLORS[colorIdx % TIMELINE_COLORS.length]);
+      colorIdx++;
+    }
+  }
+  const totalMin = (max - min) / 60000;
+  const durationLabel =
+    totalMin < 1 ? `${Math.round((max - min) / 1000)}s` :
+    totalMin < 60 ? `${Math.round(totalMin)}m` :
+    `${(totalMin / 60).toFixed(1)}h`;
+
+  return (
+    <section className="rounded-lg bg-slate-900/40 border border-slate-800">
+      <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
+        <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.tool_timeline')}</h3>
+        <span className="text-[11px] text-slate-500 tabular-nums">{calls.length} · {durationLabel}</span>
+      </header>
+      <div className="p-4">
+        <div className="relative h-10 bg-slate-950/60 rounded border border-slate-800/80">
+          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-px bg-slate-800/80" />
+          {calls.map((c, i) => {
+            const t = new Date(c.timestamp).getTime();
+            const pct = ((t - min) / span) * 100;
+            const color = colorMap.get(c.name) ?? '#94a3b8';
+            return (
+              <div
+                key={i}
+                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-2 h-2 rounded-full transition-transform hover:scale-150"
+                style={{ left: `${pct}%`, background: color, boxShadow: `0 0 0 1.5px rgba(15,23,42,1)` }}
+                title={`${c.name} · ${new Date(c.timestamp).toLocaleString()}`}
+              />
+            );
+          })}
+        </div>
+        <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1.5">
+          {Array.from(colorMap.entries()).slice(0, 12).map(([name, color]) => (
+            <div key={name} className="flex items-center gap-1.5 text-[11px] text-slate-300">
+              <span className="w-2 h-2 rounded-full" style={{ background: color }} />
+              <span className="font-mono">{name}</span>
+            </div>
+          ))}
+          {colorMap.size > 12 && (
+            <span className="text-[11px] text-slate-500">+{colorMap.size - 12}</span>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }

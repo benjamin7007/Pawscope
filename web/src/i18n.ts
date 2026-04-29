@@ -11,6 +11,19 @@ const dict: Record<string, { en: string; zh: string }> = {
   'nav.overview': { en: '◇ Overview', zh: '◇ 总览' },
   'nav.session': { en: '⌖ Session', zh: '⌖ 会话' },
   'nav.skills': { en: '🛠 Skills', zh: '🛠 技能' },
+  'nav.prompts': { en: '⌕ Prompts', zh: '⌕ 提示' },
+
+  // Prompts search
+  'prompts.title': { en: 'Search prompts', zh: '搜索用户提示' },
+  'prompts.placeholder': { en: 'Type to search across all sessions…', zh: '输入关键字，跨所有会话搜索…' },
+  'prompts.empty': { en: 'No matches.', zh: '没有匹配结果。' },
+  'prompts.loading': { en: 'Searching…', zh: '搜索中…' },
+  'prompts.results': { en: 'results', zh: '条结果' },
+  'prompts.recent': { en: 'Recent prompts (no filter)', zh: '最近的用户提示（无过滤）' },
+
+  // Tool timeline
+  'sec.tool_timeline': { en: 'Tool call timeline', zh: '工具调用时间轴' },
+  'timeline.empty': { en: 'No timestamped tool calls captured.', zh: '尚无带时间戳的工具调用。' },
 
   // Header / kicker
   'overview.kicker': { en: 'Overview', zh: '总览' },

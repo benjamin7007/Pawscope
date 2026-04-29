@@ -267,6 +267,7 @@ impl AgentAdapter for CodexAdapter {
 }
 
 fn parse_rollout_into_detail(file: std::fs::File, detail: &mut SessionDetail) {
+    use pawscope_core::types::ToolCall;
     use std::io::{BufRead, BufReader};
     let reader = BufReader::new(file);
     for line in reader.lines().map_while(std::result::Result::ok) {
@@ -280,6 +281,20 @@ fn parse_rollout_into_detail(file: std::fs::File, detail: &mut SessionDetail) {
         };
         let kind = v.get("type").and_then(|t| t.as_str()).unwrap_or("");
         let payload = v.get("payload");
+        let ts = v
+            .get("timestamp")
+            .and_then(|t| t.as_str())
+            .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
+            .map(|dt| dt.with_timezone(&chrono::Utc));
+        let record_tool = |detail: &mut SessionDetail, name: &str| {
+            *detail.tools_used.entry(name.to_string()).or_default() += 1;
+            if let Some(ts) = ts {
+                detail.tool_calls.push(ToolCall {
+                    name: name.to_string(),
+                    timestamp: ts,
+                });
+            }
+        };
         match kind {
             "response_item" => {
                 let Some(p) = payload else { continue };
@@ -298,17 +313,17 @@ fn parse_rollout_into_detail(file: std::fs::File, detail: &mut SessionDetail) {
                     }
                     "function_call" => {
                         let name = p.get("name").and_then(|n| n.as_str()).unwrap_or("function");
-                        *detail.tools_used.entry(name.to_string()).or_default() += 1;
+                        record_tool(detail, name);
                     }
                     "custom_tool_call" => {
                         let name = p
                             .get("name")
                             .and_then(|n| n.as_str())
                             .unwrap_or("custom_tool");
-                        *detail.tools_used.entry(name.to_string()).or_default() += 1;
+                        record_tool(detail, name);
                     }
                     "local_shell_call" => {
-                        *detail.tools_used.entry("shell".to_string()).or_default() += 1;
+                        record_tool(detail, "shell");
                     }
                     _ => {}
                 }
