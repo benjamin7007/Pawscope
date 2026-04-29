@@ -169,6 +169,8 @@ const dict: Record<string, { en: string; zh: string }> = {
   'misc.click_to_edit': { en: 'click to edit', zh: '点击编辑' },
   'misc.budget_prompt': { en: 'Daily budget in USD (0 to disable):', zh: '每日预算（美元，0 表示关闭）：' },
   'misc.over_budget_days': { en: '{n} day(s) over budget', zh: '{n} 天超预算' },
+  'misc.forecast_label': { en: 'next 7d', zh: '未来 7 天' },
+  'misc.forecast_tip': { en: 'Projection from past 7-day average', zh: '基于过去 7 天均值的预测' },
   'sec.insights': { en: 'Insights', zh: '智能洞察' },
   'insights.cost_peak_prefix': { en: 'Your cost peaked on', zh: '本周费用高峰在' },
   'insights.cost_peak_mid': { en: '— that was', zh: '— 是最低日的' },
