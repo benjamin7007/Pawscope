@@ -10,6 +10,17 @@
 
 ![Pawscope overview](./docs/screenshot.png)
 
+<table>
+<tr>
+<td width="50%"><img src="./docs/screenshot-skills.png" alt="Skills page with category donut and grouped list"/></td>
+<td width="50%"><img src="./docs/screenshot-session.png" alt="Session detail with turn/msg stats and tool histogram"/></td>
+</tr>
+<tr>
+<td align="center"><sub><b>Skills</b> · 267 local skills, grouped by 5 categories with usage donut</sub></td>
+<td align="center"><sub><b>Session detail</b> · turns, in/out messages, ranked tool histogram</sub></td>
+</tr>
+</table>
+
 ```
 ┌─ Pawscope ──────────────────────────────────────────────────┐
 │  ● 4dac1bf8   Building feature X         master             │
