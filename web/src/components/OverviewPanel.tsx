@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { fetchOverview, fetchActivity, fetchActivityGrid, fetchSessions, fetchSkills, subscribeEvents, type SkillEntry } from '../api';
 import { useT } from '../i18n';
-import { categorize, CATEGORY_ORDER } from '../skillCategory';
+import { categorize, CATEGORY_ORDER, categoryLabel } from '../skillCategory';
 import { CategoryDonut } from './CategoryDonut';
 import { OverviewSkeleton } from './Skeleton';
 import { ToolTrend } from './ToolTrend';
@@ -1458,6 +1458,7 @@ export function OverviewPanel({
             lang={lang}
             fmt={fmt}
             onPick={onOpenCategory}
+            getLabel={(name: string) => categoryLabel(name, lang === 'zh' ? 'zh' : 'en')}
           />
         )}
 

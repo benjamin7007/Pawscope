@@ -15,6 +15,7 @@ export function CategoryDonut({
   onPick,
   compact = false,
   selected,
+  getLabel,
 }: {
   stats: CategoryStat[];
   total: number;
@@ -23,6 +24,7 @@ export function CategoryDonut({
   onPick?: (name: string) => void;
   compact?: boolean;
   selected?: string | null;
+  getLabel?: (name: string) => string;
 }) {
   const R = compact ? 36 : 56;
   const W = compact ? 11 : 18;
@@ -80,7 +82,7 @@ export function CategoryDonut({
                 style={onPick ? { cursor: 'pointer', transition: 'stroke-width 120ms, opacity 120ms' } : undefined}
                 onClick={onPick ? () => onPick(s.name) : undefined}
               >
-                <title>{`${s.name}: ${fmt(s.invocations)} (${s.pct.toFixed(1)}%)`}</title>
+                <title>{`${getLabel ? getLabel(s.name) : s.name}: ${fmt(s.invocations)} (${s.pct.toFixed(1)}%)`}</title>
               </circle>
             );
           })}
@@ -119,7 +121,7 @@ export function CategoryDonut({
                   className={`truncate ${isSel ? 'text-slate-100 font-semibold' : 'text-slate-200'}`}
                   title={s.name}
                 >
-                  {s.name}
+                  {getLabel ? getLabel(s.name) : s.name}
                 </span>
                 <span className="ml-auto tabular-nums text-slate-400 flex-shrink-0">
                   {fmt(s.invocations)}
