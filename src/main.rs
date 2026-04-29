@@ -34,6 +34,10 @@ async fn main() -> Result<()> {
                 Ok(a) => adapters.push(Arc::new(a)),
                 Err(e) => tracing::warn!("claude adapter disabled: {e}"),
             }
+            match agent_lens_codex::CodexAdapter::new() {
+                Ok(a) => adapters.push(Arc::new(a)),
+                Err(e) => tracing::warn!("codex adapter disabled: {e}"),
+            }
             tracing::info!("active adapters: {}", adapters.len());
             let adapter: Arc<dyn agent_lens_core::AgentAdapter> =
                 Arc::new(agent_lens_server::MultiAdapter::new(adapters));
