@@ -3,6 +3,7 @@ import { fetchOverview, fetchActivity, fetchActivityGrid, fetchSessions, fetchSk
 import { useT } from '../i18n';
 import { categorize, CATEGORY_ORDER } from '../skillCategory';
 import { CategoryDonut } from './CategoryDonut';
+import { ToolTrend } from './ToolTrend';
 
 type Session = {
   id: string;
@@ -735,6 +736,8 @@ export function OverviewPanel({
             <AgentDonut entries={agents} />
           </div>
         </section>
+
+        <ToolTrend />
 
         <section className="text-[11px] text-slate-600 px-1">
           Messages: ↑ {data.total_user_messages.toLocaleString()} user · ↓ {data.total_assistant_messages.toLocaleString()} assistant
