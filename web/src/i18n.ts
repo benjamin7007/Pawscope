@@ -43,6 +43,12 @@ const dict: Record<string, { en: string; zh: string }> = {
   // Tool timeline
   'sec.tool_timeline': { en: 'Tool call timeline', zh: '工具调用时间轴' },
   'timeline.empty': { en: 'No timestamped tool calls captured.', zh: '尚无带时间戳的工具调用。' },
+  'livepin.title': { en: 'Live sessions', zh: '活跃会话' },
+  'livepin.live': { en: 'live', zh: '活跃' },
+  'livepin.expand': { en: 'Expand live sessions', zh: '展开活跃会话' },
+  'livepin.collapse': { en: 'Collapse', zh: '收起' },
+  'livepin.dismiss': { en: 'Hide this session', zh: '隐藏此会话' },
+  'livepin.more': { en: 'more', zh: '更多' },
   'timeline.args': { en: 'Arguments', zh: '参数' },
   'timeline.result': { en: 'Result', zh: '返回' },
   'timeline.success': { en: 'success', zh: '成功' },

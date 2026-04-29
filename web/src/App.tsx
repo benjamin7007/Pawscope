@@ -17,6 +17,7 @@ import { CommandPalette } from './components/CommandPalette';
 import { LangToggle } from './components/LangToggle';
 import { ThemeToggle } from './components/ThemeToggle';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { LivePin } from './components/LivePin';
 import { useT } from './i18n';
 
 type View = 'overview' | 'session' | 'realm' | 'skills' | 'prompts';
@@ -326,6 +327,7 @@ export default function App() {
           navigate({ view: 'skills' });
         }}
       />
+      <LivePin sessions={sessions} pulseMap={pulseMap} onOpen={(id) => selectSession(id)} />
     </div>
   );
 }
