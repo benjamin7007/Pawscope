@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import './styles.css';
-import { fetchSessions, fetchDetail, connectWs } from './api';
+import { fetchSessions, fetchDetail, connectWs, fetchLabels, setLabel as apiSetLabel, type LabelMap } from './api';
 import { SessionList } from './components/SessionList';
 import { SessionDetail } from './components/SessionDetail';
 import { OverviewPanel } from './components/OverviewPanel';
@@ -23,6 +23,20 @@ export default function App() {
   const [realmPage, setRealmPage] = useState<string | null>(null);
   const [pendingSkill, setPendingSkill] = useState<{ name: string; n: number } | null>(null);
   const [pendingCategory, setPendingCategory] = useState<{ name: string; n: number } | null>(null);
+  const [labels, setLabels] = useState<LabelMap>({});
+
+  useEffect(() => {
+    fetchLabels().then(setLabels).catch(() => setLabels({}));
+  }, []);
+
+  const updateLabel = (id: string, label: { starred: boolean; tags: string[] }) => {
+    setLabels((prev) => ({ ...prev, [id]: label }));
+    apiSetLabel(id, label).catch(() => {});
+  };
+  const toggleStar = (id: string) => {
+    const cur = labels[id] ?? { starred: false, tags: [] };
+    updateLabel(id, { ...cur, starred: !cur.starred });
+  };
 
   useEffect(() => {
     fetchSessions().then(setSessions);
@@ -120,6 +134,8 @@ export default function App() {
           selected={selected}
           realmFilter={realmFilter}
           onClearRealmFilter={() => setRealmFilter(null)}
+          labels={labels}
+          onToggleStar={toggleStar}
         />
       </div>
       {view === 'overview' ? (
@@ -165,6 +181,8 @@ export default function App() {
             setPendingSkill(p => ({ name, n: (p?.n ?? 0) + 1 }));
             setView('skills');
           }}
+          label={selected ? labels[selected] : undefined}
+          onSetLabel={selected ? (lbl) => updateLabel(selected, lbl) : undefined}
         />
       )}
     </div>

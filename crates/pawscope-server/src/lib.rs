@@ -9,6 +9,7 @@ use tokio::sync::broadcast;
 pub mod api;
 pub mod assets;
 pub mod cache;
+pub mod labels;
 pub mod multi;
 pub mod skills;
 pub mod sse;
@@ -21,14 +22,17 @@ pub struct AppState {
     pub adapter: Arc<dyn AgentAdapter>,
     pub events: broadcast::Sender<pawscope_core::SessionEvent>,
     pub detail_cache: cache::DetailCache,
+    pub labels: labels::LabelStore,
 }
 
 pub fn build_app(adapter: Arc<dyn AgentAdapter>) -> (Router, AppState) {
     let (tx, _) = broadcast::channel(256);
+    let labels = futures::executor::block_on(labels::LabelStore::load());
     let state = AppState {
         adapter,
         events: tx,
         detail_cache: cache::DetailCache::new(),
+        labels,
     };
     let router = Router::new()
         .route("/api/sessions", get(api::list_sessions))
@@ -40,6 +44,8 @@ pub fn build_app(adapter: Arc<dyn AgentAdapter>) -> (Router, AppState) {
         .route("/api/prompts/search", get(api::prompts_search))
         .route("/api/tools/trend", get(api::tools_trend))
         .route("/api/tools/bucket", get(api::tools_bucket))
+        .route("/api/labels", get(api::list_labels))
+        .route("/api/labels/{id}", post(api::set_label))
         .route("/api/skills", get(skills::list_skills))
         .route("/api/skills/content", get(skills::skill_content))
         .route("/api/skills/usage", get(skills::skill_usage))

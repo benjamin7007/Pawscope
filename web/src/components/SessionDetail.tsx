@@ -36,7 +36,13 @@ type Detail = {
   tool_calls?: { name: string; timestamp: string }[];
 };
 
-type Props = { meta: Meta | undefined; detail: Detail | null; onOpenSkill?: (name: string) => void };
+type Props = {
+  meta: Meta | undefined;
+  detail: Detail | null;
+  onOpenSkill?: (name: string) => void;
+  label?: { starred: boolean; tags: string[] };
+  onSetLabel?: (label: { starred: boolean; tags: string[] }) => void;
+};
 
 function timeAgo(iso?: string | null): string {
   if (!iso) return '—';
@@ -149,7 +155,7 @@ function PromptRow({
   );
 }
 
-export function SessionDetail({ meta, detail, onOpenSkill }: Props) {
+export function SessionDetail({ meta, detail, onOpenSkill, label, onSetLabel }: Props) {
   const { t, lang } = useT();
   const tools = useMemo(() => {
     if (!detail?.tools_used) return [];
@@ -191,6 +197,15 @@ export function SessionDetail({ meta, detail, onOpenSkill }: Props) {
               {meta.pid && (
                 <span className="text-[11px] text-slate-500 font-mono">pid {meta.pid}</span>
               )}
+              {onSetLabel && (
+                <button
+                  onClick={() => onSetLabel({ starred: !(label?.starred ?? false), tags: label?.tags ?? [] })}
+                  title={label?.starred ? 'Unstar' : 'Star'}
+                  className={`ml-1 text-base leading-none ${label?.starred ? 'text-amber-300' : 'text-slate-600 hover:text-slate-400'}`}
+                >
+                  {label?.starred ? '★' : '☆'}
+                </button>
+              )}
             </div>
             <h1 className="text-2xl font-semibold text-slate-100 truncate">
               {meta.summary || <span className="text-slate-500 italic">{t('misc.no_summary')}</span>}
@@ -227,6 +242,35 @@ export function SessionDetail({ meta, detail, onOpenSkill }: Props) {
           </div>
         </dl>
       </header>
+
+      {onSetLabel && (
+        <div className="px-8 py-2 border-b border-slate-800 bg-slate-900/20 flex items-center gap-2 flex-wrap">
+          <span className="text-[10px] uppercase tracking-wider text-slate-500">tags</span>
+          {(label?.tags ?? []).map((tg) => (
+            <span key={tg} className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-violet-500/15 text-violet-200 text-[11px]">
+              #{tg}
+              <button
+                onClick={() => onSetLabel({ starred: label?.starred ?? false, tags: (label?.tags ?? []).filter((x) => x !== tg) })}
+                className="text-violet-400 hover:text-violet-100"
+              >×</button>
+            </span>
+          ))}
+          <input
+            type="text"
+            placeholder="+ tag"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                const v = (e.target as HTMLInputElement).value.trim();
+                if (v && !(label?.tags ?? []).includes(v)) {
+                  onSetLabel({ starred: label?.starred ?? false, tags: [...(label?.tags ?? []), v] });
+                }
+                (e.target as HTMLInputElement).value = '';
+              }
+            }}
+            className="px-2 py-0.5 text-[11px] bg-slate-900 border border-slate-800 rounded text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-slate-600 w-20"
+          />
+        </div>
+      )}
 
       {!detail ? (
         <div className="p-8 text-sm text-slate-500">{t('detail.loading')}</div>

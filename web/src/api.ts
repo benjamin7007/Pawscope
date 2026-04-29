@@ -185,3 +185,24 @@ export async function searchPrompts(
   if (!r.ok) throw new Error(`prompts search ${r.status}`);
   return r.json();
 }
+
+export interface Label {
+  starred: boolean;
+  tags: string[];
+}
+export type LabelMap = Record<string, Label>;
+
+export async function fetchLabels(): Promise<LabelMap> {
+  const r = await fetch('/api/labels');
+  if (!r.ok) return {};
+  return r.json();
+}
+export async function setLabel(id: string, label: Label): Promise<Label> {
+  const r = await fetch(`/api/labels/${encodeURIComponent(id)}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(label),
+  });
+  if (!r.ok) throw new Error(`set label ${r.status}`);
+  return r.json();
+}

@@ -18,6 +18,8 @@ type Props = {
   selected: string | null;
   realmFilter?: string | null;
   onClearRealmFilter?: () => void;
+  labels?: Record<string, { starred: boolean; tags: string[] }>;
+  onToggleStar?: (id: string) => void;
 };
 
 function timeAgo(iso?: string | null): string {
@@ -46,13 +48,21 @@ function sessionRealmKey(s: Session): string {
 
 type SortMode = 'recent' | 'oldest' | 'repo';
 
-export function SessionList({ items, onSelect, selected, realmFilter, onClearRealmFilter }: Props) {
+export function SessionList({ items, onSelect, selected, realmFilter, onClearRealmFilter, labels, onToggleStar }: Props) {
   const { t } = useT();
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [agentFilter, setAgentFilter] = useState<string>('all');
   const [activeOnly, setActiveOnly] = useState(false);
+  const [starredOnly, setStarredOnly] = useState(false);
+  const [tagFilter, setTagFilter] = useState<string>('all');
   const [sortMode, setSortMode] = useState<SortMode>('recent');
+
+  const allTags = useMemo(() => {
+    const set = new Set<string>();
+    Object.values(labels ?? {}).forEach((l) => l.tags.forEach((t) => set.add(t)));
+    return Array.from(set).sort();
+  }, [labels]);
 
   const agents = useMemo(
     () => Array.from(new Set(items.map(s => s.agent))).sort(),
@@ -65,6 +75,9 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
       if (realmFilter && sessionRealmKey(s) !== realmFilter) return false;
       if (agentFilter !== 'all' && s.agent !== agentFilter) return false;
       if (activeOnly && s.status !== 'active') return false;
+      const lbl = labels?.[s.id];
+      if (starredOnly && !lbl?.starred) return false;
+      if (tagFilter !== 'all' && !lbl?.tags?.includes(tagFilter)) return false;
       if (!q) return true;
       return (
         (s.id?.toLowerCase().includes(q)) ||
@@ -102,12 +115,14 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
     });
 
     return { active, byRepo, repoOrder, total: filtered.length };
-  }, [items, query, agentFilter, activeOnly, sortMode, realmFilter]);
+  }, [items, query, agentFilter, activeOnly, sortMode, realmFilter, starredOnly, tagFilter, labels]);
 
   const toggle = (key: string) =>
     setCollapsed(prev => ({ ...prev, [key]: !prev[key] }));
 
-  const renderRow = (s: Session) => (
+  const renderRow = (s: Session) => {
+    const lbl = labels?.[s.id];
+    return (
     <button
       key={s.id}
       onClick={() => onSelect(s.id)}
@@ -124,18 +139,32 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
           }`}
         />
         <span className="font-mono text-[10px] text-slate-500">{s.id.slice(0, 8)}</span>
+        {onToggleStar && (
+          <span
+            role="button"
+            onClick={(e) => { e.stopPropagation(); onToggleStar(s.id); }}
+            className={`cursor-pointer text-xs leading-none ${lbl?.starred ? 'text-amber-300' : 'text-slate-700 hover:text-slate-400'}`}
+            title={lbl?.starred ? 'Unstar' : 'Star'}
+          >
+            {lbl?.starred ? '★' : '☆'}
+          </span>
+        )}
         <span className="text-[10px] text-slate-500 ml-auto">{timeAgo(s.last_event_at)}</span>
       </div>
       <div className="text-sm mt-0.5 truncate text-slate-200">
         {s.summary || <span className="text-slate-500 italic">(no summary)</span>}
       </div>
-      {s.branch && (
-        <div className="text-[11px] text-slate-500 mt-0.5 truncate">
-          <span className="text-slate-600">⎇</span> {s.branch}
+      {(s.branch || (lbl?.tags?.length ?? 0) > 0) && (
+        <div className="text-[11px] text-slate-500 mt-0.5 truncate flex items-center gap-1.5">
+          {s.branch && <><span className="text-slate-600">⎇</span><span>{s.branch}</span></>}
+          {lbl?.tags?.map((t) => (
+            <span key={t} className="px-1 rounded bg-violet-500/10 text-violet-300 text-[10px]">#{t}</span>
+          ))}
         </div>
       )}
     </button>
-  );
+    );
+  };
 
   const renderGroup = (key: string, label: string, list: Session[], accent?: string) => {
     if (list.length === 0) return null;
@@ -217,7 +246,41 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
           >
             ● Live
           </button>
+          <button
+            onClick={() => setStarredOnly(v => !v)}
+            title="Show only starred"
+            className={`px-2 py-1 text-[11px] rounded border transition-colors flex-shrink-0 ${
+              starredOnly
+                ? 'bg-amber-500/10 border-amber-500/40 text-amber-300'
+                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            ★
+          </button>
         </div>
+        {allTags.length > 0 && (
+          <div className="flex items-center gap-1.5 mt-1.5 overflow-x-auto">
+            <button
+              onClick={() => setTagFilter('all')}
+              className={`px-2 py-0.5 text-[10px] rounded flex-shrink-0 ${
+                tagFilter === 'all'
+                  ? 'bg-slate-700 text-slate-100'
+                  : 'bg-slate-900 text-slate-500 hover:text-slate-300'
+              }`}
+            >all</button>
+            {allTags.map((tg) => (
+              <button
+                key={tg}
+                onClick={() => setTagFilter(tg)}
+                className={`px-2 py-0.5 text-[10px] rounded flex-shrink-0 ${
+                  tagFilter === tg
+                    ? 'bg-violet-500/30 text-violet-100'
+                    : 'bg-violet-500/10 text-violet-300 hover:bg-violet-500/20'
+                }`}
+              >#{tg}</button>
+            ))}
+          </div>
+        )}
       </div>
       <div className="flex-1 overflow-y-auto py-2">
         {renderGroup('active', 'Active', active, 'text-emerald-400')}
