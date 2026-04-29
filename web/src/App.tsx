@@ -64,7 +64,7 @@ export default function App() {
 
   return (
     <div className="flex h-screen">
-      <div className="w-80 flex flex-col border-r border-slate-800 bg-slate-950/50">
+      <div className="w-96 flex flex-col border-r border-slate-800 bg-slate-950/50">
         <div className="px-4 pt-4 pb-3 flex items-center gap-2 border-b border-slate-800/40">
           <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden className="text-emerald-400 flex-shrink-0">
             <g fill="currentColor">
@@ -80,7 +80,7 @@ export default function App() {
         <nav className="flex border-b border-slate-800">
           <button
             onClick={() => setView('overview')}
-            className={`flex-1 px-3 py-2.5 text-xs font-medium transition-colors ${
+            className={`flex-1 px-2 py-2.5 text-xs font-medium whitespace-nowrap transition-colors ${
               view === 'overview'
                 ? 'bg-slate-800/80 text-slate-100 border-b-2 border-emerald-400'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
@@ -90,7 +90,7 @@ export default function App() {
           </button>
           <button
             onClick={() => setView('session')}
-            className={`flex-1 px-3 py-2.5 text-xs font-medium transition-colors ${
+            className={`flex-1 px-2 py-2.5 text-xs font-medium whitespace-nowrap transition-colors ${
               view === 'session'
                 ? 'bg-slate-800/80 text-slate-100 border-b-2 border-emerald-400'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
@@ -105,7 +105,7 @@ export default function App() {
           </button>
           <button
             onClick={() => setView('skills')}
-            className={`flex-1 px-3 py-2.5 text-xs font-medium transition-colors ${
+            className={`flex-1 px-2 py-2.5 text-xs font-medium whitespace-nowrap transition-colors ${
               view === 'skills'
                 ? 'bg-slate-800/80 text-slate-100 border-b-2 border-emerald-400'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
@@ -115,7 +115,7 @@ export default function App() {
           </button>
           <button
             onClick={() => setView('prompts')}
-            className={`flex-1 px-3 py-2.5 text-xs font-medium transition-colors ${
+            className={`flex-1 px-2 py-2.5 text-xs font-medium whitespace-nowrap transition-colors ${
               view === 'prompts'
                 ? 'bg-slate-800/80 text-slate-100 border-b-2 border-emerald-400'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
