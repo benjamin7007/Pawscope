@@ -109,6 +109,9 @@ const dict: Record<string, { en: string; zh: string }> = {
   'list.sort_oldest': { en: 'Oldest', zh: '最早' },
   'list.sort_repo': { en: 'Repo A→Z', zh: '仓库 A→Z' },
   'list.sort_tokens': { en: 'Tokens ↓', zh: 'Token ↓' },
+  'stat.cost_est': { en: 'Est. cost', zh: '估算费用' },
+  'stat.cost_unknown': { en: 'unknown model', zh: '未识别模型' },
+  'stat.cost_no_model': { en: 'no model recorded', zh: '未记录模型' },
   'list.empty': { en: 'No sessions match.', zh: '没有匹配的会话。' },
 
   // SessionDetail

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useT } from '../i18n';
 import { SessionDetailSkeleton } from './Skeleton';
+import { estimateCostUsd, formatUsd, priceFor } from '../pricing';
 
 type Meta = {
   id: string;
@@ -351,6 +352,14 @@ export function SessionDetail({ meta, detail, onOpenSkill, label, onSetLabel, on
               <StatCard label={t('stat.tokens_in')} value={formatTokens(detail.tokens_in ?? 0)} hint={t('misc.cumulative')} />
               <StatCard label={t('stat.tokens_out')} value={formatTokens(detail.tokens_out ?? 0)} hint={t('misc.cumulative')} />
               <StatCard label={t('stat.tokens_total')} value={formatTokens((detail.tokens_in ?? 0) + (detail.tokens_out ?? 0))} />
+              {(() => {
+                const cost = estimateCostUsd(meta?.model, detail.tokens_in ?? 0, detail.tokens_out ?? 0);
+                const pf = priceFor(meta?.model);
+                if (cost === null) {
+                  return <StatCard label={t('stat.cost_est')} value="—" hint={meta?.model ? t('stat.cost_unknown') : t('stat.cost_no_model')} />;
+                }
+                return <StatCard label={t('stat.cost_est')} value={formatUsd(cost)} hint={pf?.label ?? meta?.model ?? ''} />;
+              })()}
             </section>
           ) : null}
 

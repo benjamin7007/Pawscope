@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useT } from '../i18n';
+import { estimateCostUsd, formatUsd } from '../pricing';
 
 type Session = {
   id: string;
@@ -8,6 +9,7 @@ type Session = {
   repo?: string | null;
   branch?: string | null;
   summary?: string | null;
+  model?: string | null;
   status: string;
   last_event_at?: string | null;
 };
@@ -130,6 +132,7 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
     const lbl = labels?.[s.id];
     const tk = tokensMap?.[s.id];
     const tkTotal = tk ? tk.in + tk.out : 0;
+    const cost = tk ? estimateCostUsd(s.model, tk.in, tk.out) : null;
     const fmtK = (n: number) => n >= 1_000_000 ? `${(n/1_000_000).toFixed(1)}M` : n >= 1000 ? `${(n/1000).toFixed(1)}k` : `${n}`;
     return (
     <button
@@ -175,6 +178,14 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
               title={`in ${tk!.in.toLocaleString()} · out ${tk!.out.toLocaleString()}`}
             >
               ⚡ {fmtK(tkTotal)}
+            </span>
+          )}
+          {cost !== null && (
+            <span
+              className="px-1.5 rounded bg-amber-500/10 text-amber-300 text-[10px] tabular-nums"
+              title={`Estimated cost (${s.model})`}
+            >
+              {formatUsd(cost)}
             </span>
           )}
         </div>
