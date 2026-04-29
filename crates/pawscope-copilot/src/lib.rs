@@ -3,7 +3,7 @@ pub mod lock;
 pub mod watcher;
 pub mod workspace;
 
-use agent_lens_core::{
+use pawscope_core::{
     AgentAdapter, AgentKind, CoreError, Result, SessionDetail, SessionEvent, SessionMeta,
     SessionStatus,
 };

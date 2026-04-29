@@ -1,4 +1,4 @@
-use agent_lens_core::types::SessionDetail;
+use pawscope_core::types::SessionDetail;
 use serde::Deserialize;
 use std::io::{BufRead, BufReader, Seek, SeekFrom};
 use std::path::Path;

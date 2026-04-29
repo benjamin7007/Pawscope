@@ -1,10 +1,10 @@
 [package]
-name = "agent-lens-server"
+name = "pawscope-server"
 version.workspace = true
 edition.workspace = true
 
 [dependencies]
-agent-lens-core = { path = "../agent-lens-core" }
+pawscope-core = { path = "../pawscope-core" }
 axum = { version = "0.8", features = ["ws"] }
 tokio = { workspace = true, features = ["full"] }
 tower = "0.5"

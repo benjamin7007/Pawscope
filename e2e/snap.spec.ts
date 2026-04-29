@@ -5,5 +5,5 @@ test('snap', async ({ page }) => {
   await page.locator('aside button').first().click();
   await page.waitForTimeout(500);
   await page.setViewportSize({ width: 1400, height: 900 });
-  await page.screenshot({ path: '/tmp/agent-lens-snap.png', fullPage: false });
+  await page.screenshot({ path: '/tmp/pawscope-snap.png', fullPage: false });
 });

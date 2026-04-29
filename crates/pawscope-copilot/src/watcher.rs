@@ -1,5 +1,5 @@
 use crate::events;
-use agent_lens_core::{CoreError, Result, SessionEvent};
+use pawscope_core::{CoreError, Result, SessionEvent};
 use notify::{Config, PollWatcher, RecursiveMode, Watcher};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;

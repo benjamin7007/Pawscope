@@ -1,10 +1,10 @@
 [package]
-name = "agent-lens-copilot"
+name = "pawscope-copilot"
 version.workspace = true
 edition.workspace = true
 
 [dependencies]
-agent-lens-core = { path = "../agent-lens-core" }
+pawscope-core = { path = "../pawscope-core" }
 serde.workspace = true
 serde_json.workspace = true
 serde_yaml.workspace = true

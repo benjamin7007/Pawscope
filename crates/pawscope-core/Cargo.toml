@@ -1,5 +1,5 @@
 [package]
-name = "agent-lens-core"
+name = "pawscope-core"
 version.workspace = true
 edition.workspace = true
 
