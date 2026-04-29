@@ -4,22 +4,25 @@ import { useT } from '../i18n';
 type Session = { id: string; agent: string; summary?: string | null; repo?: string | null; cwd?: string | null; status: string };
 type PromptHit = { session_id: string; agent: string; cwd?: string | null; snippet: string; timestamp?: string | null; prompt_id: string };
 type SkillEntry = { name: string; description: string };
+type LabelMap = Record<string, { starred: boolean; tags: string[]; note?: string | null }>;
 
 type Result =
   | { kind: 'session'; id: string; label: string; sub: string }
   | { kind: 'prompt'; session_id: string; label: string; sub: string }
-  | { kind: 'skill'; name: string; label: string; sub: string };
+  | { kind: 'skill'; name: string; label: string; sub: string }
+  | { kind: 'note'; session_id: string; label: string; sub: string };
 
 interface Props {
   open: boolean;
   onClose: () => void;
   sessions: Session[];
+  labels?: LabelMap;
   onOpenSession: (id: string) => void;
   onOpenSkill: (name: string) => void;
   initialQuery?: string;
 }
 
-export function CommandPalette({ open, onClose, sessions, onOpenSession, onOpenSkill, initialQuery }: Props) {
+export function CommandPalette({ open, onClose, sessions, labels, onOpenSession, onOpenSkill, initialQuery }: Props) {
   const { t, lang } = useT();
   const [q, setQ] = useState('');
   const [prompts, setPrompts] = useState<PromptHit[]>([]);
@@ -95,6 +98,26 @@ export function CommandPalette({ open, onClose, sessions, onOpenSession, onOpenS
         sub: (s.description || '').slice(0, 80),
       });
     }
+    // Notes (always shown — even with empty query — since they're rare)
+    if (labels) {
+      const noteEntries: { id: string; note: string; sess?: Session }[] = [];
+      for (const [id, lbl] of Object.entries(labels)) {
+        if (!lbl.note) continue;
+        if (ql && !lbl.note.toLowerCase().includes(ql) && !id.toLowerCase().includes(ql)) continue;
+        noteEntries.push({ id, note: lbl.note, sess: sessions.find(s => s.id === id) });
+      }
+      noteEntries.sort((a, b) => (b.sess?.status === 'active' ? 1 : 0) - (a.sess?.status === 'active' ? 1 : 0));
+      for (const n of noteEntries.slice(0, 6)) {
+        out.push({
+          kind: 'note',
+          session_id: n.id,
+          label: n.note.replace(/\s+/g, ' ').slice(0, 90),
+          sub: n.sess
+            ? `${n.sess.agent}${n.sess.repo ? ` · ${n.sess.repo}` : ''} · ${n.sess.summary?.slice(0, 40) || n.id.slice(0, 8)}`
+            : n.id.slice(0, 12),
+        });
+      }
+    }
     // Prompts (already filtered server-side)
     for (const p of prompts.slice(0, 8)) {
       out.push({
@@ -105,7 +128,7 @@ export function CommandPalette({ open, onClose, sessions, onOpenSession, onOpenS
       });
     }
     return out;
-  }, [q, sessions, skills, prompts]);
+  }, [q, sessions, skills, prompts, labels]);
 
   // Clamp active index
   useEffect(() => {
@@ -122,6 +145,7 @@ export function CommandPalette({ open, onClose, sessions, onOpenSession, onOpenS
     onClose();
     if (r.kind === 'session') onOpenSession(r.id);
     else if (r.kind === 'prompt') onOpenSession(r.session_id);
+    else if (r.kind === 'note') onOpenSession(r.session_id);
     else if (r.kind === 'skill') onOpenSkill(r.name);
   };
 
@@ -159,9 +183,15 @@ export function CommandPalette({ open, onClose, sessions, onOpenSession, onOpenS
             </div>
           ) : (
             results.map((r, i) => {
-              const icon = r.kind === 'session' ? '📂' : r.kind === 'prompt' ? '💬' : '🧩';
-              const tag = r.kind === 'session' ? t('nav.session') : r.kind === 'prompt' ? (lang === 'zh' ? '提示' : 'Prompt') : (lang === 'zh' ? '技能' : 'Skill');
-              const tagColor = r.kind === 'session' ? 'text-cyan-300' : r.kind === 'prompt' ? 'text-amber-300' : 'text-emerald-300';
+              const icon = r.kind === 'session' ? '📂' : r.kind === 'prompt' ? '💬' : r.kind === 'note' ? '📝' : '🧩';
+              const tag = r.kind === 'session' ? t('nav.session')
+                : r.kind === 'prompt' ? (lang === 'zh' ? '提示' : 'Prompt')
+                : r.kind === 'note' ? (lang === 'zh' ? '备注' : 'Note')
+                : (lang === 'zh' ? '技能' : 'Skill');
+              const tagColor = r.kind === 'session' ? 'text-cyan-300'
+                : r.kind === 'prompt' ? 'text-amber-300'
+                : r.kind === 'note' ? 'text-violet-300'
+                : 'text-emerald-300';
               return (
                 <button
                   key={i}
