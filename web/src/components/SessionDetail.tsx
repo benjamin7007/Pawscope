@@ -20,7 +20,7 @@ type Detail = {
   assistant_messages: number;
   tools_used: Record<string, number>;
   skills_invoked: string[];
-  subagents?: { id: string; turns: number; tool_calls: number }[];
+  subagents?: { id: string; turns: number; tool_calls: number; tools?: Record<string, number> }[];
   prompts?: { id: string; timestamp: string | null; snippet: string }[];
 };
 
@@ -218,17 +218,47 @@ export function SessionDetail({ meta, detail }: Props) {
                 <span className="text-[11px] text-slate-500">{detail.subagents.length}</span>
               </header>
               <ul className="divide-y divide-slate-800/60">
-                {detail.subagents.map(sa => (
-                  <li key={sa.id} className="px-4 py-2 flex items-center gap-3 text-sm">
-                    <span className="font-mono text-[11px] text-slate-300 truncate flex-1">{sa.id}</span>
-                    <span className="text-slate-400 tabular-nums text-xs">
-                      <span className="text-slate-500">turns</span> {sa.turns}
-                    </span>
-                    <span className="text-slate-400 tabular-nums text-xs">
-                      <span className="text-slate-500">tools</span> {sa.tool_calls}
-                    </span>
-                  </li>
-                ))}
+                {detail.subagents.map(sa => {
+                  const toolEntries = Object.entries(sa.tools || {}).sort((a, b) => b[1] - a[1]);
+                  const maxTool = toolEntries[0]?.[1] ?? 1;
+                  const hasTools = toolEntries.length > 0;
+                  return (
+                    <li key={sa.id}>
+                      <details className="group">
+                        <summary
+                          className={`px-4 py-2 flex items-center gap-3 text-sm list-none ${hasTools ? 'cursor-pointer hover:bg-slate-800/30' : ''}`}
+                        >
+                          <span
+                            className={`text-slate-600 text-xs w-3 transition-transform ${hasTools ? 'group-open:rotate-90' : 'opacity-30'}`}
+                          >▶</span>
+                          <span className="font-mono text-[11px] text-slate-300 truncate flex-1">{sa.id}</span>
+                          <span className="text-slate-400 tabular-nums text-xs">
+                            <span className="text-slate-500">turns</span> {sa.turns}
+                          </span>
+                          <span className="text-slate-400 tabular-nums text-xs">
+                            <span className="text-slate-500">tools</span> {sa.tool_calls}
+                          </span>
+                        </summary>
+                        {hasTools && (
+                          <div className="px-4 pt-1 pb-3 space-y-1 bg-slate-900/30">
+                            {toolEntries.map(([name, count]) => (
+                              <div key={name} className="flex items-center gap-2 text-xs">
+                                <span className="font-mono text-slate-400 w-28 truncate" title={name}>{name}</span>
+                                <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-emerald-500/70"
+                                    style={{ width: `${(count / maxTool) * 100}%` }}
+                                  />
+                                </div>
+                                <span className="tabular-nums text-slate-300 w-10 text-right">{count}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </details>
+                    </li>
+                  );
+                })}
               </ul>
             </section>
           )}
