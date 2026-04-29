@@ -434,6 +434,56 @@ export function SessionDetail({ meta, detail, onOpenSkill, label, onSetLabel, on
             <StatCard label={t('stat.tool_calls')} value={toolsTotal} hint={`${tools.length} ${t('misc.unique')}`} />
           </section>
 
+          {(() => {
+            const firstPromptT = detail.prompts?.find(p => p.timestamp)?.timestamp;
+            const startISO = firstPromptT || meta?.started_at;
+            const endISO = meta?.last_event_at;
+            if (!startISO || !endISO) return null;
+            const startMs = new Date(startISO).getTime();
+            const endMs = new Date(endISO).getTime();
+            const durMs = Math.max(0, endMs - startMs);
+            if (durMs < 1000) return null;
+            const fmtDur = (ms: number): string => {
+              const s = Math.floor(ms / 1000);
+              if (s < 60) return `${s}s`;
+              const m = Math.floor(s / 60);
+              if (m < 60) return `${m}m ${s % 60}s`;
+              const h = Math.floor(m / 60);
+              if (h < 24) return `${h}h ${m % 60}m`;
+              const d = Math.floor(h / 24);
+              return `${d}d ${h % 24}h`;
+            };
+            const promptCount = detail.prompts?.length ?? 0;
+            const turns = detail.turns || 0;
+            const promptsPerHour = durMs > 0 ? (promptCount / (durMs / 3600000)) : 0;
+            const turnsPerHour = durMs > 0 ? (turns / (durMs / 3600000)) : 0;
+            const isFirstPrompt = !!firstPromptT;
+            return (
+              <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <StatCard
+                  label={t('stat.duration')}
+                  value={fmtDur(durMs)}
+                  hint={isFirstPrompt ? t('misc.from_first_prompt') : t('misc.from_session_start')}
+                />
+                <StatCard
+                  label={t('stat.first_event')}
+                  value={new Date(startISO).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  hint={new Date(startISO).toLocaleDateString()}
+                />
+                <StatCard
+                  label={t('stat.prompts_per_hour')}
+                  value={promptsPerHour < 0.1 ? promptsPerHour.toFixed(2) : promptsPerHour.toFixed(1)}
+                  hint={`${promptCount} ${t('misc.prompts')}`}
+                />
+                <StatCard
+                  label={t('stat.turns_per_hour')}
+                  value={turnsPerHour < 0.1 ? turnsPerHour.toFixed(2) : turnsPerHour.toFixed(1)}
+                  hint={`${turns} ${t('stat.turns').toLowerCase()}`}
+                />
+              </section>
+            );
+          })()}
+
           {(detail.tokens_in || detail.tokens_out) ? (
             <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <StatCard label={t('stat.tokens_in')} value={formatTokens(detail.tokens_in ?? 0)} hint={t('misc.cumulative')} />
