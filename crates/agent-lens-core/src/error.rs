@@ -8,6 +8,8 @@ pub enum CoreError {
     Parse(String),
     #[error("not found: {0}")]
     NotFound(String),
+    #[error("{0}")]
+    Other(String),
 }
 
 pub type Result<T> = std::result::Result<T, CoreError>;

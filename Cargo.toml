@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/agent-lens-core", "crates/agent-lens-copilot", "crates/agent-lens-claude", "crates/agent-lens-server"]
+members = ["crates/agent-lens-core", "crates/agent-lens-copilot", "crates/agent-lens-claude", "crates/agent-lens-codex", "crates/agent-lens-server"]
 
 [workspace.package]
 version = "0.1.0"
@@ -32,6 +32,7 @@ path = "src/main.rs"
 agent-lens-core = { path = "crates/agent-lens-core" }
 agent-lens-copilot = { path = "crates/agent-lens-copilot" }
 agent-lens-claude = { path = "crates/agent-lens-claude" }
+agent-lens-codex = { path = "crates/agent-lens-codex" }
 agent-lens-server = { path = "crates/agent-lens-server" }
 axum = { version = "0.8", features = ["ws"] }
 clap = { version = "4", features = ["derive"] }
