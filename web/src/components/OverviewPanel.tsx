@@ -703,6 +703,114 @@ function WeeklyTrendChart({ data, t }: {
   );
 }
 
+function HeartbeatHeatmap({ data, t }: {
+  data: { grid: number[][]; days: string[]; by_hour: number[]; peak_hour: number; peak_dow: number; total: number };
+  t: (k: string) => string;
+}) {
+  const flat = data.grid.flat();
+  const max = Math.max(1, ...flat);
+  const fmtHr = (h: number) => `${h.toString().padStart(2, '0')}:00`;
+  return (
+    <div className="px-4 py-4 space-y-3">
+      <div className="text-[11px] text-slate-400">
+        {t('misc.peak_at')}{' '}
+        <span className="text-cyan-300 font-semibold">{data.days[data.peak_dow]} {fmtHr(data.peak_hour)}</span>
+        {' · '}
+        <span className="text-slate-500">{data.total} {t('misc.prompts')}</span>
+      </div>
+      <div className="overflow-x-auto">
+        <div className="inline-grid" style={{ gridTemplateColumns: 'auto repeat(24, minmax(12px, 1fr))', gap: '2px' }}>
+          <div />
+          {Array.from({ length: 24 }).map((_, h) => (
+            <div key={h} className="text-[8px] text-slate-600 text-center tabular-nums">
+              {h % 3 === 0 ? h : ''}
+            </div>
+          ))}
+          {data.days.map((day, d) => (
+            <>
+              <div key={`l-${d}`} className="text-[10px] text-slate-500 pr-1 self-center">{day}</div>
+              {data.grid[d].map((c, h) => {
+                const intensity = c / max;
+                return (
+                  <div
+                    key={`${d}-${h}`}
+                    className="aspect-square rounded-sm"
+                    style={{
+                      background: c === 0
+                        ? 'rgba(30,41,59,0.4)'
+                        : `rgba(34,211,238,${0.2 + intensity * 0.8})`,
+                    }}
+                    title={`${day} ${fmtHr(h)} · ${c} prompts`}
+                  />
+                );
+              })}
+            </>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DangerousTools({ data, t }: {
+  data: { entries: { name: string; severity: string; count: number; sessions: number }[]; total_calls: number; sessions_affected: number };
+  t: (k: string) => string;
+}) {
+  if (data.entries.length === 0) {
+    return <div className="px-4 py-6 text-xs text-slate-600 text-center">{t('misc.no_dangerous')}</div>;
+  }
+  const sevColor: Record<string, string> = {
+    high: 'border-rose-500/60 bg-rose-500/10 text-rose-300',
+    medium: 'border-amber-500/60 bg-amber-500/10 text-amber-300',
+    low: 'border-sky-500/40 bg-sky-500/10 text-sky-300',
+  };
+  return (
+    <div className="px-4 py-3 space-y-2">
+      <div className="text-[11px] text-slate-400">
+        {data.total_calls} {t('misc.calls')} · {data.sessions_affected} {t('misc.sessions_affected')}
+      </div>
+      <ul className="divide-y divide-slate-800/60">
+        {data.entries.slice(0, 10).map(e => (
+          <li key={e.name} className="py-2 flex items-center gap-2 text-xs">
+            <span className={`px-1.5 py-0.5 rounded border text-[9px] uppercase tracking-wider font-semibold ${sevColor[e.severity] ?? sevColor.low}`}>
+              {e.severity}
+            </span>
+            <span className="font-mono text-slate-200 truncate flex-1">{e.name}</span>
+            <span className="text-slate-500 tabular-nums">{e.sessions}s</span>
+            <span className="text-slate-300 tabular-nums w-14 text-right">×{e.count}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function HotFiles({ files, t }: {
+  files: { path: string; mentions: number; sessions: number }[];
+  t: (k: string) => string;
+}) {
+  if (files.length === 0) {
+    return <div className="px-4 py-6 text-xs text-slate-600 text-center">{t('misc.no_hot_files')}</div>;
+  }
+  const max = Math.max(1, ...files.map(f => f.sessions));
+  return (
+    <ul className="divide-y divide-slate-800/60 max-h-72 overflow-auto">
+      {files.slice(0, 20).map(f => {
+        const pct = (f.sessions / max) * 100;
+        return (
+          <li key={f.path} className="px-4 py-1.5 flex items-center gap-2 text-xs">
+            <span className="font-mono text-slate-300 truncate flex-1" title={f.path}>{f.path}</span>
+            <div className="w-16 h-1 bg-slate-800 rounded-full overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-violet-500/70 to-violet-400" style={{ width: `${pct}%` }} />
+            </div>
+            <span className="text-slate-400 tabular-nums w-12 text-right">{f.sessions}s · {f.mentions}</span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded bg-slate-800/40 border border-slate-800 px-2 py-1.5 flex flex-col">
@@ -870,6 +978,15 @@ export function OverviewPanel({
     weeks: { label: string; days: number[] }[];
     total_this_week: number; total_last_week: number; delta_pct: number;
   } | null>(null);
+  const [heartbeat, setHeartbeat] = useState<{
+    grid: number[][]; days: string[]; by_hour: number[]; by_dow: number[];
+    peak_hour: number; peak_dow: number; total: number;
+  } | null>(null);
+  const [dangerous, setDangerous] = useState<{
+    entries: { name: string; severity: string; count: number; sessions: number }[];
+    total_calls: number; sessions_affected: number;
+  } | null>(null);
+  const [hotFiles, setHotFiles] = useState<{ path: string; mentions: number; sessions: number }[]>([]);
   const [, forceTick] = useState(0);
   const [err, setErr] = useState<string | null>(null);
 
@@ -916,6 +1033,18 @@ export function OverviewPanel({
       fetch('/api/activity/weekly?weeks=2')
         .then(r => r.ok ? r.json() : null)
         .then(d => { if (!cancelled && d) setWeekly(d); })
+        .catch(() => {});
+      fetch('/api/activity/heartbeat')
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (!cancelled && d) setHeartbeat(d); })
+        .catch(() => {});
+      fetch('/api/tools/dangerous')
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (!cancelled && d) setDangerous(d); })
+        .catch(() => {});
+      fetch('/api/files/hot')
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (!cancelled && Array.isArray(d)) setHotFiles(d); })
         .catch(() => {});
     };
     load();
@@ -1132,6 +1261,36 @@ export function OverviewPanel({
           )}
         </section>
 
+        {heartbeat && heartbeat.total > 0 && (
+          <section className="rounded-lg bg-slate-900/40 border border-slate-800">
+            <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
+              <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.heartbeat')}</h3>
+              <span className="text-[11px] text-slate-500">{t('misc.dow_x_hour')}</span>
+            </header>
+            <HeartbeatHeatmap data={heartbeat} t={t} />
+          </section>
+        )}
+
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {dangerous && (
+            <div className="rounded-lg bg-slate-900/40 border border-slate-800">
+              <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
+                <h3 className="text-xs uppercase tracking-wider text-slate-400">⚠ {t('sec.dangerous')}</h3>
+                <span className="text-[11px] text-rose-400">{dangerous.entries.filter(e => e.severity === 'high').length} {t('misc.high_risk')}</span>
+              </header>
+              <DangerousTools data={dangerous} t={t} />
+            </div>
+          )}
+          {hotFiles.length > 0 && (
+            <div className="rounded-lg bg-slate-900/40 border border-slate-800">
+              <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
+                <h3 className="text-xs uppercase tracking-wider text-slate-400">🔥 {t('sec.hot_files')}</h3>
+                <span className="text-[11px] text-slate-500">{hotFiles.length} {t('misc.files')}</span>
+              </header>
+              <HotFiles files={hotFiles} t={t} />
+            </div>
+          )}
+        </section>
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="rounded-lg bg-slate-900/40 border border-slate-800">
             <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
