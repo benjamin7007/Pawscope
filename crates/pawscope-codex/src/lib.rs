@@ -220,6 +220,43 @@ impl AgentAdapter for CodexAdapter {
         Ok(detail)
     }
 
+    async fn get_conversation(
+        &self,
+        session_id: &str,
+    ) -> Result<Option<pawscope_core::ConversationLog>> {
+        let conn = self.conn.clone();
+        let id = session_id.to_string();
+        let log = tokio::task::spawn_blocking(
+            move || -> Result<Option<pawscope_core::ConversationLog>> {
+                let rollout_path: String = {
+                    let guard = conn.lock().unwrap();
+                    let mut stmt = guard
+                        .prepare("SELECT rollout_path FROM threads WHERE id = ?1")
+                        .map_err(|e| CoreError::Other(e.to_string()))?;
+                    let mut rows = stmt
+                        .query([&id])
+                        .map_err(|e| CoreError::Other(e.to_string()))?;
+                    let Some(row) =
+                        rows.next().map_err(|e| CoreError::Other(e.to_string()))?
+                    else {
+                        return Ok(None);
+                    };
+                    row.get(0).unwrap_or_default()
+                };
+                if rollout_path.is_empty() {
+                    return Ok(None);
+                }
+                let Ok(file) = std::fs::File::open(&rollout_path) else {
+                    return Ok(None);
+                };
+                Ok(Some(parse_rollout_into_conversation(file)))
+            },
+        )
+        .await
+        .map_err(|e| CoreError::Other(e.to_string()))??;
+        Ok(log)
+    }
+
     async fn session_activity_hourly(&self, session_id: &str, hours: u32) -> Result<Vec<u64>> {
         let conn = self.conn.clone();
         let id = session_id.to_string();
@@ -398,6 +435,336 @@ fn extract_user_text(payload: &serde_json::Value) -> Option<String> {
     }
     let trimmed = out.trim();
     (!trimmed.is_empty()).then(|| trimmed.to_string())
+}
+
+fn parse_rollout_into_conversation(file: std::fs::File) -> pawscope_core::ConversationLog {
+    use pawscope_core::{
+        AssistantTurn, ConversationLog, Interaction, TurnItem, UserMessageKind,
+    };
+    use std::collections::HashMap;
+    use std::io::{BufRead, BufReader};
+
+    let mut log = ConversationLog::default();
+    let mut current_interaction: Option<usize> = None;
+    let mut current_turn: Option<usize> = None;
+    // call_id -> (interaction_idx, turn_idx, item_idx)
+    let mut call_pos: HashMap<String, (usize, usize, usize)> = HashMap::new();
+
+    let reader = BufReader::new(file);
+    for line in reader.lines().map_while(std::result::Result::ok) {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let v: serde_json::Value = match serde_json::from_str(line) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        let ts = v
+            .get("timestamp")
+            .and_then(|t| t.as_str())
+            .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
+            .map(|dt| dt.with_timezone(&Utc));
+        let kind = v.get("type").and_then(|t| t.as_str()).unwrap_or("");
+        if kind != "response_item" {
+            continue;
+        }
+        let Some(p) = v.get("payload") else { continue };
+        let inner = p.get("type").and_then(|t| t.as_str()).unwrap_or("");
+        let at = match ts {
+            Some(t) => t,
+            None => continue,
+        };
+
+        match inner {
+            "message" => {
+                let role = p.get("role").and_then(|r| r.as_str()).unwrap_or("");
+                match role {
+                    "user" => {
+                        let text = extract_user_text(p).unwrap_or_default();
+                        // Skip purely-empty user wrappers (e.g. tool follow-ups encoded
+                        // separately by Codex). They'd create empty interactions.
+                        if text.is_empty() {
+                            continue;
+                        }
+                        let kind = classify_codex_user_kind(&text);
+                        let id = p
+                            .get("id")
+                            .and_then(|s| s.as_str())
+                            .map(|s| s.to_string())
+                            .unwrap_or_else(|| format!("u-{}", log.interactions.len()));
+                        log.interactions.push(Interaction {
+                            interaction_id: id,
+                            started_at: at,
+                            user_message_raw: Some(text),
+                            user_message_transformed: None,
+                            kind,
+                            turns: Vec::new(),
+                        });
+                        current_interaction = Some(log.interactions.len() - 1);
+                        current_turn = None;
+                        log.version += 1;
+                    }
+                    "assistant" => {
+                        let ii = match current_interaction {
+                            Some(i) => i,
+                            None => {
+                                // Synthetic interaction if assistant precedes any user.
+                                log.interactions.push(Interaction {
+                                    interaction_id: format!("synthetic-{}", log.interactions.len()),
+                                    started_at: at,
+                                    user_message_raw: None,
+                                    user_message_transformed: None,
+                                    kind: UserMessageKind::InjectedContext,
+                                    turns: Vec::new(),
+                                });
+                                let i = log.interactions.len() - 1;
+                                current_interaction = Some(i);
+                                i
+                            }
+                        };
+                        let text = extract_assistant_text(p);
+                        // Each assistant message is a complete turn (Codex emits
+                        // them post-stream like Claude). Append a fresh turn with
+                        // a single AssistantMessage item, then any subsequent
+                        // function_call/tool entries land in the same turn.
+                        let turn_id = p
+                            .get("id")
+                            .and_then(|s| s.as_str())
+                            .map(|s| s.to_string())
+                            .unwrap_or_else(|| format!("t-{}", log.version));
+                        let mut items: Vec<TurnItem> = Vec::new();
+                        if !text.is_empty() {
+                            items.push(TurnItem::AssistantMessage { at, content: text });
+                        }
+                        log.interactions[ii].turns.push(AssistantTurn {
+                            turn_id,
+                            started_at: at,
+                            completed_at: Some(at),
+                            items,
+                        });
+                        current_turn = Some(log.interactions[ii].turns.len() - 1);
+                        log.version += 1;
+                    }
+                    _ => {}
+                }
+            }
+            "function_call" | "custom_tool_call" => {
+                let name = p
+                    .get("name")
+                    .and_then(|n| n.as_str())
+                    .unwrap_or(if inner == "custom_tool_call" {
+                        "custom_tool"
+                    } else {
+                        "function"
+                    })
+                    .to_string();
+                let call_id = p
+                    .get("call_id")
+                    .and_then(|c| c.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                let args_summary = p.get("arguments").or_else(|| p.get("input")).map(|v| {
+                    let s = match v {
+                        serde_json::Value::String(s) => s.clone(),
+                        other => serde_json::to_string(other).unwrap_or_default(),
+                    };
+                    if s.chars().count() <= 600 {
+                        s
+                    } else {
+                        let mut t: String = s.chars().take(600).collect();
+                        t.push('…');
+                        t
+                    }
+                });
+                attach_tool_item(
+                    &mut log,
+                    &mut current_interaction,
+                    &mut current_turn,
+                    &mut call_pos,
+                    at,
+                    name,
+                    call_id,
+                    args_summary,
+                );
+            }
+            "local_shell_call" => {
+                let call_id = p
+                    .get("call_id")
+                    .and_then(|c| c.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                let args_summary = p
+                    .get("action")
+                    .and_then(|a| a.get("command"))
+                    .map(|c| match c {
+                        serde_json::Value::Array(arr) => arr
+                            .iter()
+                            .filter_map(|i| i.as_str())
+                            .collect::<Vec<_>>()
+                            .join(" "),
+                        serde_json::Value::String(s) => s.clone(),
+                        other => serde_json::to_string(other).unwrap_or_default(),
+                    });
+                attach_tool_item(
+                    &mut log,
+                    &mut current_interaction,
+                    &mut current_turn,
+                    &mut call_pos,
+                    at,
+                    "shell".to_string(),
+                    call_id,
+                    args_summary,
+                );
+            }
+            "function_call_output" | "custom_tool_call_output" | "local_shell_call_output" => {
+                let call_id = p
+                    .get("call_id")
+                    .and_then(|c| c.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                let output_str = p
+                    .get("output")
+                    .map(|v| match v {
+                        serde_json::Value::String(s) => s.clone(),
+                        other => serde_json::to_string(other).unwrap_or_default(),
+                    })
+                    .unwrap_or_default();
+                let is_error = p
+                    .get("status")
+                    .and_then(|s| s.as_str())
+                    .map(|s| s == "failed" || s == "error")
+                    .unwrap_or(false);
+                let snippet = if output_str.chars().count() <= 600 {
+                    output_str
+                } else {
+                    let mut t: String = output_str.chars().take(600).collect();
+                    t.push('…');
+                    t
+                };
+                if let Some(&(ii, ti, ix)) = call_pos.get(&call_id) {
+                    if let Some(item) = log
+                        .interactions
+                        .get_mut(ii)
+                        .and_then(|i| i.turns.get_mut(ti))
+                        .and_then(|t| t.items.get_mut(ix))
+                    {
+                        if let TurnItem::Tool(tc) = item {
+                            tc.result_snippet = Some(snippet);
+                            tc.success = Some(!is_error);
+                            log.version += 1;
+                        }
+                    }
+                }
+            }
+            // "reasoning" intentionally skipped in v0.7.
+            _ => {}
+        }
+    }
+    log
+}
+
+#[allow(clippy::too_many_arguments)]
+fn attach_tool_item(
+    log: &mut pawscope_core::ConversationLog,
+    current_interaction: &mut Option<usize>,
+    current_turn: &mut Option<usize>,
+    call_pos: &mut std::collections::HashMap<String, (usize, usize, usize)>,
+    at: DateTime<Utc>,
+    name: String,
+    call_id: String,
+    args_summary: Option<String>,
+) {
+    use pawscope_core::{AssistantTurn, Interaction, TurnItem, TurnToolCall, UserMessageKind};
+    let ii = match *current_interaction {
+        Some(i) => i,
+        None => {
+            log.interactions.push(Interaction {
+                interaction_id: format!("synthetic-{}", log.interactions.len()),
+                started_at: at,
+                user_message_raw: None,
+                user_message_transformed: None,
+                kind: UserMessageKind::InjectedContext,
+                turns: Vec::new(),
+            });
+            let i = log.interactions.len() - 1;
+            *current_interaction = Some(i);
+            i
+        }
+    };
+    let ti = match *current_turn {
+        Some(t) if log.interactions[ii].turns.get(t).is_some() => t,
+        _ => {
+            log.interactions[ii].turns.push(AssistantTurn {
+                turn_id: format!("t-{}", log.version),
+                started_at: at,
+                completed_at: Some(at),
+                items: Vec::new(),
+            });
+            let t = log.interactions[ii].turns.len() - 1;
+            *current_turn = Some(t);
+            t
+        }
+    };
+    let item_idx = log.interactions[ii].turns[ti].items.len();
+    log.interactions[ii].turns[ti]
+        .items
+        .push(TurnItem::Tool(TurnToolCall {
+            call_id: call_id.clone(),
+            name,
+            at,
+            args_summary,
+            result_snippet: None,
+            success: None,
+        }));
+    if !call_id.is_empty() {
+        call_pos.insert(call_id, (ii, ti, item_idx));
+    }
+    log.version += 1;
+}
+
+fn extract_assistant_text(payload: &serde_json::Value) -> String {
+    let Some(content) = payload.get("content") else {
+        return String::new();
+    };
+    if let Some(s) = content.as_str() {
+        return s.to_string();
+    }
+    let Some(arr) = content.as_array() else {
+        return String::new();
+    };
+    let mut out = String::new();
+    for item in arr {
+        let kind = item.get("type").and_then(|t| t.as_str()).unwrap_or("");
+        if !matches!(kind, "output_text" | "text") {
+            continue;
+        }
+        if let Some(t) = item.get("text").and_then(|t| t.as_str()) {
+            if !out.is_empty() {
+                out.push('\n');
+            }
+            out.push_str(t);
+        }
+    }
+    out
+}
+
+fn classify_codex_user_kind(text: &str) -> pawscope_core::UserMessageKind {
+    use pawscope_core::UserMessageKind;
+    let t = text.trim_start();
+    let injected_prefixes = [
+        "<environment_context>",
+        "<user_instructions>",
+        "<system-reminder>",
+        "<command-name>",
+        "<command-message>",
+    ];
+    for p in injected_prefixes {
+        if t.starts_with(p) {
+            return UserMessageKind::InjectedContext;
+        }
+    }
+    UserMessageKind::Human
 }
 
 fn parse_rollout_activity(file: std::fs::File, hours: usize) -> Vec<u64> {
@@ -749,5 +1116,91 @@ mod tests {
         let d = a.get_detail("thread-4").await.unwrap();
         assert_eq!(d.tokens_in, 250);
         assert_eq!(d.tokens_out, 120);
+    }
+
+    #[tokio::test]
+    async fn conversation_builds_for_codex_rollout() {
+        use pawscope_core::TurnItem;
+        let dir = tempfile::tempdir().unwrap();
+        let now = Utc::now();
+        let ts = |secs: i64| (now - chrono::Duration::seconds(secs)).to_rfc3339();
+        let rollout = write_rollout(
+            dir.path(),
+            "rollout-thread-conv.jsonl",
+            &[
+                &format!(
+                    r#"{{"timestamp":"{}","type":"response_item","payload":{{"type":"message","role":"user","content":[{{"type":"input_text","text":"hello there"}}]}}}}"#,
+                    ts(60)
+                ),
+                &format!(
+                    r#"{{"timestamp":"{}","type":"response_item","payload":{{"type":"message","role":"assistant","content":[{{"type":"output_text","text":"hi back"}}]}}}}"#,
+                    ts(50)
+                ),
+                &format!(
+                    r#"{{"timestamp":"{}","type":"response_item","payload":{{"type":"function_call","name":"shell","arguments":"ls -la","call_id":"c1"}}}}"#,
+                    ts(40)
+                ),
+                &format!(
+                    r#"{{"timestamp":"{}","type":"response_item","payload":{{"type":"function_call_output","call_id":"c1","output":"total 12","status":"completed"}}}}"#,
+                    ts(35)
+                ),
+                &format!(
+                    r#"{{"timestamp":"{}","type":"response_item","payload":{{"type":"message","role":"user","content":[{{"type":"input_text","text":"second prompt"}}]}}}}"#,
+                    ts(30)
+                ),
+            ],
+        );
+        let db = dir.path().join("state_5.sqlite");
+        let conn = Connection::open(&db).unwrap();
+        conn.execute_batch(
+            "CREATE TABLE threads (
+                id TEXT PRIMARY KEY,
+                rollout_path TEXT NOT NULL DEFAULT '',
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                cwd TEXT NOT NULL,
+                title TEXT NOT NULL DEFAULT '',
+                archived INTEGER NOT NULL DEFAULT 0,
+                git_branch TEXT,
+                git_origin_url TEXT,
+                first_user_message TEXT NOT NULL DEFAULT '',
+                model TEXT
+            );",
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO threads (id, rollout_path, created_at, updated_at, cwd, first_user_message)
+             VALUES ('thread-conv', ?1, ?2, ?2, '/x', '')",
+            rusqlite::params![rollout.to_string_lossy(), now.timestamp()],
+        )
+        .unwrap();
+        drop(conn);
+
+        let a = CodexAdapter::with_db(db).unwrap();
+        let log = a.get_conversation("thread-conv").await.unwrap().unwrap();
+        assert_eq!(log.interactions.len(), 2, "two user prompts → two interactions");
+        let i0 = &log.interactions[0];
+        assert_eq!(i0.user_message_raw.as_deref(), Some("hello there"));
+        assert_eq!(i0.turns.len(), 1);
+        let turn = &i0.turns[0];
+        // [AssistantMessage, Tool] in that order
+        assert_eq!(turn.items.len(), 2);
+        match &turn.items[0] {
+            TurnItem::AssistantMessage { content, .. } => assert_eq!(content, "hi back"),
+            other => panic!("expected AssistantMessage first, got {:?}", other),
+        }
+        match &turn.items[1] {
+            TurnItem::Tool(tc) => {
+                assert_eq!(tc.name, "shell");
+                assert_eq!(tc.call_id, "c1");
+                assert_eq!(tc.args_summary.as_deref(), Some("ls -la"));
+                assert_eq!(tc.result_snippet.as_deref(), Some("total 12"));
+                assert_eq!(tc.success, Some(true));
+            }
+            other => panic!("expected Tool second, got {:?}", other),
+        }
+        let i1 = &log.interactions[1];
+        assert_eq!(i1.user_message_raw.as_deref(), Some("second prompt"));
+        assert!(i1.turns.is_empty(), "second prompt has no assistant reply yet");
     }
 }
