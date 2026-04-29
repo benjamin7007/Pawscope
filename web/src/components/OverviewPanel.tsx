@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchOverview, fetchActivity, fetchActivityGrid, fetchSessions } from '../api';
+import { fetchOverview, fetchActivity, fetchActivityGrid, fetchSessions, subscribeEvents } from '../api';
 
 type Session = {
   id: string;
@@ -359,11 +359,21 @@ export function OverviewPanel() {
     const t = setInterval(load, 15000);
     const ta = setInterval(loadActive, 5000);
     const tick = setInterval(() => forceTick(v => v + 1), 1000);
+    const unsub = subscribeEvents(ev => {
+      if (cancelled) return;
+      if (ev.kind === 'session_list_changed' || ev.kind === 'closed') {
+        loadActive();
+        load();
+      } else if (ev.kind === 'detail_updated') {
+        loadActive();
+      }
+    });
     return () => {
       cancelled = true;
       clearInterval(t);
       clearInterval(ta);
       clearInterval(tick);
+      unsub();
     };
   }, []);
 

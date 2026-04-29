@@ -6,6 +6,7 @@ use tokio::sync::broadcast;
 pub mod api;
 pub mod assets;
 pub mod multi;
+pub mod sse;
 pub mod ws;
 
 pub use multi::MultiAdapter;
@@ -28,6 +29,7 @@ pub fn build_app(adapter: Arc<dyn AgentAdapter>) -> (Router, AppState) {
         .route("/api/overview", get(api::overview))
         .route("/api/activity", get(api::activity))
         .route("/api/activity/grid", get(api::activity_grid))
+        .route("/api/events", get(sse::sse_handler))
         .route("/ws", get(ws::ws_handler))
         .fallback(assets::static_handler)
         .with_state(state.clone());
