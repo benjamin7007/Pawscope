@@ -267,13 +267,8 @@ fn parse_incremental(path: &Path, st: &mut ParseState) {
                     .get("promptId")
                     .and_then(|p| p.as_str())
                     .map(|s| s.to_string());
-                let snippet: String = v
-                    .get("message")
-                    .map(extract_text)
-                    .unwrap_or_default()
-                    .chars()
-                    .take(120)
-                    .collect();
+                let full_text: String = v.get("message").map(extract_text).unwrap_or_default();
+                let snippet: String = full_text.chars().take(120).collect();
                 if st.summary.is_none() && !snippet.is_empty() {
                     st.summary = Some(snippet.chars().take(80).collect());
                 }
@@ -283,6 +278,7 @@ fn parse_incremental(path: &Path, st: &mut ParseState) {
                             id,
                             timestamp: st.last_event_at,
                             snippet,
+                            text: full_text,
                         });
                     }
                 }
