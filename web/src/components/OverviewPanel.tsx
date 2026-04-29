@@ -134,8 +134,9 @@ function HeroStat({ label, value, accent }: { label: string; value: React.ReactN
 }
 
 function BarList({ entries, max, color }: { entries: [string, number][]; max: number; color: string }) {
+  const { t, fmt } = useT();
   if (entries.length === 0) {
-    return <div className="text-xs text-slate-600 text-center py-4">None.</div>;
+    return <div className="text-xs text-slate-600 text-center py-4">{t('misc.none')}</div>;
   }
   return (
     <ul className="divide-y divide-slate-800/60">
@@ -145,7 +146,7 @@ function BarList({ entries, max, color }: { entries: [string, number][]; max: nu
           <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
             <div className={`h-full ${color}`} style={{ width: `${max > 0 ? (v / max) * 100 : 0}%` }} />
           </div>
-          <span className="text-slate-400 tabular-nums w-14 text-right">×{v}</span>
+          <span className="text-slate-400 tabular-nums w-14 text-right">×{fmt(v)}</span>
         </li>
       ))}
     </ul>
@@ -159,9 +160,10 @@ const AGENT_COLORS: Record<string, string> = {
 };
 
 function AgentDonut({ entries }: { entries: [string, number][] }) {
+  const { t } = useT();
   const total = entries.reduce((a, [, v]) => a + v, 0);
   if (total === 0) {
-    return <div className="text-xs text-slate-600 py-6 text-center">No agents.</div>;
+    return <div className="text-xs text-slate-600 py-6 text-center">{t('misc.no_agents')}</div>;
   }
   const radius = 60;
   const stroke = 18;
@@ -235,6 +237,7 @@ function AgentDonut({ entries }: { entries: [string, number][] }) {
 }
 
 function WeekGrid({ grid }: { grid: number[][] }) {
+  const { t, fmt, lang } = useT();
   const flat = grid.flat();
   const total = flat.reduce((a, b) => a + b, 0);
   const max = flat.reduce((a, b) => Math.max(a, b), 0);
@@ -250,11 +253,11 @@ function WeekGrid({ grid }: { grid: number[][] }) {
   };
 
   const dayLabel = (daysAgo: number): string => {
-    if (daysAgo === 0) return 'Today';
-    if (daysAgo === 1) return 'Yest';
+    if (daysAgo === 0) return lang === 'zh' ? '今天' : 'Today';
+    if (daysAgo === 1) return lang === 'zh' ? '昨天' : 'Yest';
     const d = new Date();
     d.setDate(d.getDate() - daysAgo);
-    return d.toLocaleDateString(undefined, { weekday: 'short' });
+    return d.toLocaleDateString(lang === 'zh' ? 'zh-CN' : 'en-US', { weekday: 'short' });
   };
 
   // grid[0] = today, render today at the bottom for natural reading
@@ -263,8 +266,8 @@ function WeekGrid({ grid }: { grid: number[][] }) {
   return (
     <section className="rounded-lg bg-slate-900/40 border border-slate-800">
       <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
-        <h3 className="text-xs uppercase tracking-wider text-slate-400">7 days × 24h activity</h3>
-        <span className="text-[11px] text-slate-500">{total.toLocaleString()} events</span>
+        <h3 className="text-xs uppercase tracking-wider text-slate-400">{lang === 'zh' ? '7 天 × 24 小时活跃度' : '7 days × 24h activity'}</h3>
+        <span className="text-[11px] text-slate-500">{fmt(total)} {t('misc.events')}</span>
       </header>
       <div className="p-4">
         <div className="flex">
@@ -279,7 +282,7 @@ function WeekGrid({ grid }: { grid: number[][] }) {
                 row.map((v, h) => (
                   <div
                     key={`${daysAgo}-${h}`}
-                    title={`${dayLabel(daysAgo)} ${String(h).padStart(2, '0')}:00 · ${v} events`}
+                    title={`${dayLabel(daysAgo)} ${String(h).padStart(2, '0')}:00 · ${fmt(v)} ${t('misc.events')}`}
                     className={`h-5 rounded-sm ${intensity(v)} hover:ring-1 hover:ring-slate-500 transition`}
                   />
                 ))
@@ -293,11 +296,11 @@ function WeekGrid({ grid }: { grid: number[][] }) {
           </div>
         </div>
         <div className="mt-3 flex items-center gap-2 text-[10px] text-slate-500">
-          <span>less</span>
+          <span>{lang === 'zh' ? '少' : 'less'}</span>
           {['bg-slate-800/60', 'bg-emerald-900/70', 'bg-emerald-800', 'bg-emerald-600', 'bg-emerald-500', 'bg-emerald-400'].map(c => (
             <div key={c} className={`w-3 h-3 rounded-sm ${c}`} />
           ))}
-          <span>more</span>
+          <span>{lang === 'zh' ? '多' : 'more'}</span>
         </div>
       </div>
     </section>
@@ -305,6 +308,7 @@ function WeekGrid({ grid }: { grid: number[][] }) {
 }
 
 function ActivityHeatmap({ buckets }: { buckets: number[] }) {
+  const { t, fmt, lang } = useT();
   const total = buckets.reduce((a, b) => a + b, 0);
   const max = buckets.reduce((a, b) => Math.max(a, b), 0);
   const now = new Date();
@@ -322,15 +326,18 @@ function ActivityHeatmap({ buckets }: { buckets: number[] }) {
   return (
     <section className="rounded-lg bg-slate-900/40 border border-slate-800">
       <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
-        <h3 className="text-xs uppercase tracking-wider text-slate-400">24h activity</h3>
-        <span className="text-[11px] text-slate-500">{total.toLocaleString()} events</span>
+        <h3 className="text-xs uppercase tracking-wider text-slate-400">{lang === 'zh' ? '24 小时活跃度' : '24h activity'}</h3>
+        <span className="text-[11px] text-slate-500">{fmt(total)} {t('misc.events')}</span>
       </header>
       <div className="p-4">
         <div className="grid grid-cols-24 gap-1" style={{ gridTemplateColumns: `repeat(${buckets.length}, minmax(0,1fr))` }}>
           {buckets.map((v, i) => {
             const hour = (startHour + i) % 24;
             const hoursAgo = buckets.length - 1 - i;
-            const label = `${hoursAgo === 0 ? 'now' : `${hoursAgo}h ago`} · ${String(hour).padStart(2, '0')}:00 · ${v} events`;
+            const ago = hoursAgo === 0
+              ? t('misc.now')
+              : (lang === 'zh' ? `${hoursAgo} 小时前` : `${hoursAgo}h ago`);
+            const label = `${ago} · ${String(hour).padStart(2, '0')}:00 · ${fmt(v)} ${t('misc.events')}`;
             return (
               <div
                 key={i}
@@ -350,7 +357,7 @@ function ActivityHeatmap({ buckets }: { buckets: number[] }) {
 }
 
 function LiveTicker({ sessions, onOpen }: { sessions: Session[]; onOpen?: (id: string) => void }) {
-  const { t } = useT();
+  const { t, fmt, rel } = useT();
   if (sessions.length === 0) return null;
   return (
     <section className="rounded-lg bg-slate-900/40 border border-slate-800 overflow-hidden">
@@ -360,7 +367,7 @@ function LiveTicker({ sessions, onOpen }: { sessions: Session[]; onOpen?: (id: s
           <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
         </span>
         <h3 className="text-xs uppercase tracking-wider text-emerald-300 font-semibold">{t('sec.live_ticker')}</h3>
-        <span className="text-[11px] text-slate-500">{sessions.length} active now</span>
+        <span className="text-[11px] text-slate-500">{fmt(sessions.length)} {t('misc.active_count')}</span>
       </header>
       <div className="px-4 py-3 flex gap-3 overflow-x-auto">
         {sessions.map(s => (
@@ -385,7 +392,7 @@ function LiveTicker({ sessions, onOpen }: { sessions: Session[]; onOpen?: (id: s
                 <span className="text-[10px] text-slate-500 font-mono truncate">{s.model}</span>
               )}
               <span className="ml-auto text-[10px] text-slate-500" title={new Date(s.last_event_at).toLocaleString()}>
-                {tickerAgo(s.last_event_at)}
+                {rel(s.last_event_at)}
               </span>
             </div>
             <div className="text-sm text-slate-200 truncate" title={s.summary || s.id}>
@@ -405,15 +412,7 @@ function LiveTicker({ sessions, onOpen }: { sessions: Session[]; onOpen?: (id: s
   );
 }
 
-function tickerAgo(iso: string): string {
-  const ms = Date.now() - new Date(iso).getTime();
-  const s = Math.floor(ms / 1000);
-  if (s < 5) return 'just now';
-  if (s < 60) return `${s}s`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m`;
-  return `${Math.floor(m / 60)}h`;
-}
+// tickerAgo removed; replaced by useT().rel()
 
 export function OverviewPanel({
   onOpenSession,
@@ -450,8 +449,8 @@ export function OverviewPanel({
     };
     load();
     loadActive();
-    const t = setInterval(load, 15000);
-    const ta = setInterval(loadActive, 5000);
+    // Slow polling as safety net only — SSE drives realtime updates.
+    const t = setInterval(load, 30000);
     const tick = setInterval(() => forceTick(v => v + 1), 1000);
     const unsub = subscribeEvents(ev => {
       if (cancelled) return;
@@ -465,7 +464,6 @@ export function OverviewPanel({
     return () => {
       cancelled = true;
       clearInterval(t);
-      clearInterval(ta);
       clearInterval(tick);
       unsub();
     };

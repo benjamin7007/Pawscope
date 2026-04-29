@@ -1,0 +1,225 @@
+use crate::AppState;
+use axum::{Json, extract::State};
+use serde::Serialize;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+
+#[derive(Serialize)]
+pub struct SkillEntry {
+    pub name: String,
+    pub description: String,
+    pub source: String,
+    pub path: String,
+    pub invocations: u64,
+}
+
+#[derive(Serialize)]
+pub struct SkillsResponse {
+    pub skills: Vec<SkillEntry>,
+    pub total: usize,
+    pub by_source: HashMap<String, usize>,
+}
+
+pub async fn list_skills(State(state): State<AppState>) -> Json<SkillsResponse> {
+    // Aggregate invocation counts from all sessions.
+    let mut invocations: HashMap<String, u64> = HashMap::new();
+    if let Ok(metas) = state.adapter.list_sessions().await {
+        for m in &metas {
+            if let Ok(d) = state.adapter.get_detail(&m.id).await {
+                for k in d.skills_invoked {
+                    *invocations.entry(k).or_default() += 1;
+                }
+            }
+        }
+    }
+
+    let home = std::env::var("HOME").unwrap_or_default();
+    let sources = vec![
+        ("copilot-superpowers", PathBuf::from(format!("{home}/.copilot/installed-plugins"))),
+        ("claude-skills", PathBuf::from(format!("{home}/.claude/skills"))),
+        ("agents-skills", PathBuf::from(format!("{home}/.agents/skills"))),
+    ];
+
+    let mut skills = Vec::new();
+    let mut by_source: HashMap<String, usize> = HashMap::new();
+    for (label, root) in sources {
+        let mut found = scan_skills_recursive(&root, label, 4);
+        *by_source.entry(label.to_string()).or_default() += found.len();
+        skills.append(&mut found);
+    }
+
+    // Attach invocation counts.
+    for s in &mut skills {
+        s.invocations = invocations.get(&s.name).copied().unwrap_or(0);
+    }
+    skills.sort_by(|a, b| b.invocations.cmp(&a.invocations).then_with(|| a.name.cmp(&b.name)));
+
+    let total = skills.len();
+    Json(SkillsResponse { skills, total, by_source })
+}
+
+fn scan_skills_recursive(root: &Path, source: &str, max_depth: usize) -> Vec<SkillEntry> {
+    let mut out = Vec::new();
+    if max_depth == 0 || !root.is_dir() {
+        return out;
+    }
+    let Ok(entries) = std::fs::read_dir(root) else {
+        return out;
+    };
+    for entry in entries.flatten() {
+        let p = entry.path();
+        if p.is_dir() {
+            let skill_md = p.join("SKILL.md");
+            if skill_md.is_file() {
+                if let Some(s) = parse_skill_md(&skill_md, source) {
+                    out.push(s);
+                }
+            } else {
+                // Recurse to find nested skills/ directories (e.g. plugins/*/skills/*/SKILL.md)
+                out.extend(scan_skills_recursive(&p, source, max_depth - 1));
+            }
+        }
+    }
+    out
+}
+
+fn parse_skill_md(path: &Path, source: &str) -> Option<SkillEntry> {
+    let content = std::fs::read_to_string(path).ok()?;
+    let mut name = path
+        .parent()
+        .and_then(|p| p.file_name())
+        .and_then(|n| n.to_str())
+        .unwrap_or("")
+        .to_string();
+    let mut description = String::new();
+
+    // Parse YAML frontmatter delimited by leading `---` lines.
+    let mut lines = content.lines();
+    if lines.next() != Some("---") {
+        return Some(SkillEntry {
+            name,
+            description,
+            source: source.to_string(),
+            path: path.display().to_string(),
+            invocations: 0,
+        });
+    }
+    let mut current_key: Option<String> = None;
+    let mut buf = String::new();
+    for line in lines.by_ref() {
+        if line == "---" {
+            break;
+        }
+        if line.starts_with(' ') || line.starts_with('\t') {
+            // Continuation of previous key (e.g. folded scalar).
+            if current_key.as_deref() == Some("description") {
+                if !buf.is_empty() {
+                    buf.push(' ');
+                }
+                buf.push_str(line.trim());
+            }
+        } else if let Some((k, v)) = line.split_once(':') {
+            // Flush previous description buffer.
+            if current_key.as_deref() == Some("description") && !buf.is_empty() {
+                description = buf.clone();
+                buf.clear();
+            }
+            let key = k.trim().to_string();
+            let value = v.trim().trim_start_matches('>').trim().to_string();
+            match key.as_str() {
+                "name" => {
+                    if !value.is_empty() {
+                        name = value;
+                    }
+                    current_key = Some("name".to_string());
+                }
+                "description" => {
+                    if !value.is_empty() {
+                        description = value;
+                        current_key = Some("description-done".to_string());
+                    } else {
+                        current_key = Some("description".to_string());
+                    }
+                }
+                _ => {
+                    current_key = Some(key);
+                }
+            }
+        }
+    }
+    if current_key.as_deref() == Some("description") && !buf.is_empty() {
+        description = buf;
+    }
+
+    // Truncate overly long descriptions.
+    if description.len() > 400 {
+        let mut idx = 400;
+        while !description.is_char_boundary(idx) && idx > 0 {
+            idx -= 1;
+        }
+        description.truncate(idx);
+        description.push('…');
+    }
+
+    Some(SkillEntry {
+        name,
+        description,
+        source: source.to_string(),
+        path: path.display().to_string(),
+        invocations: 0,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::tempdir;
+
+    #[test]
+    fn parses_basic_frontmatter() {
+        let dir = tempdir().unwrap();
+        let skill_dir = dir.path().join("hello");
+        fs::create_dir(&skill_dir).unwrap();
+        let md = skill_dir.join("SKILL.md");
+        fs::write(
+            &md,
+            "---\nname: hello\ndescription: Says hi.\n---\n# Body\n",
+        )
+        .unwrap();
+        let s = parse_skill_md(&md, "test").unwrap();
+        assert_eq!(s.name, "hello");
+        assert_eq!(s.description, "Says hi.");
+    }
+
+    #[test]
+    fn parses_folded_description() {
+        let dir = tempdir().unwrap();
+        let skill_dir = dir.path().join("agent");
+        fs::create_dir(&skill_dir).unwrap();
+        let md = skill_dir.join("SKILL.md");
+        fs::write(
+            &md,
+            "---\nname: agent\ndescription: >\n  Multi line\n  folded text.\n---\n",
+        )
+        .unwrap();
+        let s = parse_skill_md(&md, "test").unwrap();
+        assert_eq!(s.name, "agent");
+        assert!(s.description.contains("Multi line"));
+    }
+
+    #[test]
+    fn scans_nested_skills_directory() {
+        let dir = tempdir().unwrap();
+        let nested = dir.path().join("plugin/foo/skills/skill-a");
+        fs::create_dir_all(&nested).unwrap();
+        fs::write(
+            nested.join("SKILL.md"),
+            "---\nname: skill-a\ndescription: Test\n---\n",
+        )
+        .unwrap();
+        let found = scan_skills_recursive(dir.path(), "test", 5);
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].name, "skill-a");
+    }
+}

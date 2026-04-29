@@ -6,6 +6,7 @@ use tokio::sync::broadcast;
 pub mod api;
 pub mod assets;
 pub mod multi;
+pub mod skills;
 pub mod sse;
 pub mod ws;
 
@@ -30,6 +31,7 @@ pub fn build_app(adapter: Arc<dyn AgentAdapter>) -> (Router, AppState) {
         .route("/api/activity", get(api::activity))
         .route("/api/activity/grid", get(api::activity_grid))
         .route("/api/realms", get(api::realm_detail))
+        .route("/api/skills", get(skills::list_skills))
         .route("/api/events", get(sse::sse_handler))
         .route("/ws", get(ws::ws_handler))
         .fallback(assets::static_handler)

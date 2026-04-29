@@ -10,6 +10,7 @@ const dict: Record<string, { en: string; zh: string }> = {
   // Nav
   'nav.overview': { en: '◇ Overview', zh: '◇ 总览' },
   'nav.session': { en: '⌖ Session', zh: '⌖ 会话' },
+  'nav.skills': { en: '🛠 Skills', zh: '🛠 技能' },
 
   // Header / kicker
   'overview.kicker': { en: 'Overview', zh: '总览' },
@@ -83,6 +84,10 @@ const dict: Record<string, { en: string; zh: string }> = {
   'misc.no_change': { en: 'no change', zh: '无变化' },
   'misc.dispatches': { en: 'dispatches', zh: '次派发' },
   'misc.dispatch': { en: 'dispatch', zh: '次派发' },
+  'misc.events': { en: 'events', zh: '次事件' },
+  'misc.now': { en: 'now', zh: '此刻' },
+  'misc.turns_suffix': { en: 'turns', zh: '回合' },
+  'misc.tools_suffix': { en: 'tools', zh: '工具' },
 
   // Lang
   'lang.toggle': { en: '中文', zh: 'EN' },
@@ -116,7 +121,7 @@ export function t(key: string, lang: Lang = currentLang): string {
   return e[lang] ?? e.en;
 }
 
-export function useT(): { t: (key: string) => string; lang: Lang; setLang: (l: Lang) => void } {
+export function useT(): { t: (key: string) => string; lang: Lang; setLang: (l: Lang) => void; fmt: (n: number) => string; rel: (iso: string) => string } {
   const [lang, setL] = useState<Lang>(currentLang);
   useEffect(() => {
     const fn = (l: Lang) => setL(l);
@@ -125,9 +130,30 @@ export function useT(): { t: (key: string) => string; lang: Lang; setLang: (l: L
       listeners.delete(fn);
     };
   }, []);
+  const locale = lang === 'zh' ? 'zh-CN' : 'en-US';
+  const nf = new Intl.NumberFormat(locale);
   return {
     lang,
     setLang,
     t: (key: string) => t(key, lang),
+    fmt: (n: number) => nf.format(n),
+    rel: (iso: string) => formatRelative(iso, lang),
   };
+}
+
+function formatRelative(iso: string, lang: Lang): string {
+  if (!iso) return '';
+  const d = new Date(iso).getTime();
+  if (!d || Number.isNaN(d)) return '';
+  const diffSec = Math.max(0, Math.floor((Date.now() - d) / 1000));
+  const en = lang === 'en';
+  if (diffSec < 5) return en ? 'just now' : '刚刚';
+  if (diffSec < 60) return en ? `${diffSec}s ago` : `${diffSec} 秒前`;
+  const m = Math.floor(diffSec / 60);
+  if (m < 60) return en ? `${m}m ago` : `${m} 分钟前`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return en ? `${h}h ago` : `${h} 小时前`;
+  const days = Math.floor(h / 24);
+  if (days < 30) return en ? `${days}d ago` : `${days} 天前`;
+  return new Date(iso).toLocaleDateString(en ? 'en-US' : 'zh-CN');
 }

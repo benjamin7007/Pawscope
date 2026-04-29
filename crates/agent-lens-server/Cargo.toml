@@ -22,3 +22,4 @@ chrono = { version = "0.4", features = ["serde"] }
 
 [dev-dependencies]
 reqwest = { version = "0.12", features = ["json"] }
+tempfile = "3"
