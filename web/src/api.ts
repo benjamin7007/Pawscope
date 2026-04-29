@@ -43,6 +43,17 @@ export async function fetchSkills(): Promise<SkillsResponse> {
   return r.json();
 }
 
+export interface SkillContent {
+  path: string;
+  content: string;
+  bytes: number;
+}
+export async function fetchSkillContent(path: string): Promise<SkillContent> {
+  const r = await fetch(`/api/skills/content?path=${encodeURIComponent(path)}`);
+  if (!r.ok) throw new Error(`skill content fetch ${r.status}`);
+  return r.json();
+}
+
 export type SessionEventMsg =
   | { kind: 'session_list_changed' }
   | { kind: 'detail_updated'; session_id: string; detail: unknown }

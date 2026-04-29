@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { fetchSkills, type SkillEntry } from '../api';
+import { fetchSkills, fetchSkillContent, type SkillEntry, type SkillContent } from '../api';
 import { useT } from '../i18n';
+import { renderMarkdown } from '../markdown';
 
 const SOURCE_LABELS: Record<string, string> = {
   'copilot-superpowers': 'Copilot · superpowers',
@@ -21,7 +22,27 @@ export function SkillsPanel() {
   const [filter, setFilter] = useState('');
   const [source, setSource] = useState<string>('all');
   const [usedOnly, setUsedOnly] = useState(false);
+  const [openSkill, setOpenSkill] = useState<SkillEntry | null>(null);
+  const [openContent, setOpenContent] = useState<SkillContent | null>(null);
+  const [openErr, setOpenErr] = useState<string | null>(null);
   const { t, fmt, lang } = useT();
+
+  useEffect(() => {
+    if (!openSkill) {
+      setOpenContent(null);
+      setOpenErr(null);
+      return;
+    }
+    let cancelled = false;
+    setOpenContent(null);
+    setOpenErr(null);
+    fetchSkillContent(openSkill.path)
+      .then(d => !cancelled && setOpenContent(d))
+      .catch(e => !cancelled && setOpenErr(String(e)));
+    return () => {
+      cancelled = true;
+    };
+  }, [openSkill]);
 
   useEffect(() => {
     let cancelled = false;
@@ -102,33 +123,39 @@ export function SkillsPanel() {
 
       <ul className="divide-y divide-slate-800/60">
         {filtered.map(s => (
-          <li key={`${s.source}|${s.path}`} className="px-8 py-3 hover:bg-slate-900/50 transition-colors">
-            <div className="flex items-baseline gap-3">
-              <span className="font-mono text-slate-100 text-sm font-semibold">{s.name}</span>
-              <span
-                className="px-1.5 py-0.5 rounded text-[10px] font-medium"
-                style={{
-                  background: `${SOURCE_COLORS[s.source] ?? '#64748b'}22`,
-                  color: SOURCE_COLORS[s.source] ?? '#94a3b8',
-                  border: `1px solid ${SOURCE_COLORS[s.source] ?? '#64748b'}55`,
-                }}
-              >
-                {SOURCE_LABELS[s.source] ?? s.source}
-              </span>
-              {s.invocations > 0 && (
-                <span className="text-[11px] text-emerald-300 tabular-nums">
-                  ×{fmt(s.invocations)}
+          <li key={`${s.source}|${s.path}`}>
+            <button
+              type="button"
+              onClick={() => setOpenSkill(s)}
+              className="w-full text-left px-8 py-3 hover:bg-slate-900/50 transition-colors cursor-pointer"
+            >
+              <div className="flex items-baseline gap-3">
+                <span className="font-mono text-slate-100 text-sm font-semibold">{s.name}</span>
+                <span
+                  className="px-1.5 py-0.5 rounded text-[10px] font-medium"
+                  style={{
+                    background: `${SOURCE_COLORS[s.source] ?? '#64748b'}22`,
+                    color: SOURCE_COLORS[s.source] ?? '#94a3b8',
+                    border: `1px solid ${SOURCE_COLORS[s.source] ?? '#64748b'}55`,
+                  }}
+                >
+                  {SOURCE_LABELS[s.source] ?? s.source}
                 </span>
-              )}
-              <span className="ml-auto text-[10px] text-slate-600 font-mono truncate max-w-[420px]" title={s.path}>
-                {s.path.replace(/^.*\.(copilot|claude|agents)\//, '~/.$1/')}
-              </span>
-            </div>
-            {s.description && (
-              <div className="text-xs text-slate-400 mt-1 line-clamp-2 leading-relaxed">
-                {s.description}
+                {s.invocations > 0 && (
+                  <span className="text-[11px] text-emerald-300 tabular-nums">
+                    ×{fmt(s.invocations)}
+                  </span>
+                )}
+                <span className="ml-auto text-[10px] text-slate-600 font-mono truncate max-w-[420px]" title={s.path}>
+                  {s.path.replace(/^.*\.(copilot|claude|agents)\//, '~/.$1/')}
+                </span>
               </div>
-            )}
+              {s.description && (
+                <div className="text-xs text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                  {s.description}
+                </div>
+              )}
+            </button>
           </li>
         ))}
         {filtered.length === 0 && (
@@ -137,8 +164,81 @@ export function SkillsPanel() {
           </li>
         )}
       </ul>
+      {openSkill && (
+        <SkillDrawer
+          skill={openSkill}
+          content={openContent}
+          err={openErr}
+          onClose={() => setOpenSkill(null)}
+        />
+      )}
       {/* keep linter happy */}
       <div className="hidden">{t('nav.overview')}</div>
     </main>
+  );
+}
+
+function SkillDrawer({
+  skill,
+  content,
+  err,
+  onClose,
+}: {
+  skill: SkillEntry;
+  content: SkillContent | null;
+  err: string | null;
+  onClose: () => void;
+}) {
+  const { lang, fmt } = useT();
+  const html = useMemo(() => (content ? renderMarkdown(content.content) : ''), [content]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true">
+      <div
+        className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <aside className="relative w-full max-w-2xl h-full bg-slate-950 border-l border-slate-800 shadow-2xl flex flex-col">
+        <header className="px-5 py-3 border-b border-slate-800 flex items-baseline gap-3">
+          <span className="font-mono text-slate-100 text-base font-semibold">{skill.name}</span>
+          <span className="text-[10px] text-slate-500 font-mono truncate max-w-[300px]" title={skill.path}>
+            {skill.path.replace(/^.*\.(copilot|claude|agents)\//, '~/.$1/')}
+          </span>
+          {content && (
+            <span className="text-[10px] text-slate-600 tabular-nums">
+              {fmt(content.bytes)} {lang === 'zh' ? '字节' : 'bytes'}
+            </span>
+          )}
+          <button
+            onClick={onClose}
+            className="ml-auto text-slate-500 hover:text-slate-200 text-sm px-2"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </header>
+        <div className="flex-1 overflow-y-auto px-6 py-4 text-sm">
+          {err && <div className="text-rose-400 text-xs">{err}</div>}
+          {!err && !content && (
+            <div className="text-slate-500 text-xs">
+              {lang === 'zh' ? '加载中…' : 'Loading…'}
+            </div>
+          )}
+          {content && (
+            // eslint-disable-next-line react/no-danger -- output is escaped by renderMarkdown
+            <div dangerouslySetInnerHTML={{ __html: html }} />
+          )}
+        </div>
+      </aside>
+    </div>
   );
 }
