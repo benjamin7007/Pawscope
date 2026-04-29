@@ -1,1 +1,70 @@
 @import "tailwindcss";
+
+/* Slightly larger base font for readability. Tailwind text-* sizes scale
+   off rem, so bumping the root size scales the whole app uniformly. */
+html { font-size: 17px; }
+
+/* ----- Light theme overrides ----------------------------------------------
+ * The app is built with hard-coded dark slate-* classes. Rather than rewrite
+ * every component to use semantic tokens, we override the most common color
+ * classes when html.theme-light is active. Best-effort: hover/divide variants
+ * are covered for the high-traffic combinations. */
+
+html.theme-light body {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+/* Backgrounds */
+html.theme-light .bg-slate-950 { background-color: #f1f5f9 !important; }
+html.theme-light .bg-slate-900 { background-color: #ffffff !important; }
+html.theme-light .bg-slate-900\/30 { background-color: rgba(255,255,255,0.6) !important; }
+html.theme-light .bg-slate-900\/40 { background-color: rgba(255,255,255,0.75) !important; }
+html.theme-light .bg-slate-900\/50 { background-color: rgba(255,255,255,0.85) !important; }
+html.theme-light .bg-slate-800 { background-color: #e2e8f0 !important; }
+html.theme-light .bg-slate-800\/30 { background-color: rgba(203,213,225,0.35) !important; }
+html.theme-light .bg-slate-800\/40 { background-color: rgba(203,213,225,0.45) !important; }
+html.theme-light .bg-slate-800\/50 { background-color: rgba(203,213,225,0.6) !important; }
+html.theme-light .bg-slate-800\/60 { background-color: rgba(203,213,225,0.7) !important; }
+html.theme-light .bg-slate-800\/80 { background-color: rgba(203,213,225,0.85) !important; }
+html.theme-light .bg-slate-950\/70 { background-color: rgba(241,245,249,0.7) !important; }
+
+/* Text */
+html.theme-light .text-slate-100 { color: #0f172a !important; }
+html.theme-light .text-slate-200 { color: #1e293b !important; }
+html.theme-light .text-slate-300 { color: #334155 !important; }
+html.theme-light .text-slate-400 { color: #475569 !important; }
+html.theme-light .text-slate-500 { color: #64748b !important; }
+html.theme-light .text-slate-600 { color: #94a3b8 !important; }
+html.theme-light .text-slate-700 { color: #cbd5e1 !important; }
+
+/* Borders */
+html.theme-light .border-slate-700 { border-color: #cbd5e1 !important; }
+html.theme-light .border-slate-800 { border-color: #e2e8f0 !important; }
+html.theme-light .border-slate-800\/60 { border-color: rgba(226,232,240,0.7) !important; }
+
+/* Divider lines (Tailwind compiles these to nested ::before-style selectors) */
+html.theme-light .divide-slate-800 > :not([hidden]) ~ :not([hidden]),
+html.theme-light .divide-slate-800\/60 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #e2e8f0 !important;
+}
+
+/* Hover variants (high-traffic only) */
+html.theme-light .hover\:bg-slate-800\/30:hover { background-color: rgba(203,213,225,0.45) !important; }
+html.theme-light .hover\:bg-slate-800\/40:hover { background-color: rgba(203,213,225,0.55) !important; }
+html.theme-light .hover\:bg-slate-800\/50:hover { background-color: rgba(203,213,225,0.65) !important; }
+html.theme-light .hover\:bg-slate-900\/50:hover { background-color: rgba(255,255,255,0.95) !important; }
+
+/* Inputs */
+html.theme-light input,
+html.theme-light select,
+html.theme-light textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+html.theme-light ::placeholder { color: #94a3b8 !important; }
+
+/* Subtle scrollbar tint in light mode */
+html.theme-light { color-scheme: light; }
+html:not(.theme-light) { color-scheme: dark; }

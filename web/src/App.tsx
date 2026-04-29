@@ -7,6 +7,7 @@ import { OverviewPanel } from './components/OverviewPanel';
 import { RealmPanel } from './components/RealmPanel';
 import { SkillsPanel } from './components/SkillsPanel';
 import { LangToggle } from './components/LangToggle';
+import { ThemeToggle } from './components/ThemeToggle';
 import { useT } from './i18n';
 
 type View = 'overview' | 'session' | 'realm' | 'skills';
@@ -84,7 +85,8 @@ export default function App() {
           >
             {t('nav.skills')}
           </button>
-          <div className="px-2 flex items-center border-l border-slate-800">
+          <div className="px-2 flex items-center gap-1 border-l border-slate-800">
+            <ThemeToggle />
             <LangToggle />
           </div>
         </nav>
