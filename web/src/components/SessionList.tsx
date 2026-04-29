@@ -23,6 +23,7 @@ type Props = {
   labels?: Record<string, { starred: boolean; tags: string[]; note?: string | null }>;
   onToggleStar?: (id: string) => void;
   tokensMap?: Record<string, { in: number; out: number }>;
+  pulseMap?: Record<string, { bins: number[]; events: number }>;
 };
 
 function timeAgo(iso?: string | null): string {
@@ -51,7 +52,7 @@ function sessionRealmKey(s: Session): string {
 
 type SortMode = 'recent' | 'oldest' | 'repo' | 'tokens';
 
-export function SessionList({ items, onSelect, selected, realmFilter, onClearRealmFilter, labels, onToggleStar, tokensMap }: Props) {
+export function SessionList({ items, onSelect, selected, realmFilter, onClearRealmFilter, labels, onToggleStar, tokensMap, pulseMap }: Props) {
   const { t } = useT();
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -139,6 +140,7 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
     const tkTotal = tk ? tk.in + tk.out : 0;
     const cost = tk ? estimateCostUsd(s.model, tk.in, tk.out) : null;
     const fmtK = (n: number) => n >= 1_000_000 ? `${(n/1_000_000).toFixed(1)}M` : n >= 1000 ? `${(n/1000).toFixed(1)}k` : `${n}`;
+    const pulse = pulseMap?.[s.id];
     return (
     <button
       key={s.id}
@@ -176,15 +178,29 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
           📝 {lbl.note}
         </div>
       )}
-      {(s.branch || (lbl?.tags?.length ?? 0) > 0 || tkTotal > 0) && (
+      {(s.branch || (lbl?.tags?.length ?? 0) > 0 || tkTotal > 0 || pulse) && (
         <div className="text-[11px] text-slate-500 mt-0.5 truncate flex items-center gap-1.5">
           {s.branch && <><span className="text-slate-600">⎇</span><span>{s.branch}</span></>}
           {lbl?.tags?.map((t) => (
             <span key={t} className="px-1 rounded bg-violet-500/10 text-violet-300 text-[10px]">#{t}</span>
           ))}
+          {pulse && pulse.bins.length > 0 && (() => {
+            const max = Math.max(1, ...pulse.bins);
+            return (
+              <div className="flex items-stretch gap-px h-2 ml-auto" title={`pulse · ${pulse.events} events`}>
+                {pulse.bins.map((c, i) => (
+                  <div
+                    key={i}
+                    className="w-0.5 rounded-sm"
+                    style={{ background: c === 0 ? 'rgba(30,41,59,0.6)' : `rgba(34,211,238,${0.25 + (c/max) * 0.7})` }}
+                  />
+                ))}
+              </div>
+            );
+          })()}
           {tkTotal > 0 && (
             <span
-              className="ml-auto px-1.5 rounded bg-emerald-500/10 text-emerald-300 text-[10px] tabular-nums"
+              className={`${pulse ? '' : 'ml-auto'} px-1.5 rounded bg-emerald-500/10 text-emerald-300 text-[10px] tabular-nums`}
               title={`in ${tk!.in.toLocaleString()} · out ${tk!.out.toLocaleString()}`}
             >
               ⚡ {fmtK(tkTotal)}
