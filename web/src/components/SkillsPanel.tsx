@@ -183,6 +183,20 @@ export function SkillsPanel({
           err={openErr}
           onClose={() => setOpenSkill(null)}
           onOpenSession={onOpenSession}
+          onPrev={(() => {
+            const idx = filtered.findIndex(s => s.source === openSkill.source && s.path === openSkill.path);
+            if (idx <= 0) return undefined;
+            return () => setOpenSkill(filtered[idx - 1]);
+          })()}
+          onNext={(() => {
+            const idx = filtered.findIndex(s => s.source === openSkill.source && s.path === openSkill.path);
+            if (idx < 0 || idx >= filtered.length - 1) return undefined;
+            return () => setOpenSkill(filtered[idx + 1]);
+          })()}
+          position={(() => {
+            const idx = filtered.findIndex(s => s.source === openSkill.source && s.path === openSkill.path);
+            return idx >= 0 ? { index: idx + 1, total: filtered.length } : null;
+          })()}
         />
       )}
       {/* keep linter happy */}
@@ -197,12 +211,18 @@ function SkillDrawer({
   err,
   onClose,
   onOpenSession,
+  onPrev,
+  onNext,
+  position,
 }: {
   skill: SkillEntry;
   content: SkillContent | null;
   err: string | null;
   onClose: () => void;
   onOpenSession?: (id: string) => void;
+  onPrev?: () => void;
+  onNext?: () => void;
+  position?: { index: number; total: number } | null;
 }) {
   const { lang, fmt, rel } = useT();
   const html = useMemo(() => (content ? renderMarkdown(content.content) : ''), [content]);
@@ -213,10 +233,12 @@ function SkillDrawer({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
+      else if (e.key === 'ArrowLeft' && onPrev) onPrev();
+      else if (e.key === 'ArrowRight' && onNext) onNext();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, onPrev, onNext]);
 
   useEffect(() => {
     let cancelled = false;
@@ -273,6 +295,32 @@ function SkillDrawer({
             ✕
           </button>
         </header>
+
+        <div className="px-5 py-1.5 border-b border-slate-800/60 bg-slate-900/30 flex items-center gap-2 text-[11px]">
+          <button
+            type="button"
+            onClick={onPrev}
+            disabled={!onPrev}
+            className="px-2 py-1 rounded border border-slate-700 text-slate-400 hover:text-slate-100 hover:border-slate-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            title={lang === 'zh' ? '上一个 (←)' : 'Previous (←)'}
+          >
+            ← {lang === 'zh' ? '上一个' : 'Prev'}
+          </button>
+          <button
+            type="button"
+            onClick={onNext}
+            disabled={!onNext}
+            className="px-2 py-1 rounded border border-slate-700 text-slate-400 hover:text-slate-100 hover:border-slate-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            title={lang === 'zh' ? '下一个 (→)' : 'Next (→)'}
+          >
+            {lang === 'zh' ? '下一个' : 'Next'} →
+          </button>
+          {position && (
+            <span className="ml-auto text-slate-500 tabular-nums">
+              {fmt(position.index)} / {fmt(position.total)}
+            </span>
+          )}
+        </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-4 text-sm">
           {/* Usage section */}
