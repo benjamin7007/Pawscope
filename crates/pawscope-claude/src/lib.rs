@@ -11,8 +11,9 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use pawscope_core::{
-    AgentAdapter, AgentKind, CoreError, Result, SessionDetail, SessionEvent, SessionMeta,
-    SessionStatus, ToolCall,
+    AgentAdapter, AgentKind, AssistantTurn, ConversationLog, CoreError, Interaction, Result,
+    SessionDetail, SessionEvent, SessionMeta, SessionStatus, ToolCall, TurnItem, TurnToolCall,
+    UserMessageKind,
 };
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -32,6 +33,18 @@ struct ParseState {
     started_at: Option<DateTime<Utc>>,
     last_event_at: Option<DateTime<Utc>>,
     summary: Option<String>,
+    // v0.7: structured conversation flow.
+    conversation: ConversationLog,
+    // Index into conversation.interactions; None until first user.message
+    // (or first sidechain-skipped assistant turn — we lazy-create a synthetic
+    // interaction in that rare case).
+    current_interaction: Option<usize>,
+    // Index into the current interaction's turns.
+    current_turn: Option<usize>,
+    // tool_use_id (Claude's own, e.g. "toolu_…") → (interaction_idx, turn_idx, item_idx).
+    // Used to fill the matching Tool item's result/success when the next
+    // user.message arrives carrying a tool_result block.
+    tool_call_to_pos: HashMap<String, (usize, usize, usize)>,
 }
 
 pub struct ClaudeAdapter {
@@ -224,6 +237,10 @@ fn parse_incremental(path: &Path, st: &mut ParseState) {
         st.started_at = None;
         st.last_event_at = None;
         st.summary = None;
+        st.conversation = ConversationLog::default();
+        st.current_interaction = None;
+        st.current_turn = None;
+        st.tool_call_to_pos.clear();
     }
     if len == st.offset {
         return;
@@ -260,7 +277,29 @@ fn parse_incremental(path: &Path, st: &mut ParseState) {
         if let Some(b) = v.get("gitBranch").and_then(|b| b.as_str()) {
             st.branch.get_or_insert_with(|| b.to_string());
         }
+        // Sidechain events belong to a Task subagent and would otherwise
+        // pollute the main interaction list with synthetic user messages.
+        // For v0.7 we count their tool calls in stats but skip the
+        // structured conversation log. Subagent nesting lands in v0.7.x.
+        let is_sidechain = v
+            .get("isSidechain")
+            .and_then(|s| s.as_bool())
+            .unwrap_or(false);
         match v.get("type").and_then(|t| t.as_str()) {
+            Some("system") if !is_sidechain => {
+                if let Some(content) = v.get("content").and_then(|c| c.as_str()) {
+                    if let Some(at) = st.last_event_at {
+                        st.conversation
+                            .system_prompts
+                            .push(pawscope_core::SystemPromptMarker {
+                                at,
+                                content: content.to_string(),
+                                model: None,
+                            });
+                        st.conversation.version += 1;
+                    }
+                }
+            }
             Some("user") => {
                 st.detail.user_messages += 1;
                 let prompt_id = v
@@ -278,9 +317,12 @@ fn parse_incremental(path: &Path, st: &mut ParseState) {
                             id,
                             timestamp: st.last_event_at,
                             snippet,
-                            text: full_text,
+                            text: full_text.clone(),
                         });
                     }
+                }
+                if !is_sidechain {
+                    apply_user_event(st, &v, &full_text);
                 }
             }
             Some("assistant") => {
@@ -293,26 +335,36 @@ fn parse_incremental(path: &Path, st: &mut ParseState) {
                         }
                     }
                     if let Some(usage) = msg.get("usage") {
-                        st.detail.tokens_in +=
+                        let ti =
                             usage.get("input_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
-                        st.detail.tokens_out += usage
+                        let to_ = usage
                             .get("output_tokens")
                             .and_then(|v| v.as_u64())
                             .unwrap_or(0);
+                        st.detail.tokens_in += ti;
+                        st.detail.tokens_out += to_;
                     }
                     if let Some(arr) = msg.get("content").and_then(|c| c.as_array()) {
                         for it in arr {
                             if it.get("type").and_then(|t| t.as_str()) == Some("tool_use") {
                                 if let Some(name) = it.get("name").and_then(|n| n.as_str()) {
-                                    *st.detail.tools_used.entry(name.to_string()).or_default() += 1;
+                                    *st.detail.tools_used.entry(name.to_string()).or_default() +=
+                                        1;
                                     if let Some(ts) = st.last_event_at {
                                         let args_summary = it.get("input").map(|v| {
                                             let s = match v {
                                                 serde_json::Value::String(s) => s.clone(),
-                                                other => serde_json::to_string(other).unwrap_or_default(),
+                                                other => {
+                                                    serde_json::to_string(other).unwrap_or_default()
+                                                }
                                             };
-                                            if s.chars().count() <= 300 { s }
-                                            else { let mut t: String = s.chars().take(300).collect(); t.push('…'); t }
+                                            if s.chars().count() <= 300 {
+                                                s
+                                            } else {
+                                                let mut t: String = s.chars().take(300).collect();
+                                                t.push('…');
+                                                t
+                                            }
                                         });
                                         st.detail.tool_calls.push(ToolCall {
                                             name: name.to_string(),
@@ -325,11 +377,224 @@ fn parse_incremental(path: &Path, st: &mut ParseState) {
                             }
                         }
                     }
+                    if !is_sidechain {
+                        apply_assistant_event(st, msg);
+                    }
                 }
             }
             _ => {}
         }
     }
+}
+
+// --- v0.7 conversation builders ---
+
+fn classify_user_kind(text: &str) -> UserMessageKind {
+    let t = text.trim_start();
+    let injected_prefixes = [
+        "<command-name>",
+        "<command-message>",
+        "<system-reminder>",
+        "<bash-input>",
+        "<bash-stdout>",
+        "<local-command-stdout>",
+    ];
+    for p in injected_prefixes {
+        if t.starts_with(p) {
+            return UserMessageKind::InjectedContext;
+        }
+    }
+    UserMessageKind::Human
+}
+
+fn apply_user_event(st: &mut ParseState, v: &serde_json::Value, full_text: &str) {
+    let at = match st.last_event_at {
+        Some(t) => t,
+        None => return,
+    };
+    let msg = v.get("message");
+    let content = msg.and_then(|m| m.get("content"));
+
+    // Distinguish "user-with-tool-results" (which fills earlier Tool items) from
+    // "real user message" (which starts a new Interaction).
+    let mut filled_any_tool_result = false;
+    if let Some(arr) = content.and_then(|c| c.as_array()) {
+        for it in arr {
+            if it.get("type").and_then(|t| t.as_str()) == Some("tool_result") {
+                let id = it
+                    .get("tool_use_id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                let is_error = it
+                    .get("is_error")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
+                let snippet: Option<String> = it.get("content").map(|c| {
+                    let s = match c {
+                        serde_json::Value::String(s) => s.clone(),
+                        serde_json::Value::Array(arr) => arr
+                            .iter()
+                            .filter_map(|i| i.get("text").and_then(|t| t.as_str()))
+                            .collect::<Vec<_>>()
+                            .join(""),
+                        other => serde_json::to_string(other).unwrap_or_default(),
+                    };
+                    if s.chars().count() <= 600 {
+                        s
+                    } else {
+                        let mut t: String = s.chars().take(600).collect();
+                        t.push('…');
+                        t
+                    }
+                });
+                if let Some(&(ii, ti, ix)) = st.tool_call_to_pos.get(id) {
+                    if let Some(turn) = st
+                        .conversation
+                        .interactions
+                        .get_mut(ii)
+                        .and_then(|i| i.turns.get_mut(ti))
+                    {
+                        if let Some(TurnItem::Tool(tc)) = turn.items.get_mut(ix) {
+                            tc.result_snippet = snippet;
+                            tc.success = Some(!is_error);
+                            filled_any_tool_result = true;
+                            st.conversation.version += 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // If the user message was *only* tool results, don't start a new interaction.
+    let only_tool_results = filled_any_tool_result
+        && content
+            .and_then(|c| c.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .all(|it| it.get("type").and_then(|t| t.as_str()) == Some("tool_result"))
+            })
+            .unwrap_or(false);
+    if only_tool_results {
+        return;
+    }
+
+    // Otherwise: a fresh user-driven interaction.
+    let kind = classify_user_kind(full_text);
+    let id = v
+        .get("uuid")
+        .and_then(|s| s.as_str())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| format!("u-{}", st.conversation.interactions.len()));
+    st.conversation.interactions.push(Interaction {
+        interaction_id: id,
+        started_at: at,
+        user_message_raw: if full_text.is_empty() {
+            None
+        } else {
+            Some(full_text.to_string())
+        },
+        user_message_transformed: None,
+        kind,
+        turns: Vec::new(),
+    });
+    st.current_interaction = Some(st.conversation.interactions.len() - 1);
+    st.current_turn = None;
+    st.conversation.version += 1;
+}
+
+fn apply_assistant_event(st: &mut ParseState, msg: &serde_json::Value) {
+    let at = match st.last_event_at {
+        Some(t) => t,
+        None => return,
+    };
+    // Lazy synthetic interaction if the file starts with assistant events.
+    let ii = match st.current_interaction {
+        Some(i) => i,
+        None => {
+            st.conversation.interactions.push(Interaction {
+                interaction_id: format!("synthetic-{}", st.conversation.interactions.len()),
+                started_at: at,
+                user_message_raw: None,
+                user_message_transformed: None,
+                kind: UserMessageKind::InjectedContext,
+                turns: Vec::new(),
+            });
+            let i = st.conversation.interactions.len() - 1;
+            st.current_interaction = Some(i);
+            i
+        }
+    };
+    let turn_id = msg
+        .get("id")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| format!("t-{}", st.conversation.version));
+    let mut new_turn = AssistantTurn {
+        turn_id,
+        started_at: at,
+        completed_at: Some(at), // Claude assistant events are atomic; one event = full turn.
+        items: Vec::new(),
+    };
+    if let Some(arr) = msg.get("content").and_then(|c| c.as_array()) {
+        for it in arr {
+            match it.get("type").and_then(|t| t.as_str()) {
+                Some("text") => {
+                    if let Some(text) = it.get("text").and_then(|t| t.as_str()) {
+                        if !text.is_empty() {
+                            new_turn.items.push(TurnItem::AssistantMessage {
+                                at,
+                                content: text.to_string(),
+                            });
+                        }
+                    }
+                }
+                Some("tool_use") => {
+                    let name = it
+                        .get("name")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    let id = it
+                        .get("id")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    let args_summary = it.get("input").map(|v| {
+                        let s = match v {
+                            serde_json::Value::String(s) => s.clone(),
+                            other => serde_json::to_string(other).unwrap_or_default(),
+                        };
+                        if s.chars().count() <= 600 {
+                            s
+                        } else {
+                            let mut t: String = s.chars().take(600).collect();
+                            t.push('…');
+                            t
+                        }
+                    });
+                    new_turn.items.push(TurnItem::Tool(TurnToolCall {
+                        call_id: id.clone(),
+                        name,
+                        at,
+                        args_summary,
+                        result_snippet: None,
+                        success: None,
+                    }));
+                    // Remember position so the next tool_result can fill it in.
+                    let item_idx = new_turn.items.len() - 1;
+                    let ti = st.conversation.interactions[ii].turns.len(); // not pushed yet
+                    if !id.is_empty() {
+                        st.tool_call_to_pos.insert(id, (ii, ti, item_idx));
+                    }
+                }
+                // "thinking" intentionally skipped in v0.7.
+                _ => {}
+            }
+        }
+    }
+    st.conversation.interactions[ii].turns.push(new_turn);
+    st.current_turn = Some(st.conversation.interactions[ii].turns.len() - 1);
+    st.conversation.version += 1;
 }
 
 fn extract_text(message: &serde_json::Value) -> String {
@@ -387,35 +652,65 @@ impl AgentAdapter for ClaudeAdapter {
         for (path, id) in self.iter_session_files() {
             if id == session_id {
                 if let Some(st) = self.parse_full(&path, &id) {
-                    return Ok(st.detail);
+                    let mut detail = st.detail;
+                    detail.conversation = None; // heavy; use /conversation endpoint
+                    return Ok(detail);
                 }
             }
         }
         Err(CoreError::NotFound(session_id.into()))
     }
 
+    async fn get_conversation(&self, session_id: &str) -> Result<Option<ConversationLog>> {
+        for (path, id) in self.iter_session_files() {
+            if id == session_id {
+                if let Some(st) = self.parse_full(&path, &id) {
+                    return Ok(Some(st.conversation));
+                }
+            }
+        }
+        Ok(None)
+    }
+
     async fn watch(&self, tx: mpsc::Sender<SessionEvent>) -> Result<()> {
         // Simple poll-based watcher: every 2s scan for size changes.
         let mut last_sizes: HashMap<PathBuf, u64> = HashMap::new();
+        let mut last_conv_version: HashMap<String, u64> = HashMap::new();
         loop {
             let mut changed = false;
-            let mut detail_updates = Vec::new();
+            let mut detail_updates: Vec<(String, SessionDetail, u64)> = Vec::new();
             for (path, id) in self.iter_session_files() {
                 let size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
                 let prev = last_sizes.insert(path.clone(), size);
                 if prev != Some(size) {
                     changed = true;
                     if let Some(st) = self.parse_full(&path, &id) {
-                        detail_updates.push((id, st.detail));
+                        let conv_v = st.conversation.version;
+                        let mut detail = st.detail;
+                        detail.conversation = None;
+                        detail_updates.push((id, detail, conv_v));
                     }
                 }
             }
             if changed {
                 let _ = tx.send(SessionEvent::SessionListChanged).await;
-                for (session_id, detail) in detail_updates {
+                for (session_id, detail, conv_v) in detail_updates {
+                    let prev_v = last_conv_version.get(&session_id).copied().unwrap_or(0);
                     let _ = tx
-                        .send(SessionEvent::DetailUpdated { session_id, detail })
+                        .send(SessionEvent::DetailUpdated {
+                            session_id: session_id.clone(),
+                            detail,
+                        })
                         .await;
+                    if conv_v != prev_v {
+                        last_conv_version.insert(session_id.clone(), conv_v);
+                        let _ = tx
+                            .send(SessionEvent::ConversationUpdated {
+                                session_id,
+                                version: conv_v,
+                            })
+                            .await;
+                    }
                 }
             }
             tokio::time::sleep(Duration::from_secs(2)).await;
