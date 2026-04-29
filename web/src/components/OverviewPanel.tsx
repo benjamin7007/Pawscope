@@ -341,7 +341,13 @@ function tickerAgo(iso: string): string {
   return `${Math.floor(m / 60)}h`;
 }
 
-export function OverviewPanel({ onOpenSession }: { onOpenSession?: (id: string) => void } = {}) {
+export function OverviewPanel({
+  onOpenSession,
+  onOpenRealm,
+}: {
+  onOpenSession?: (id: string) => void;
+  onOpenRealm?: (name: string) => void;
+} = {}) {
   const [data, setData] = useState<Overview | null>(null);
   const [activity, setActivity] = useState<number[] | null>(null);
   const [grid, setGrid] = useState<number[][] | null>(null);
@@ -507,8 +513,13 @@ export function OverviewPanel({ onOpenSession }: { onOpenSession?: (id: string) 
                 return (
                   <li
                     key={r.name}
-                    className="px-4 py-2.5 flex items-center gap-3 text-sm border-b border-slate-800/40 last:border-b-0"
+                    className="border-b border-slate-800/40 last:border-b-0"
                   >
+                    <button
+                      type="button"
+                      onClick={() => onOpenRealm?.(r.name)}
+                      className="w-full px-4 py-2.5 flex items-center gap-3 text-sm text-left hover:bg-amber-500/5 transition-colors cursor-pointer"
+                    >
                     <span className={`tabular-nums w-8 text-center text-base ${rankColor}`}>
                       {rankBadge}
                     </span>
@@ -554,6 +565,7 @@ export function OverviewPanel({ onOpenSession }: { onOpenSession?: (id: string) 
                         <div className="text-[10px] text-slate-600">tools</div>
                       </span>
                     </div>
+                    </button>
                   </li>
                 );
               })}
