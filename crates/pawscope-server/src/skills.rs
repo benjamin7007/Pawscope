@@ -206,6 +206,23 @@ fn parse_skill_md(path: &Path, source: &str) -> Option<SkillEntry> {
     })
 }
 
+async fn discovered_project_skill_roots(state: &AppState) -> Vec<PathBuf> {
+    let mut out: Vec<PathBuf> = Vec::new();
+    let mut seen: std::collections::HashSet<PathBuf> = std::collections::HashSet::new();
+    if let Ok(metas) = state.adapter.list_sessions().await {
+        for m in &metas {
+            let candidate = m.cwd.join(".github").join("skills");
+            if candidate.is_dir() {
+                let canon = candidate.canonicalize().unwrap_or(candidate);
+                if seen.insert(canon.clone()) {
+                    out.push(canon);
+                }
+            }
+        }
+    }
+    out
+}
+
 fn skill_roots() -> Vec<PathBuf> {
     let home = std::env::var("HOME").unwrap_or_default();
     vec![
@@ -339,17 +356,18 @@ pub async fn skill_usage(
 }
 
 pub async fn skill_content(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Query(q): Query<ContentQuery>,
 ) -> Result<Json<SkillContent>, StatusCode> {
     // Resolve and validate that the requested path lies under one of the
     // known skill root directories — never serve arbitrary files.
     let req = PathBuf::from(&q.path);
     let canonical = std::fs::canonicalize(&req).map_err(|_| StatusCode::NOT_FOUND)?;
-    let roots: Vec<PathBuf> = skill_roots()
+    let mut roots: Vec<PathBuf> = skill_roots()
         .into_iter()
         .filter_map(|r| std::fs::canonicalize(&r).ok())
         .collect();
+    roots.extend(discovered_project_skill_roots(&state).await);
     if !roots.iter().any(|r| canonical.starts_with(r)) {
         return Err(StatusCode::FORBIDDEN);
     }
@@ -378,16 +396,17 @@ pub async fn skill_content(
 }
 
 pub async fn skill_reveal(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Json(q): Json<ContentQuery>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     // Same allowlist as skill_content: only SKILL.md files under known roots.
     let req = PathBuf::from(&q.path);
     let canonical = std::fs::canonicalize(&req).map_err(|_| StatusCode::NOT_FOUND)?;
-    let roots: Vec<PathBuf> = skill_roots()
+    let mut roots: Vec<PathBuf> = skill_roots()
         .into_iter()
         .filter_map(|r| std::fs::canonicalize(&r).ok())
         .collect();
+    roots.extend(discovered_project_skill_roots(&state).await);
     if !roots.iter().any(|r| canonical.starts_with(r)) {
         return Err(StatusCode::FORBIDDEN);
     }
