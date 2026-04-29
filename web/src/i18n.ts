@@ -282,6 +282,7 @@ const dict: Record<string, { en: string; zh: string }> = {
   'flow.interactions_short': { en: 'interactions', zh: '次交互' },
   'flow.compactions_short': { en: 'compactions', zh: '次压缩' },
   'flow.live': { en: 'live', zh: '实时' },
+  'flow.copy_link': { en: 'copy link to this interaction', zh: '复制此交互链接' },
 };
 
 function readLang(): Lang {
