@@ -7,6 +7,7 @@ import { OverviewPanel } from './components/OverviewPanel';
 import { RealmPanel } from './components/RealmPanel';
 import { SkillsPanel } from './components/SkillsPanel';
 import { PromptsPanel } from './components/PromptsPanel';
+import { SidebarResizer } from './components/SidebarResizer';
 import { LangToggle } from './components/LangToggle';
 import { ThemeToggle } from './components/ThemeToggle';
 import { useT } from './i18n';
@@ -24,6 +25,14 @@ export default function App() {
   const [pendingSkill, setPendingSkill] = useState<{ name: string; n: number } | null>(null);
   const [pendingCategory, setPendingCategory] = useState<{ name: string; n: number } | null>(null);
   const [labels, setLabels] = useState<LabelMap>({});
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    const v = parseInt(localStorage.getItem('pawscope.sidebarWidth') ?? '', 10);
+    return Number.isFinite(v) && v >= 280 && v <= 720 ? v : 384;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('pawscope.sidebarWidth', String(sidebarWidth));
+  }, [sidebarWidth]);
 
   useEffect(() => {
     fetchLabels().then(setLabels).catch(() => setLabels({}));
@@ -64,7 +73,10 @@ export default function App() {
 
   return (
     <div className="flex h-screen">
-      <div className="w-96 flex flex-col border-r border-slate-800 bg-slate-950/50">
+      <div
+        className="flex flex-col border-r border-slate-800 bg-slate-950/50 flex-shrink-0"
+        style={{ width: sidebarWidth }}
+      >
         <div className="px-4 pt-4 pb-3 flex items-center gap-2 border-b border-slate-800/40">
           <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden className="text-emerald-400 flex-shrink-0">
             <g fill="currentColor">
@@ -138,6 +150,7 @@ export default function App() {
           onToggleStar={toggleStar}
         />
       </div>
+      <SidebarResizer onResize={setSidebarWidth} />
       {view === 'overview' ? (
         <OverviewPanel
           onOpenSession={setSelected}
