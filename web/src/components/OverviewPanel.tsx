@@ -538,6 +538,147 @@ function DormantBanner({ active, onOpen }: { active: Session[]; onOpen?: (id: st
   );
 }
 
+interface Insight {
+  icon: string;
+  text: React.ReactNode;
+  tone: 'info' | 'warn' | 'good' | 'cost';
+}
+
+function InsightsCard({
+  sessions, tokensMap, hotFiles, dangerous, heartbeat, t,
+}: {
+  sessions: Session[];
+  tokensMap: Record<string, { in: number; out: number }>;
+  hotFiles: { path: string; mentions: number; sessions: number }[];
+  dangerous: { tool: string; count: number; sessions: number; severity: string }[];
+  heartbeat: { peak_hour: number | null; peak_dow: number | null } | null;
+  t: (k: string) => string;
+}) {
+  const insights = useMemo<Insight[]>(() => {
+    const out: Insight[] = [];
+
+    // === 1. Cost peak day this week ===
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const dayCost: number[] = new Array(7).fill(0);
+    const dayLabel: string[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(startOfDay.getTime() - i * 86400000);
+      dayLabel.push(`${d.getMonth() + 1}/${d.getDate()}`);
+    }
+    for (const s of sessions) {
+      if (!s.last_event_at) continue;
+      const dt = new Date(s.last_event_at);
+      const sd = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+      const diff = Math.floor((startOfDay.getTime() - sd.getTime()) / 86400000);
+      if (diff < 0 || diff > 6) continue;
+      const tk = tokensMap[s.id];
+      if (!tk) continue;
+      const c = estimateCostUsd((s as any).model, tk.in, tk.out);
+      if (c === null) continue;
+      dayCost[6 - diff] += c;
+    }
+    const totalWeek = dayCost.reduce((a, b) => a + b, 0);
+    if (totalWeek > 0) {
+      const maxIdx = dayCost.reduce((mi, v, i) => (v > dayCost[mi] ? i : mi), 0);
+      const minIdx = dayCost.reduce((mi, v, i) => (v < dayCost[mi] && v > 0 ? i : mi), maxIdx);
+      const peakCost = dayCost[maxIdx];
+      const minCost = dayCost[minIdx];
+      if (peakCost > 0 && minCost > 0 && maxIdx !== minIdx) {
+        const ratio = peakCost / minCost;
+        if (ratio >= 1.5) {
+          out.push({
+            icon: '💸',
+            tone: 'cost',
+            text: <>{t('insights.cost_peak_prefix')} <b className="text-amber-300">{dayLabel[maxIdx]}</b> {t('insights.cost_peak_mid')} <b className="text-amber-300">{ratio.toFixed(1)}×</b> {t('insights.cost_peak_suffix')} ({formatUsd(peakCost)} vs {formatUsd(minCost)}).</>,
+          });
+        }
+      }
+    }
+
+    // === 2. Daily budget overruns ===
+    const budgetRaw = parseFloat(localStorage.getItem('pawscope.dailyBudget') ?? '');
+    if (Number.isFinite(budgetRaw) && budgetRaw > 0) {
+      const overDays = dayCost.filter(c => c > budgetRaw).length;
+      if (overDays > 0) {
+        out.push({
+          icon: '⚠',
+          tone: 'warn',
+          text: <>{t('insights.budget_prefix')} <b className="text-rose-300">{overDays}</b> {t('insights.budget_mid')} {formatUsd(budgetRaw)}.</>,
+        });
+      }
+    }
+
+    // === 3. Hottest file ===
+    const top = hotFiles[0];
+    if (top && top.sessions >= 2) {
+      out.push({
+        icon: '🔥',
+        tone: 'info',
+        text: <>{t('insights.hot_file_prefix')} <b className="text-violet-300 font-mono">{top.path}</b> {t('insights.hot_file_mid')} <b>{top.sessions}</b> {t('insights.hot_file_sessions')} · <b>{top.mentions}</b> {t('insights.hot_file_mentions')}.</>,
+      });
+    }
+
+    // === 4. Dangerous tool ratio ===
+    if (dangerous.length > 0) {
+      const top = dangerous[0];
+      out.push({
+        icon: top.severity === 'high' ? '🚨' : '⚠',
+        tone: 'warn',
+        text: <>{t('insights.danger_prefix')} <b className="text-rose-300 font-mono">{top.tool}</b> {t('insights.danger_mid')} <b>{top.count}</b> {t('insights.danger_calls')} {t('insights.danger_across')} <b>{top.sessions}</b> {t('insights.danger_sessions')}.</>,
+      });
+    }
+
+    // === 5. Peak hour pattern ===
+    if (heartbeat && heartbeat.peak_hour !== null) {
+      const hr = heartbeat.peak_hour;
+      const band = hr < 5 ? t('insights.band_late') : hr < 12 ? t('insights.band_morning') : hr < 18 ? t('insights.band_afternoon') : t('insights.band_evening');
+      out.push({
+        icon: '⏰',
+        tone: 'info',
+        text: <>{t('insights.peak_prefix')} <b className="text-cyan-300">{String(hr).padStart(2, '0')}:00</b> ({band}).</>,
+      });
+    }
+
+    // === 6. Active right now ===
+    const activeNow = sessions.filter(s => s.status === 'active').length;
+    if (activeNow > 0) {
+      out.push({
+        icon: '🟢',
+        tone: 'good',
+        text: <>{t('insights.active_prefix')} <b className="text-emerald-300">{activeNow}</b> {t('insights.active_suffix')}.</>,
+      });
+    }
+
+    return out.slice(0, 5);
+  }, [sessions, tokensMap, hotFiles, dangerous, heartbeat, t]);
+
+  if (insights.length === 0) return null;
+
+  const toneClass = (tone: Insight['tone']) =>
+    tone === 'warn' ? 'border-rose-900/40 bg-rose-950/20'
+    : tone === 'good' ? 'border-emerald-900/40 bg-emerald-950/20'
+    : tone === 'cost' ? 'border-amber-900/40 bg-amber-950/20'
+    : 'border-slate-800 bg-slate-900/40';
+
+  return (
+    <section className="rounded-lg bg-slate-900/40 border border-slate-800">
+      <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
+        <h3 className="text-xs uppercase tracking-wider text-slate-400">💡 {t('sec.insights')}</h3>
+        <span className="text-[11px] text-slate-500">{insights.length}</span>
+      </header>
+      <ul className="divide-y divide-slate-800/40">
+        {insights.map((ins, i) => (
+          <li key={i} className={`px-4 py-2.5 text-xs flex items-start gap-3 border-l-2 ${toneClass(ins.tone)}`}>
+            <span className="text-base leading-none mt-0.5">{ins.icon}</span>
+            <span className="text-slate-200 leading-relaxed">{ins.text}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 function WordCloud({ entries, onPick }: {
   entries: { word: string; count: number; sessions: number }[];
   onPick: (w: string) => void;
@@ -1245,6 +1386,15 @@ export function OverviewPanel({
           <HeroStat label={t('stat.turns')} value={data.total_turns.toLocaleString()} />
           <HeroStat label={t('stat.tool_calls')} value={totalTools.toLocaleString()} />
         </section>
+
+        <InsightsCard
+          sessions={allSessions}
+          tokensMap={tokensMap}
+          hotFiles={hotFiles}
+          dangerous={(dangerous?.entries ?? []).map(e => ({ tool: e.name, count: e.count, sessions: e.sessions, severity: e.severity }))}
+          heartbeat={heartbeat as any}
+          t={t}
+        />
 
         {((data.total_tokens_in ?? 0) + (data.total_tokens_out ?? 0)) > 0 && (
           <TokenUsageSection
