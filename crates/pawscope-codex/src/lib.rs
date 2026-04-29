@@ -351,6 +351,21 @@ fn parse_rollout_into_detail(file: std::fs::File, detail: &mut SessionDetail) {
             "compacted" => {
                 // mid-session compaction; ignore but don't error.
             }
+            "event_msg" => {
+                // Codex emits cumulative token totals as event_msg/token_count.
+                // The latest occurrence wins (each event reports total-so-far).
+                let Some(p) = payload else { continue };
+                if p.get("type").and_then(|t| t.as_str()) == Some("token_count") {
+                    if let Some(usage) = p.pointer("/info/total_token_usage") {
+                        if let Some(n) = usage.get("input_tokens").and_then(|v| v.as_u64()) {
+                            detail.tokens_in = n;
+                        }
+                        if let Some(n) = usage.get("output_tokens").and_then(|v| v.as_u64()) {
+                            detail.tokens_out = n;
+                        }
+                    }
+                }
+            }
             _ => {}
         }
     }
@@ -681,5 +696,57 @@ mod tests {
         assert_eq!(d.prompts[0].text, "first prompt");
         assert_eq!(d.prompts[1].text, "follow-up question");
         assert!(d.prompts[0].timestamp.is_some());
+    }
+
+    #[tokio::test]
+    async fn detail_extracts_token_usage_from_rollout() {
+        let dir = tempfile::tempdir().unwrap();
+        let now = Utc::now();
+        let ts = |secs: i64| (now - chrono::Duration::seconds(secs)).to_rfc3339();
+        let rollout = write_rollout(
+            dir.path(),
+            "rollout-thread-4.jsonl",
+            &[
+                &format!(
+                    r#"{{"timestamp":"{}","type":"event_msg","payload":{{"type":"token_count","info":{{"total_token_usage":{{"input_tokens":100,"output_tokens":50,"total_tokens":150}},"model_context_window":256000}}}}}}"#,
+                    ts(40)
+                ),
+                // Cumulative — second event should overwrite the first.
+                &format!(
+                    r#"{{"timestamp":"{}","type":"event_msg","payload":{{"type":"token_count","info":{{"total_token_usage":{{"input_tokens":250,"output_tokens":120,"total_tokens":370}},"model_context_window":256000}}}}}}"#,
+                    ts(20)
+                ),
+            ],
+        );
+        let db = dir.path().join("state_5.sqlite");
+        let conn = Connection::open(&db).unwrap();
+        conn.execute_batch(
+            "CREATE TABLE threads (
+                id TEXT PRIMARY KEY,
+                rollout_path TEXT NOT NULL DEFAULT '',
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                cwd TEXT NOT NULL,
+                title TEXT NOT NULL DEFAULT '',
+                archived INTEGER NOT NULL DEFAULT 0,
+                git_branch TEXT,
+                git_origin_url TEXT,
+                first_user_message TEXT NOT NULL DEFAULT '',
+                model TEXT
+            );",
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO threads (id, rollout_path, created_at, updated_at, cwd, first_user_message)
+             VALUES ('thread-4', ?1, ?2, ?2, '/x', '')",
+            rusqlite::params![rollout.to_string_lossy(), now.timestamp()],
+        )
+        .unwrap();
+        drop(conn);
+
+        let a = CodexAdapter::with_db(db).unwrap();
+        let d = a.get_detail("thread-4").await.unwrap();
+        assert_eq!(d.tokens_in, 250);
+        assert_eq!(d.tokens_out, 120);
     }
 }

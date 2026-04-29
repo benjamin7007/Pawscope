@@ -35,6 +35,8 @@ type Detail = {
   }[];
   prompts?: { id: string; timestamp: string | null; snippet: string; text?: string }[];
   tool_calls?: { name: string; timestamp: string }[];
+  tokens_in?: number;
+  tokens_out?: number;
 };
 
 type Props = {
@@ -87,6 +89,12 @@ function StatCard({ label, value, hint }: { label: string; value: React.ReactNod
       {hint && <div className="text-[11px] text-slate-500 mt-0.5">{hint}</div>}
     </div>
   );
+}
+
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+  return n.toLocaleString();
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -326,6 +334,14 @@ export function SessionDetail({ meta, detail, onOpenSkill, label, onSetLabel, on
             <StatCard label={t('stat.assistant_msgs')} value={detail.assistant_messages} hint={t('misc.outbound')} />
             <StatCard label={t('stat.tool_calls')} value={toolsTotal} hint={`${tools.length} ${t('misc.unique')}`} />
           </section>
+
+          {(detail.tokens_in || detail.tokens_out) ? (
+            <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <StatCard label={t('stat.tokens_in')} value={formatTokens(detail.tokens_in ?? 0)} hint={t('misc.cumulative')} />
+              <StatCard label={t('stat.tokens_out')} value={formatTokens(detail.tokens_out ?? 0)} hint={t('misc.cumulative')} />
+              <StatCard label={t('stat.tokens_total')} value={formatTokens((detail.tokens_in ?? 0) + (detail.tokens_out ?? 0))} />
+            </section>
+          ) : null}
 
           <ToolTimeline calls={detail.tool_calls ?? []} />
 
