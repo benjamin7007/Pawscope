@@ -44,8 +44,8 @@ type Props = {
   meta: Meta | undefined;
   detail: Detail | null;
   onOpenSkill?: (name: string) => void;
-  label?: { starred: boolean; tags: string[] };
-  onSetLabel?: (label: { starred: boolean; tags: string[] }) => void;
+  label?: { starred: boolean; tags: string[]; note?: string | null };
+  onSetLabel?: (label: { starred: boolean; tags: string[]; note?: string | null }) => void;
   onPrev?: () => void;
   onNext?: () => void;
   position?: { index: number; total: number };
@@ -112,6 +112,86 @@ function CopyButton({ text }: { text: string }) {
     >
       {done ? '✓' : '⧉'}
     </button>
+  );
+}
+
+function NoteEditor({ note, onSave }: { note: string; onSave: (n: string) => void }) {
+  const [draft, setDraft] = useState(note);
+  const [editing, setEditing] = useState(false);
+  useEffect(() => { setDraft(note); }, [note]);
+  const dirty = draft !== note;
+  if (!editing && !note) {
+    return (
+      <div className="px-8 py-1.5 border-b border-slate-800 bg-slate-900/20">
+        <button
+          onClick={() => setEditing(true)}
+          className="text-[11px] text-slate-500 hover:text-slate-300"
+        >+ note</button>
+      </div>
+    );
+  }
+  return (
+    <div className="px-8 py-2 border-b border-slate-800 bg-slate-900/20">
+      <div className="flex items-baseline gap-2 mb-1">
+        <span className="text-[10px] uppercase tracking-wider text-slate-500">note</span>
+        {editing && dirty && (
+          <span className="text-[10px] text-amber-400">unsaved</span>
+        )}
+        <div className="ml-auto flex gap-2">
+          {editing ? (
+            <>
+              <button
+                onClick={() => { onSave(draft.trim()); setEditing(false); }}
+                disabled={!dirty}
+                className="text-[11px] text-emerald-300 hover:text-emerald-200 disabled:opacity-40"
+              >save</button>
+              <button
+                onClick={() => { setDraft(note); setEditing(false); }}
+                className="text-[11px] text-slate-500 hover:text-slate-300"
+              >cancel</button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setEditing(true)}
+                className="text-[11px] text-slate-500 hover:text-slate-300"
+              >edit</button>
+              {note && (
+                <button
+                  onClick={() => { onSave(''); }}
+                  className="text-[11px] text-rose-400/70 hover:text-rose-300"
+                >clear</button>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+      {editing ? (
+        <textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+              onSave(draft.trim());
+              setEditing(false);
+            } else if (e.key === 'Escape') {
+              setDraft(note);
+              setEditing(false);
+            }
+          }}
+          autoFocus
+          rows={3}
+          maxLength={4096}
+          placeholder="Write a note about this session… (⌘+Enter to save, Esc to cancel)"
+          className="w-full px-2 py-1.5 text-xs bg-slate-900 border border-slate-700 rounded text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-slate-500 resize-y"
+        />
+      ) : (
+        <div
+          onClick={() => setEditing(true)}
+          className="text-xs text-slate-200 whitespace-pre-wrap cursor-text leading-relaxed"
+        >{note}</div>
+      )}
+    </div>
   );
 }
 
@@ -263,7 +343,7 @@ export function SessionDetail({ meta, detail, onOpenSkill, label, onSetLabel, on
               )}
               {onSetLabel && (
                 <button
-                  onClick={() => onSetLabel({ starred: !(label?.starred ?? false), tags: label?.tags ?? [] })}
+                  onClick={() => onSetLabel({ starred: !(label?.starred ?? false), tags: label?.tags ?? [], note: label?.note ?? null })}
                   title={label?.starred ? 'Unstar' : 'Star'}
                   className={`ml-1 text-base leading-none ${label?.starred ? 'text-amber-300' : 'text-slate-600 hover:text-slate-400'}`}
                 >
@@ -314,7 +394,7 @@ export function SessionDetail({ meta, detail, onOpenSkill, label, onSetLabel, on
             <span key={tg} className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-violet-500/15 text-violet-200 text-[11px]">
               #{tg}
               <button
-                onClick={() => onSetLabel({ starred: label?.starred ?? false, tags: (label?.tags ?? []).filter((x) => x !== tg) })}
+                onClick={() => onSetLabel({ starred: label?.starred ?? false, tags: (label?.tags ?? []).filter((x) => x !== tg), note: label?.note ?? null })}
                 className="text-violet-400 hover:text-violet-100"
               >×</button>
             </span>
@@ -326,7 +406,7 @@ export function SessionDetail({ meta, detail, onOpenSkill, label, onSetLabel, on
               if (e.key === 'Enter') {
                 const v = (e.target as HTMLInputElement).value.trim();
                 if (v && !(label?.tags ?? []).includes(v)) {
-                  onSetLabel({ starred: label?.starred ?? false, tags: [...(label?.tags ?? []), v] });
+                  onSetLabel({ starred: label?.starred ?? false, tags: [...(label?.tags ?? []), v], note: label?.note ?? null });
                 }
                 (e.target as HTMLInputElement).value = '';
               }
@@ -334,6 +414,13 @@ export function SessionDetail({ meta, detail, onOpenSkill, label, onSetLabel, on
             className="px-2 py-0.5 text-[11px] bg-slate-900 border border-slate-800 rounded text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-slate-600 w-20"
           />
         </div>
+      )}
+
+      {onSetLabel && (
+        <NoteEditor
+          note={label?.note ?? ''}
+          onSave={(note) => onSetLabel({ starred: label?.starred ?? false, tags: label?.tags ?? [], note: note || null })}
+        />
       )}
 
       {!detail ? (
