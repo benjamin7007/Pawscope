@@ -43,6 +43,11 @@ const dict: Record<string, { en: string; zh: string }> = {
   // Tool timeline
   'sec.tool_timeline': { en: 'Tool call timeline', zh: '工具调用时间轴' },
   'timeline.empty': { en: 'No timestamped tool calls captured.', zh: '尚无带时间戳的工具调用。' },
+  'timeline.args': { en: 'Arguments', zh: '参数' },
+  'timeline.result': { en: 'Result', zh: '返回' },
+  'timeline.success': { en: 'success', zh: '成功' },
+  'timeline.failure': { en: 'failure', zh: '失败' },
+  'timeline.no_detail': { en: 'No detail captured for this call.', zh: '此次调用未捕获详情。' },
 
   // Header / kicker
   'overview.kicker': { en: 'Overview', zh: '总览' },

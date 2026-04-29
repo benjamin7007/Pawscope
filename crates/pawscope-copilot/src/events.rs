@@ -18,6 +18,10 @@ pub struct ParseState {
     pub offset: u64,
     pub detail: SessionDetail,
     pub model: Option<String>,
+    /// Maps toolCallId → index into `detail.tool_calls`, for matching
+    /// tool.execution_complete events back to the right invocation.
+    #[doc(hidden)]
+    pub tool_call_index: std::collections::HashMap<String, usize>,
 }
 
 pub fn parse_incremental(path: &Path, state: &mut ParseState) -> anyhow::Result<()> {
@@ -27,6 +31,7 @@ pub fn parse_incremental(path: &Path, state: &mut ParseState) -> anyhow::Result<
         state.offset = 0;
         state.detail = SessionDetail::default();
         state.model = None;
+        state.tool_call_index.clear();
     }
     if len == state.offset {
         return Ok(());
@@ -85,10 +90,35 @@ pub fn parse_incremental(path: &Path, state: &mut ParseState) -> anyhow::Result<
                         .as_deref()
                         .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
                     {
+                        let args_summary = ev.data.get("arguments")
+                            .map(|v| truncate_value(v, 300));
+                        let idx = state.detail.tool_calls.len();
                         state.detail.tool_calls.push(ToolCall {
                             name: name.to_string(),
                             timestamp: ts.with_timezone(&chrono::Utc),
+                            args_summary,
+                            result_snippet: None,
+                            success: None,
                         });
+                        if let Some(id) = ev.data.get("toolCallId").and_then(|v| v.as_str()) {
+                            state.tool_call_index.insert(id.to_string(), idx);
+                        }
+                    }
+                }
+            }
+            "tool.execution_complete" => {
+                let id = ev.data.get("toolCallId").and_then(|v| v.as_str());
+                let success = ev.data.get("success").and_then(|v| v.as_bool());
+                let result = ev.data.get("result")
+                    .and_then(|r| r.get("content"))
+                    .and_then(|v| v.as_str())
+                    .map(|s| truncate_str(s, 300));
+                if let Some(id) = id {
+                    if let Some(&idx) = state.tool_call_index.get(id) {
+                        if let Some(tc) = state.detail.tool_calls.get_mut(idx) {
+                            if tc.result_snippet.is_none() { tc.result_snippet = result; }
+                            if tc.success.is_none() { tc.success = success; }
+                        }
                     }
                 }
             }
@@ -125,6 +155,24 @@ pub fn parse_incremental(path: &Path, state: &mut ParseState) -> anyhow::Result<
         }
     }
     Ok(())
+}
+
+/// Truncate a string at a char boundary (not a byte boundary, to be safe with multibyte text).
+fn truncate_str(s: &str, max_chars: usize) -> String {
+    if s.chars().count() <= max_chars { return s.to_string(); }
+    let mut out: String = s.chars().take(max_chars).collect();
+    out.push('…');
+    out
+}
+
+/// Stringify a JSON value, then truncate. For complex objects this gives a
+/// compact summary line (no pretty-printing).
+fn truncate_value(v: &serde_json::Value, max_chars: usize) -> String {
+    let s = match v {
+        serde_json::Value::String(s) => s.clone(),
+        other => serde_json::to_string(other).unwrap_or_default(),
+    };
+    truncate_str(&s, max_chars)
 }
 
 #[cfg(test)]

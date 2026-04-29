@@ -66,6 +66,15 @@ pub struct PromptSummary {
 pub struct ToolCall {
     pub name: String,
     pub timestamp: chrono::DateTime<chrono::Utc>,
+    /// Truncated stringification of the tool's input arguments (~300 chars).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub args_summary: Option<String>,
+    /// Truncated snippet of the tool's result/output (~300 chars).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub result_snippet: Option<String>,
+    /// Whether the tool succeeded (when known).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub success: Option<bool>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

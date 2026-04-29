@@ -306,9 +306,19 @@ fn parse_incremental(path: &Path, st: &mut ParseState) {
                                 if let Some(name) = it.get("name").and_then(|n| n.as_str()) {
                                     *st.detail.tools_used.entry(name.to_string()).or_default() += 1;
                                     if let Some(ts) = st.last_event_at {
+                                        let args_summary = it.get("input").map(|v| {
+                                            let s = match v {
+                                                serde_json::Value::String(s) => s.clone(),
+                                                other => serde_json::to_string(other).unwrap_or_default(),
+                                            };
+                                            if s.chars().count() <= 300 { s }
+                                            else { let mut t: String = s.chars().take(300).collect(); t.push('…'); t }
+                                        });
                                         st.detail.tool_calls.push(ToolCall {
                                             name: name.to_string(),
                                             timestamp: ts,
+                                            args_summary,
+                                            ..Default::default()
                                         });
                                     }
                                 }
