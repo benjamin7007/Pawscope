@@ -499,3 +499,104 @@ pub async fn prompts_search(
     hits.truncate(limit);
     Json(hits).into_response()
 }
+
+#[derive(Debug, Deserialize)]
+pub struct ToolTrendQuery {
+    #[serde(default)]
+    pub hours: Option<u32>,
+    #[serde(default)]
+    pub top: Option<usize>,
+}
+
+#[derive(Debug, Serialize)]
+struct ToolSeries {
+    name: String,
+    counts: Vec<u64>,
+    total: u64,
+}
+
+pub async fn tools_trend(
+    Query(p): Query<ToolTrendQuery>,
+    State(s): State<AppState>,
+) -> impl IntoResponse {
+    let hours = p.hours.unwrap_or(168).clamp(1, 24 * 90) as usize;
+    let top = p.top.unwrap_or(8).clamp(1, 20);
+    let now = chrono::Utc::now();
+    let window_start = now - chrono::Duration::hours(hours as i64);
+
+    let sessions = match s.adapter.list_sessions().await {
+        Ok(v) => v,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    };
+
+    let mut per_tool: HashMap<String, Vec<u64>> = HashMap::new();
+    let mut totals: HashMap<String, u64> = HashMap::new();
+    for sess in &sessions {
+        let detail = match s.adapter.get_detail(&sess.id).await {
+            Ok(d) => d,
+            Err(_) => continue,
+        };
+        for tc in &detail.tool_calls {
+            if tc.timestamp < window_start || tc.timestamp > now {
+                continue;
+            }
+            let elapsed = (now - tc.timestamp).num_hours() as usize;
+            if elapsed >= hours {
+                continue;
+            }
+            let bucket = hours - 1 - elapsed;
+            let entry = per_tool
+                .entry(tc.name.clone())
+                .or_insert_with(|| vec![0u64; hours]);
+            entry[bucket] += 1;
+            *totals.entry(tc.name.clone()).or_default() += 1;
+        }
+    }
+
+    let mut ranked: Vec<(String, u64)> = totals.into_iter().collect();
+    ranked.sort_by(|a, b| b.1.cmp(&a.1));
+    let head: Vec<(String, u64)> = ranked.iter().take(top).cloned().collect();
+    let head_names: std::collections::HashSet<String> =
+        head.iter().map(|(n, _)| n.clone()).collect();
+
+    let mut other = vec![0u64; hours];
+    let mut other_total = 0u64;
+    for (name, counts) in &per_tool {
+        if head_names.contains(name) {
+            continue;
+        }
+        for (i, c) in counts.iter().enumerate() {
+            other[i] += c;
+        }
+        other_total += counts.iter().sum::<u64>();
+    }
+
+    let mut series: Vec<ToolSeries> = head
+        .into_iter()
+        .map(|(name, total)| ToolSeries {
+            counts: per_tool.remove(&name).unwrap_or_else(|| vec![0u64; hours]),
+            name,
+            total,
+        })
+        .collect();
+    if other_total > 0 {
+        series.push(ToolSeries {
+            name: "other".into(),
+            counts: other,
+            total: other_total,
+        });
+    }
+
+    let totals_per_bucket: Vec<u64> = (0..hours)
+        .map(|i| series.iter().map(|s| s.counts[i]).sum())
+        .collect();
+
+    Json(serde_json::json!({
+        "hours": hours,
+        "window_start": window_start.to_rfc3339(),
+        "now": now.to_rfc3339(),
+        "series": series,
+        "totals": totals_per_bucket,
+    }))
+    .into_response()
+}

@@ -115,6 +115,24 @@ export function connectWs(onEvent: (ev: any) => void): WebSocket {
   return ws;
 }
 
+export interface ToolTrendSeries {
+  name: string;
+  counts: number[];
+  total: number;
+}
+export interface ToolTrendResponse {
+  hours: number;
+  window_start: string;
+  now: string;
+  series: ToolTrendSeries[];
+  totals: number[];
+}
+export async function fetchToolsTrend(hours = 168, top = 6): Promise<ToolTrendResponse> {
+  const r = await fetch(`/api/tools/trend?hours=${hours}&top=${top}`);
+  if (!r.ok) throw new Error(`tools trend ${r.status}`);
+  return r.json();
+}
+
 export interface PromptHit {
   session_id: string;
   agent: string;

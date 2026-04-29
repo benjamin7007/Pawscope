@@ -61,6 +61,11 @@ const dict: Record<string, { en: string; zh: string }> = {
   'sec.tools_used': { en: 'Tools used', zh: '已用工具' },
   'sec.prompts': { en: 'Prompts', zh: '用户提示' },
   'sec.heatmap': { en: 'Activity heatmap (14 days · weekday × hour)', zh: '活跃热力图（14 天 · 星期 × 小时）' },
+  'sec.tool_trend': { en: 'Global tool trend (7 days · hourly)', zh: '全局工具趋势（7 天 · 每小时）' },
+  'tool_trend.empty': { en: 'No tool calls in the selected window.', zh: '所选时间窗口内没有工具调用。' },
+  'tool_trend.range.24h': { en: '24h', zh: '24小时' },
+  'tool_trend.range.7d': { en: '7d', zh: '7天' },
+  'tool_trend.range.30d': { en: '30d', zh: '30天' },
   'sec.activity14': { en: '14-day activity (turns)', zh: '14 天活跃（回合）' },
   'sec.sessions_in_realm': { en: 'Sessions in this realm', zh: '该项目的会话' },
 
