@@ -88,7 +88,24 @@ impl AgentAdapter for CopilotAdapter {
         let mut guard = self.state.write().unwrap();
         let st = guard.entry(session_id.to_string()).or_default();
         let _ = events::parse_incremental(&path, st);
-        Ok(st.detail.clone())
+        // Strip the heavy conversation log here — it has its own endpoint.
+        let mut detail = st.detail.clone();
+        detail.conversation = None;
+        Ok(detail)
+    }
+
+    async fn get_conversation(
+        &self,
+        session_id: &str,
+    ) -> Result<Option<pawscope_core::ConversationLog>> {
+        let path = self.root.join(session_id).join("events.jsonl");
+        if !path.exists() {
+            return Ok(None);
+        }
+        let mut guard = self.state.write().unwrap();
+        let st = guard.entry(session_id.to_string()).or_default();
+        let _ = events::parse_incremental(&path, st);
+        Ok(Some(st.conversation.clone()))
     }
 
     async fn watch(&self, tx: mpsc::Sender<SessionEvent>) -> Result<()> {

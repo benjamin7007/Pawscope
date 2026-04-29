@@ -1,5 +1,5 @@
 use crate::error::Result;
-use crate::types::{SessionDetail, SessionMeta};
+use crate::types::{ConversationLog, SessionDetail, SessionMeta};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
@@ -51,5 +51,13 @@ pub trait AgentAdapter: Send + Sync + 'static {
     /// Default returns an empty grid for adapters that don't track timestamps.
     async fn activity_grid_7x24(&self) -> Result<Vec<Vec<u64>>> {
         Ok(vec![vec![0; 24]; 7])
+    }
+
+    /// Full structured conversation log for a session: system prompts,
+    /// compaction markers, and interactions (each with one or more
+    /// assistant turns). Adapters that don't yet support the structured
+    /// flow should return `Ok(None)` (the default).
+    async fn get_conversation(&self, _session_id: &str) -> Result<Option<ConversationLog>> {
+        Ok(None)
     }
 }
