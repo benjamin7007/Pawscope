@@ -17,10 +17,12 @@ html.theme-light body {
 
 /* Backgrounds */
 html.theme-light .bg-slate-950 { background-color: #f1f5f9 !important; }
+html.theme-light .bg-slate-950\/50 { background-color: rgba(241,245,249,0.6) !important; }
 html.theme-light .bg-slate-900 { background-color: #ffffff !important; }
 html.theme-light .bg-slate-900\/30 { background-color: rgba(255,255,255,0.6) !important; }
 html.theme-light .bg-slate-900\/40 { background-color: rgba(255,255,255,0.75) !important; }
 html.theme-light .bg-slate-900\/50 { background-color: rgba(255,255,255,0.85) !important; }
+html.theme-light .bg-slate-900\/70 { background-color: #ffffff !important; }
 html.theme-light .bg-slate-800 { background-color: #e2e8f0 !important; }
 html.theme-light .bg-slate-800\/30 { background-color: rgba(203,213,225,0.35) !important; }
 html.theme-light .bg-slate-800\/40 { background-color: rgba(203,213,225,0.45) !important; }
@@ -41,6 +43,7 @@ html.theme-light .text-slate-700 { color: #cbd5e1 !important; }
 /* Borders */
 html.theme-light .border-slate-700 { border-color: #cbd5e1 !important; }
 html.theme-light .border-slate-800 { border-color: #e2e8f0 !important; }
+html.theme-light .border-slate-800\/40 { border-color: rgba(226,232,240,0.55) !important; }
 html.theme-light .border-slate-800\/60 { border-color: rgba(226,232,240,0.7) !important; }
 
 /* Divider lines (Tailwind compiles these to nested ::before-style selectors) */
@@ -53,7 +56,15 @@ html.theme-light .divide-slate-800\/60 > :not([hidden]) ~ :not([hidden]) {
 html.theme-light .hover\:bg-slate-800\/30:hover { background-color: rgba(203,213,225,0.45) !important; }
 html.theme-light .hover\:bg-slate-800\/40:hover { background-color: rgba(203,213,225,0.55) !important; }
 html.theme-light .hover\:bg-slate-800\/50:hover { background-color: rgba(203,213,225,0.65) !important; }
+html.theme-light .hover\:bg-slate-800\/60:hover { background-color: rgba(203,213,225,0.75) !important; }
+html.theme-light .hover\:bg-slate-800\/80:hover { background-color: rgba(203,213,225,0.9) !important; }
 html.theme-light .hover\:bg-slate-900\/50:hover { background-color: rgba(255,255,255,0.95) !important; }
+html.theme-light .hover\:text-slate-100:hover { color: #0f172a !important; }
+html.theme-light .hover\:text-slate-200:hover { color: #1e293b !important; }
+html.theme-light .hover\:border-slate-500:hover { border-color: #94a3b8 !important; }
+html.theme-light .hover\:border-slate-600:hover { border-color: #94a3b8 !important; }
+html.theme-light .focus\:border-slate-600:focus { border-color: #94a3b8 !important; }
+html.theme-light .focus\:border-emerald-500\/50:focus { border-color: rgba(16,185,129,0.6) !important; }
 
 /* Inputs */
 html.theme-light input,
