@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
-import { fetchOverview, fetchActivity, fetchActivityGrid, fetchSessions, subscribeEvents } from '../api';
+import { useEffect, useMemo, useState } from 'react';
+import { fetchOverview, fetchActivity, fetchActivityGrid, fetchSessions, fetchSkills, subscribeEvents, type SkillEntry } from '../api';
 import { useT } from '../i18n';
+import { categorize, CATEGORY_ORDER } from '../skillCategory';
 
 type Session = {
   id: string;
@@ -450,11 +451,12 @@ export function OverviewPanel({
   onOpenRealm?: (name: string) => void;
   onOpenSkill?: (name: string) => void;
 } = {}) {
-  const { t } = useT();
+  const { t, lang, fmt } = useT();
   const [data, setData] = useState<Overview | null>(null);
   const [activity, setActivity] = useState<number[] | null>(null);
   const [grid, setGrid] = useState<number[][] | null>(null);
   const [active, setActive] = useState<Session[]>([]);
+  const [allSkills, setAllSkills] = useState<SkillEntry[] | null>(null);
   const [, forceTick] = useState(0);
   const [err, setErr] = useState<string | null>(null);
 
@@ -469,6 +471,9 @@ export function OverviewPanel({
         .catch(() => {});
       fetchActivityGrid()
         .then(d => !cancelled && setGrid(d.grid ?? null))
+        .catch(() => {});
+      fetchSkills()
+        .then(d => !cancelled && setAllSkills(d.skills ?? []))
         .catch(() => {});
     };
     const loadActive = () => {
@@ -510,6 +515,27 @@ export function OverviewPanel({
   const reposMax = repos[0]?.[1] ?? 0;
   const totalTools = tools.reduce((a, [, v]) => a + v, 0);
 
+  const categoryStats = useMemo(() => {
+    if (!allSkills) return [];
+    const byCat: Record<string, { invocations: number; count: number; used: number }> = {};
+    for (const s of allSkills) {
+      const c = categorize(s.name);
+      if (!byCat[c]) byCat[c] = { invocations: 0, count: 0, used: 0 };
+      byCat[c].invocations += s.invocations;
+      byCat[c].count += 1;
+      if (s.invocations > 0) byCat[c].used += 1;
+    }
+    const order = (n: string) => {
+      const i = CATEGORY_ORDER.indexOf(n);
+      return i === -1 ? 9999 : i;
+    };
+    return Object.entries(byCat)
+      .filter(([, v]) => v.invocations > 0)
+      .map(([name, v]) => ({ name, ...v }))
+      .sort((a, b) => b.invocations - a.invocations || order(a.name) - order(b.name));
+  }, [allSkills]);
+  const categoryTotal = categoryStats.reduce((a, b) => a + b.invocations, 0);
+
   return (
     <main className="flex-1 overflow-y-auto">
       <header className="px-8 pt-6 pb-5 border-b border-slate-800 bg-slate-900/30">
@@ -532,6 +558,15 @@ export function OverviewPanel({
 
         {activity && <ActivityHeatmap buckets={activity} />}
         {grid && <WeekGrid grid={grid} />}
+
+        {categoryStats.length > 0 && (
+          <CategoryDonut
+            stats={categoryStats}
+            total={categoryTotal}
+            lang={lang}
+            fmt={fmt}
+          />
+        )}
 
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="rounded-lg bg-slate-900/40 border border-slate-800">
@@ -701,5 +736,98 @@ export function OverviewPanel({
         </section>
       </div>
     </main>
+  );
+}
+
+const CATEGORY_PALETTE = [
+  '#34d399', '#60a5fa', '#a78bfa', '#f472b6', '#facc15',
+  '#fb923c', '#22d3ee', '#f87171', '#4ade80', '#c084fc',
+  '#fbbf24', '#38bdf8', '#e879f9', '#94a3b8', '#fda4af',
+  '#86efac', '#93c5fd', '#fcd34d', '#fdba74', '#a3e635',
+];
+
+function CategoryDonut({
+  stats,
+  total,
+  lang,
+  fmt,
+}: {
+  stats: { name: string; invocations: number; count: number; used: number }[];
+  total: number;
+  lang: string;
+  fmt: (n: number) => string;
+}) {
+  const R = 56;
+  const W = 18;
+  const C = 2 * Math.PI * R;
+  let offset = 0;
+  const slices = stats.map((s, i) => {
+    const frac = s.invocations / total;
+    const seg = frac * C;
+    const slice = {
+      ...s,
+      color: CATEGORY_PALETTE[i % CATEGORY_PALETTE.length],
+      dasharray: `${seg} ${C - seg}`,
+      dashoffset: -offset,
+      pct: frac * 100,
+    };
+    offset += seg;
+    return slice;
+  });
+  return (
+    <section className="rounded-lg bg-slate-900/40 border border-slate-800">
+      <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
+        <h3 className="text-xs uppercase tracking-wider text-slate-400">
+          {lang === 'zh' ? '各分类调用量占比' : 'Invocations by category'}
+        </h3>
+        <span className="text-[11px] text-slate-500">
+          {fmt(total)} {lang === 'zh' ? '次' : 'invocations'} · {stats.length}{' '}
+          {lang === 'zh' ? '类' : 'categories'}
+        </span>
+      </header>
+      <div className="px-4 py-4 flex items-center gap-6 flex-wrap">
+        <svg viewBox="-70 -70 140 140" width="160" height="160" className="flex-shrink-0">
+          <circle r={R} fill="none" stroke="#1e293b" strokeWidth={W} />
+          {slices.map(s => (
+            <circle
+              key={s.name}
+              r={R}
+              fill="none"
+              stroke={s.color}
+              strokeWidth={W}
+              strokeDasharray={s.dasharray}
+              strokeDashoffset={s.dashoffset}
+              transform="rotate(-90)"
+            >
+              <title>{`${s.name}: ${fmt(s.invocations)} (${s.pct.toFixed(1)}%)`}</title>
+            </circle>
+          ))}
+          <text textAnchor="middle" y={-2} className="fill-slate-100" style={{ fontSize: 16, fontWeight: 600 }}>
+            {fmt(total)}
+          </text>
+          <text textAnchor="middle" y={14} className="fill-slate-500" style={{ fontSize: 9 }}>
+            {lang === 'zh' ? '总调用' : 'invocations'}
+          </text>
+        </svg>
+        <ul className="flex-1 min-w-[260px] grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-[12px]">
+          {slices.map(s => (
+            <li key={s.name} className="flex items-baseline gap-2 min-w-0">
+              <span
+                className="w-2 h-2 rounded-sm flex-shrink-0"
+                style={{ background: s.color }}
+                aria-hidden
+              />
+              <span className="text-slate-200 truncate" title={s.name}>{s.name}</span>
+              <span className="ml-auto tabular-nums text-slate-400 flex-shrink-0">
+                {fmt(s.invocations)}
+              </span>
+              <span className="tabular-nums text-slate-600 flex-shrink-0 w-12 text-right">
+                {s.pct.toFixed(1)}%
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
   );
 }
