@@ -51,7 +51,15 @@ export default function App() {
     <div className="flex h-screen">
       <div className="w-80 flex flex-col border-r border-slate-800 bg-slate-950/50">
         <div className="px-4 pt-4 pb-3 flex items-center gap-2 border-b border-slate-800/40">
-          <span className="text-2xl leading-none">🐾</span>
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden className="text-emerald-400 flex-shrink-0">
+            <g fill="currentColor">
+              <ellipse cx="12" cy="17" rx="5" ry="4" />
+              <circle cx="6" cy="11" r="2.2" />
+              <circle cx="9" cy="6.5" r="1.9" />
+              <circle cx="15" cy="6.5" r="1.9" />
+              <circle cx="18" cy="11" r="2.2" />
+            </g>
+          </svg>
           <span className="font-semibold text-slate-100 text-base tracking-tight">Pawscope</span>
         </div>
         <nav className="flex border-b border-slate-800">
