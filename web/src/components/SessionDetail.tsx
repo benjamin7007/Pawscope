@@ -184,7 +184,7 @@ export function SessionDetail({ meta, detail, onOpenSkill }: Props) {
                 }`}
               >
                 <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
-                {meta.status}
+                {t(`status.${meta.status}` as 'status.active') || meta.status}
               </span>
               <span className="text-[11px] uppercase tracking-wider text-slate-500">{meta.agent}</span>
               {meta.pid && (
@@ -192,7 +192,7 @@ export function SessionDetail({ meta, detail, onOpenSkill }: Props) {
               )}
             </div>
             <h1 className="text-2xl font-semibold text-slate-100 truncate">
-              {meta.summary || <span className="text-slate-500 italic">(no summary)</span>}
+              {meta.summary || <span className="text-slate-500 italic">{t('misc.no_summary')}</span>}
             </h1>
             <div className="flex items-center gap-2 mt-1.5">
               <span className="text-xs font-mono text-slate-500">{meta.id}</span>
@@ -232,16 +232,16 @@ export function SessionDetail({ meta, detail, onOpenSkill }: Props) {
       ) : (
         <div className="p-6 space-y-6">
           <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <StatCard label="Turns" value={detail.turns} />
-            <StatCard label="User msgs" value={detail.user_messages} hint="↑ inbound" />
-            <StatCard label="Assistant msgs" value={detail.assistant_messages} hint="↓ outbound" />
-            <StatCard label="Tool calls" value={toolsTotal} hint={`${tools.length} unique`} />
+            <StatCard label={t('stat.turns')} value={detail.turns} />
+            <StatCard label={t('stat.user_msgs')} value={detail.user_messages} hint={t('misc.inbound')} />
+            <StatCard label={t('stat.assistant_msgs')} value={detail.assistant_messages} hint={t('misc.outbound')} />
+            <StatCard label={t('stat.tool_calls')} value={toolsTotal} hint={`${tools.length} ${t('misc.unique')}`} />
           </section>
 
           <section className="rounded-lg bg-slate-900/40 border border-slate-800">
             <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
               <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.tools_used')}</h3>
-              <span className="text-[11px] text-slate-500">{toolsTotal} total</span>
+              <span className="text-[11px] text-slate-500">{toolsTotal} {t('misc.total')}</span>
             </header>
             {tools.length === 0 ? (
               <div className="px-4 py-6 text-xs text-slate-600 text-center">{t('detail.no_tools')}</div>
@@ -339,7 +339,7 @@ export function SessionDetail({ meta, detail, onOpenSkill }: Props) {
                           >▶</span>
                           <span
                             className={`w-2 h-2 rounded-full flex-shrink-0 ${sa.active ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`}
-                            title={sa.active ? 'active' : 'idle'}
+                            title={sa.active ? t('status.active') : t('status.idle')}
                           />
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
@@ -357,7 +357,7 @@ export function SessionDetail({ meta, detail, onOpenSkill }: Props) {
                             )}
                           </div>
                           <span className="text-slate-400 tabular-nums text-xs flex-shrink-0">
-                            <span className="text-slate-500">turns</span> {sa.turns}
+                            <span className="text-slate-500">{t('misc.turns_suffix')}</span> {sa.turns}
                           </span>
                           <span className="text-slate-400 tabular-nums text-xs flex-shrink-0">
                             <span className="text-slate-500">tools</span> {sa.tool_calls}
