@@ -1029,10 +1029,18 @@ pub async fn tools_dangerous(State(s): State<AppState>) -> impl IntoResponse {
 }
 
 #[derive(Debug, Serialize)]
+struct HotFileSample {
+    session_id: String,
+    snippet: String,
+}
+
+#[derive(Debug, Serialize)]
 struct HotFile {
     path: String,
     mentions: u64,
     sessions: u64,
+    #[serde(default)]
+    samples: Vec<HotFileSample>,
 }
 
 pub async fn files_hot(State(s): State<AppState>) -> impl IntoResponse {
@@ -1048,7 +1056,7 @@ pub async fn files_hot(State(s): State<AppState>) -> impl IntoResponse {
     let stop_ext: std::collections::HashSet<&str> = [
         "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
     ].iter().copied().collect();
-    let mut counts: HashMap<String, (u64, std::collections::HashSet<String>)> = HashMap::new();
+    let mut counts: HashMap<String, (u64, std::collections::HashSet<String>, Vec<HotFileSample>)> = HashMap::new();
     for (meta, detail) in pairs {
         let mut seen_in_session: std::collections::HashSet<String> = std::collections::HashSet::new();
         for p in &detail.prompts {
@@ -1096,22 +1104,56 @@ pub async fn files_hot(State(s): State<AppState>) -> impl IntoResponse {
                     if ext_after.chars().next().map(|c| c.is_ascii_uppercase()).unwrap_or(false) { continue; }
                 }
                 if normed.is_empty() || normed.len() < 3 { continue; }
-                let entry = counts.entry(normed.clone()).or_insert((0, std::collections::HashSet::new()));
+                let entry = counts.entry(normed.clone()).or_insert_with(|| (0, std::collections::HashSet::new(), Vec::new()));
                 entry.0 += 1;
                 if !seen_in_session.contains(&normed) {
                     entry.1.insert(meta.id.clone());
-                    seen_in_session.insert(normed);
+                    seen_in_session.insert(normed.clone());
+                    // Capture up to 5 sample snippets per file (one per distinct session).
+                    if entry.2.len() < 5 {
+                        let snippet = make_prompt_snippet(&p.text, raw, 140);
+                        entry.2.push(HotFileSample { session_id: meta.id.clone(), snippet });
+                    }
                 }
             }
         }
     }
-    let mut entries: Vec<HotFile> = counts.into_iter().map(|(path, (m, sess))| HotFile {
-        path, mentions: m, sessions: sess.len() as u64,
+    let mut entries: Vec<HotFile> = counts.into_iter().map(|(path, (m, sess, samples))| HotFile {
+        path, mentions: m, sessions: sess.len() as u64, samples,
     }).collect();
     entries.retain(|e| e.mentions >= 2);
     entries.sort_by(|a, b| b.sessions.cmp(&a.sessions).then(b.mentions.cmp(&a.mentions)));
     entries.truncate(40);
     Json(entries).into_response()
+}
+
+/// Build a short snippet of a prompt centered on `needle`, padded to ~`max_len` chars.
+fn make_prompt_snippet(text: &str, needle: &str, max_len: usize) -> String {
+    let pos = text.find(needle).unwrap_or(0);
+    let half = max_len / 2;
+    // Walk backward by chars from `pos` to find a safe start byte.
+    let start_byte = text[..pos]
+        .char_indices()
+        .rev()
+        .nth(half)
+        .map(|(i, _)| i)
+        .unwrap_or(0);
+    // Walk forward by chars from end of needle to find a safe end byte.
+    let after_needle = pos + needle.len();
+    let end_byte = if after_needle >= text.len() {
+        text.len()
+    } else {
+        text[after_needle..]
+            .char_indices()
+            .nth(half)
+            .map(|(i, _)| after_needle + i)
+            .unwrap_or(text.len())
+    };
+    let mut snippet = String::new();
+    if start_byte > 0 { snippet.push('…'); }
+    snippet.push_str(text[start_byte..end_byte].trim());
+    if end_byte < text.len() { snippet.push('…'); }
+    snippet.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 fn is_cjk(c: char) -> bool {

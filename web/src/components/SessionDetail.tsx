@@ -402,6 +402,24 @@ function SessionExportMenu({ meta, detail, t }: { meta: any; detail: any; t: (k:
     { label: '📝 Markdown', ext: 'md', mime: 'text/markdown', build: () => exportSessionMarkdown(meta, detail) },
     { label: '🔢 JSON', ext: 'json', mime: 'application/json', build: () => exportSessionJson(meta, detail) },
   ];
+  // Cmd+E / Ctrl+E exports the open session as Markdown.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'e' || e.key === 'E')) {
+        // Skip if user is typing into an input/textarea/contenteditable.
+        const tgt = e.target as HTMLElement | null;
+        if (tgt) {
+          const tag = tgt.tagName;
+          if (tag === 'INPUT' || tag === 'TEXTAREA' || tgt.isContentEditable) return;
+        }
+        e.preventDefault();
+        const md = exportSessionMarkdown(meta, detail);
+        if (md) downloadFile(`${baseName}.md`, md, 'text/markdown');
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [meta, detail, baseName]);
   return (
     <div className="relative">
       <button

@@ -387,6 +387,20 @@ function CostSparkline({ sessions, tokensMap, t }: {
   tokensMap: Record<string, { in: number; out: number }>;
   t: (k: string) => string;
 }) {
+  const [budget, setBudget] = useState<number>(() => {
+    const v = parseFloat(localStorage.getItem('pawscope.dailyBudget') ?? '');
+    return Number.isFinite(v) && v > 0 ? v : 0;
+  });
+  const editBudget = () => {
+    const cur = budget > 0 ? budget.toString() : '1.00';
+    const raw = window.prompt(t('misc.budget_prompt'), cur);
+    if (raw === null) return;
+    const v = parseFloat(raw);
+    if (!Number.isFinite(v) || v < 0) return;
+    setBudget(v);
+    if (v > 0) localStorage.setItem('pawscope.dailyBudget', String(v));
+    else localStorage.removeItem('pawscope.dailyBudget');
+  };
   const days7 = useMemo(() => {
     const today = new Date();
     const buckets: { label: string; cost: number }[] = [];
@@ -410,20 +424,33 @@ function CostSparkline({ sessions, tokensMap, t }: {
   }, [sessions, tokensMap]);
   const total = days7.reduce((a, b) => a + b.cost, 0);
   if (total <= 0) return null;
-  const max = Math.max(...days7.map(d => d.cost), 0.0001);
+  const max = Math.max(...days7.map(d => d.cost), budget, 0.0001);
   const W = 100, H = 28;
   const pts = days7.map((d, i) => {
     const x = (i / (days7.length - 1)) * W;
     const y = H - (d.cost / max) * (H - 4) - 2;
-    return [x, y] as [number, number];
+    return [x, y, d.cost > budget && budget > 0] as [number, number, boolean];
   });
   const path = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
   const area = `${path} L${W},${H} L0,${H} Z`;
+  const overCount = pts.filter(p => p[2]).length;
+  const budgetY = budget > 0 ? H - (budget / max) * (H - 4) - 2 : null;
   return (
     <div className="px-4 py-2 border-b border-slate-800/40">
       <div className="flex items-center justify-between text-[10px] text-slate-500 mb-1">
         <span className="uppercase tracking-wider">{t('misc.cost7_trend')}</span>
-        <span className="text-emerald-400 font-mono tabular-nums">{formatUsd(total)}</span>
+        <span className="flex items-center gap-1">
+          {overCount > 0 && (
+            <span className="text-rose-400" title={t('misc.over_budget_days').replace('{n}', String(overCount))}>⚠</span>
+          )}
+          <button
+            onClick={editBudget}
+            className="text-emerald-400 font-mono tabular-nums hover:text-emerald-300"
+            title={budget > 0 ? `${t('misc.daily_budget')}: ${formatUsd(budget)} — ${t('misc.click_to_edit')}` : t('misc.set_budget')}
+          >
+            {formatUsd(total)}
+          </button>
+        </span>
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="w-full h-7">
         <defs>
@@ -434,9 +461,17 @@ function CostSparkline({ sessions, tokensMap, t }: {
         </defs>
         <path d={area} fill="url(#costGrad)" />
         <path d={path} stroke="#34d399" strokeWidth="1" fill="none" />
+        {budgetY !== null && (
+          <line
+            x1="0" x2={W} y1={budgetY} y2={budgetY}
+            stroke="#fb7185" strokeWidth="0.6" strokeDasharray="2,2" opacity="0.7"
+          >
+            <title>{`${t('misc.daily_budget')}: ${formatUsd(budget)}`}</title>
+          </line>
+        )}
         {pts.map((p, i) => (
-          <circle key={i} cx={p[0]} cy={p[1]} r="1.2" fill="#34d399">
-            <title>{`${days7[i].label}: ${formatUsd(days7[i].cost)}`}</title>
+          <circle key={i} cx={p[0]} cy={p[1]} r="1.2" fill={p[2] ? '#fb7185' : '#34d399'}>
+            <title>{`${days7[i].label}: ${formatUsd(days7[i].cost)}${p[2] ? ' ⚠' : ''}`}</title>
           </circle>
         ))}
       </svg>
