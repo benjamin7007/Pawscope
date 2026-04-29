@@ -1,6 +1,6 @@
 use crate::events;
-use pawscope_core::{CoreError, Result, SessionEvent};
 use notify::{Config, PollWatcher, RecursiveMode, Watcher};
+use pawscope_core::{CoreError, Result, SessionEvent};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};

@@ -1,5 +1,8 @@
+use axum::{
+    Router,
+    routing::{get, post},
+};
 use pawscope_core::AgentAdapter;
-use axum::{Router, routing::{get, post}};
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
@@ -59,8 +62,8 @@ pub fn spawn_watcher(state: AppState) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pawscope_core::*;
     use async_trait::async_trait;
+    use pawscope_core::*;
     use std::sync::Arc;
     use tokio::sync::mpsc;
 

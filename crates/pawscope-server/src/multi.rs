@@ -1,7 +1,7 @@
 //! Fan-out adapter that combines multiple `AgentAdapter`s into one.
 
-use pawscope_core::{AgentAdapter, Result, SessionDetail, SessionEvent, SessionMeta};
 use async_trait::async_trait;
+use pawscope_core::{AgentAdapter, Result, SessionDetail, SessionEvent, SessionMeta};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -37,8 +37,7 @@ impl AgentAdapter for MultiAdapter {
                 Err(e) => last_err = Some(e),
             }
         }
-        Err(last_err
-            .unwrap_or_else(|| pawscope_core::CoreError::NotFound(session_id.to_string())))
+        Err(last_err.unwrap_or_else(|| pawscope_core::CoreError::NotFound(session_id.to_string())))
     }
 
     async fn session_activity_hourly(&self, session_id: &str, hours: u32) -> Result<Vec<u64>> {

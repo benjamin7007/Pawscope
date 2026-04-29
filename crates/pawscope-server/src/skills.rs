@@ -39,9 +39,18 @@ pub async fn list_skills(State(state): State<AppState>) -> Json<SkillsResponse> 
 
     let home = std::env::var("HOME").unwrap_or_default();
     let sources = vec![
-        ("copilot-superpowers", PathBuf::from(format!("{home}/.copilot/installed-plugins"))),
-        ("claude-skills", PathBuf::from(format!("{home}/.claude/skills"))),
-        ("agents-skills", PathBuf::from(format!("{home}/.agents/skills"))),
+        (
+            "copilot-superpowers",
+            PathBuf::from(format!("{home}/.copilot/installed-plugins")),
+        ),
+        (
+            "claude-skills",
+            PathBuf::from(format!("{home}/.claude/skills")),
+        ),
+        (
+            "agents-skills",
+            PathBuf::from(format!("{home}/.agents/skills")),
+        ),
     ];
 
     let mut skills = Vec::new();
@@ -56,10 +65,18 @@ pub async fn list_skills(State(state): State<AppState>) -> Json<SkillsResponse> 
     for s in &mut skills {
         s.invocations = invocations.get(&s.name).copied().unwrap_or(0);
     }
-    skills.sort_by(|a, b| b.invocations.cmp(&a.invocations).then_with(|| a.name.cmp(&b.name)));
+    skills.sort_by(|a, b| {
+        b.invocations
+            .cmp(&a.invocations)
+            .then_with(|| a.name.cmp(&b.name))
+    });
 
     let total = skills.len();
-    Json(SkillsResponse { skills, total, by_source })
+    Json(SkillsResponse {
+        skills,
+        total,
+        by_source,
+    })
 }
 
 fn scan_skills_recursive(root: &Path, source: &str, max_depth: usize) -> Vec<SkillEntry> {
@@ -288,7 +305,11 @@ pub async fn skill_usage(
         .into_iter()
         .map(|(name, sessions)| SkillCoOccurrence { name, sessions })
         .collect();
-    cooccurring.sort_by(|a, b| b.sessions.cmp(&a.sessions).then_with(|| a.name.cmp(&b.name)));
+    cooccurring.sort_by(|a, b| {
+        b.sessions
+            .cmp(&a.sessions)
+            .then_with(|| a.name.cmp(&b.name))
+    });
     cooccurring.truncate(12);
 
     Ok(Json(SkillUsage {
