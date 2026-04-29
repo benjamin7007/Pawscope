@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useT } from '../i18n';
 import { SessionDetailSkeleton } from './Skeleton';
 import { estimateCostUsd, formatUsd, priceFor } from '../pricing';
+import { ConversationFlow } from './ConversationFlow';
 
 type Meta = {
   id: string;
@@ -767,9 +768,11 @@ function ReplaySection({
 
 export function SessionDetail({ meta, detail, onOpenSkill, label, onSetLabel, onPrev, onNext, position }: Props) {
   const { t, lang } = useT();
+  const [tab, setTab] = useState<'summary' | 'conversation'>('summary');
   const [availSkills, setAvailSkills] = useState<{ name: string; description: string; source: string; path: string; invoked: boolean }[] | null>(null);
   useEffect(() => {
     setAvailSkills(null);
+    setTab('summary');
     if (!meta?.id) return;
     let cancel = false;
     fetch(`/api/sessions/${encodeURIComponent(meta.id)}/skills`)
@@ -944,6 +947,40 @@ export function SessionDetail({ meta, detail, onOpenSkill, label, onSetLabel, on
       {!detail ? (
         <SessionDetailSkeleton />
       ) : (
+        <>
+          <nav className="px-8 pt-4 border-b border-slate-800 bg-slate-900/30 flex items-center gap-1">
+            <button
+              onClick={() => setTab('summary')}
+              className={`px-3 py-1.5 text-[12px] rounded-t border-b-2 transition-colors ${
+                tab === 'summary'
+                  ? 'text-cyan-300 border-cyan-400 bg-slate-900/60'
+                  : 'text-slate-400 border-transparent hover:text-slate-200'
+              }`}
+            >
+              {t('tab.summary')}
+            </button>
+            <button
+              onClick={() => setTab('conversation')}
+              className={`px-3 py-1.5 text-[12px] rounded-t border-b-2 transition-colors ${
+                tab === 'conversation'
+                  ? 'text-cyan-300 border-cyan-400 bg-slate-900/60'
+                  : 'text-slate-400 border-transparent hover:text-slate-200'
+              }`}
+              disabled={meta.agent !== 'copilot'}
+              title={meta.agent !== 'copilot' ? t('flow.copilot_only') : ''}
+            >
+              {t('tab.conversation')}
+              {meta.agent !== 'copilot' && <span className="ml-1 text-[9px] text-slate-600">(copilot)</span>}
+            </button>
+          </nav>
+
+          {tab === 'conversation' ? (
+            meta.agent === 'copilot' ? (
+              <ConversationFlow sessionId={meta.id} />
+            ) : (
+              <div className="px-6 py-8 text-sm text-slate-500">{t('flow.copilot_only')}</div>
+            )
+          ) : (
         <div className="p-6 space-y-6">
           <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <StatCard label={t('stat.turns')} value={detail.turns} />
@@ -1263,6 +1300,8 @@ export function SessionDetail({ meta, detail, onOpenSkill, label, onSetLabel, on
             Started {formatAbs(meta.started_at)} · Last event {formatAbs(meta.last_event_at)}
           </section>
         </div>
+          )}
+        </>
       )}
     </main>
   );
