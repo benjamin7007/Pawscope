@@ -600,3 +600,77 @@ pub async fn tools_trend(
     }))
     .into_response()
 }
+
+#[derive(Debug, Deserialize)]
+pub struct ToolBucketQuery {
+    pub since: String,
+    pub until: String,
+    #[serde(default)]
+    pub tool: Option<String>,
+    #[serde(default)]
+    pub limit: Option<usize>,
+}
+
+#[derive(Debug, Serialize)]
+struct BucketHit {
+    session_id: String,
+    agent: String,
+    cwd: Option<String>,
+    count: u64,
+    last_event_at: String,
+}
+
+pub async fn tools_bucket(
+    Query(p): Query<ToolBucketQuery>,
+    State(s): State<AppState>,
+) -> impl IntoResponse {
+    let since = match chrono::DateTime::parse_from_rfc3339(&p.since) {
+        Ok(t) => t.with_timezone(&chrono::Utc),
+        Err(e) => return (StatusCode::BAD_REQUEST, format!("since: {e}")).into_response(),
+    };
+    let until = match chrono::DateTime::parse_from_rfc3339(&p.until) {
+        Ok(t) => t.with_timezone(&chrono::Utc),
+        Err(e) => return (StatusCode::BAD_REQUEST, format!("until: {e}")).into_response(),
+    };
+    let limit = p.limit.unwrap_or(50).clamp(1, 200);
+    let tool_filter = p.tool.as_deref();
+
+    let sessions = match s.adapter.list_sessions().await {
+        Ok(v) => v,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    };
+
+    let mut hits: Vec<BucketHit> = Vec::new();
+    for sess in &sessions {
+        let detail = match s.adapter.get_detail(&sess.id).await {
+            Ok(d) => d,
+            Err(_) => continue,
+        };
+        let mut count: u64 = 0;
+        for tc in &detail.tool_calls {
+            if tc.timestamp < since || tc.timestamp >= until {
+                continue;
+            }
+            if let Some(t) = tool_filter {
+                if tc.name != t {
+                    continue;
+                }
+            }
+            count += 1;
+        }
+        if count == 0 {
+            continue;
+        }
+        hits.push(BucketHit {
+            session_id: sess.id.clone(),
+            agent: format!("{:?}", sess.agent).to_lowercase(),
+            cwd: Some(sess.cwd.display().to_string()),
+            count,
+            last_event_at: sess.last_event_at.to_rfc3339(),
+        });
+    }
+    hits.sort_by(|a, b| b.count.cmp(&a.count));
+    hits.truncate(limit);
+
+    Json(hits).into_response()
+}

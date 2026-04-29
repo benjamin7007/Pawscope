@@ -133,6 +133,25 @@ export async function fetchToolsTrend(hours = 168, top = 6): Promise<ToolTrendRe
   return r.json();
 }
 
+export interface BucketHit {
+  session_id: string;
+  agent: string;
+  cwd: string | null;
+  count: number;
+  last_event_at: string;
+}
+export async function fetchToolsBucket(
+  since: string,
+  until: string,
+  tool?: string,
+): Promise<BucketHit[]> {
+  const params = new URLSearchParams({ since, until, limit: '50' });
+  if (tool) params.set('tool', tool);
+  const r = await fetch(`/api/tools/bucket?${params}`);
+  if (!r.ok) throw new Error(`tools bucket ${r.status}`);
+  return r.json();
+}
+
 export interface PromptHit {
   session_id: string;
   agent: string;

@@ -737,7 +737,7 @@ export function OverviewPanel({
           </div>
         </section>
 
-        <ToolTrend />
+        <ToolTrend onOpenSession={onOpenSession} />
 
         <section className="text-[11px] text-slate-600 px-1">
           Messages: ↑ {data.total_user_messages.toLocaleString()} user · ↓ {data.total_assistant_messages.toLocaleString()} assistant
