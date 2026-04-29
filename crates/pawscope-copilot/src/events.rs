@@ -173,6 +173,7 @@ pub fn parse_incremental(path: &Path, state: &mut ParseState) -> anyhow::Result<
             }
             "assistant.message" => {
                 state.detail.assistant_messages += 1;
+                let out_tokens = ev.data.get("outputTokens").and_then(|v| v.as_u64());
                 if let (Some(at), Some(content)) = (
                     ts,
                     ev.data.get("content").and_then(|v| v.as_str()),
@@ -184,6 +185,42 @@ pub fn parse_incremental(path: &Path, state: &mut ParseState) -> anyhow::Result<
                             content: content.to_string(),
                         });
                         state.conversation.version += 1;
+                    }
+                }
+                // v0.8: Copilot reports only `outputTokens` per assistant.message.
+                // Attribute it to the active assistant turn (not subagent-nested
+                // scopes) so the conversation rollup matches Copilot's billing
+                // surface. Multiple messages can occur within one turn — sum.
+                if let Some(out) = out_tokens {
+                    if let Some(at) = ts {
+                        let scope = state.ensure_active_turn(at);
+                        if let ScopeRef::Turn { interaction, turn } = &scope {
+                            if let Some(t) = state
+                                .conversation
+                                .interactions
+                                .get_mut(*interaction)
+                                .and_then(|i| i.turns.get_mut(*turn))
+                            {
+                                let model = state
+                                    .model
+                                    .clone()
+                                    .unwrap_or_else(|| "gpt-5".to_string());
+                                let mut tu = t.usage.clone().unwrap_or_else(|| {
+                                    pawscope_core::TurnUsage {
+                                        model: model.clone(),
+                                        input_tokens: None,
+                                        output_tokens: Some(0),
+                                        cache_read_tokens: None,
+                                        cache_write_tokens: None,
+                                        cost_usd: None,
+                                    }
+                                });
+                                tu.model = model;
+                                tu.output_tokens = Some(tu.output_tokens.unwrap_or(0) + out);
+                                tu.cost_usd = pawscope_core::pricing::compute_cost(&tu);
+                                t.usage = Some(tu);
+                            }
+                        }
                     }
                 }
             }
@@ -394,6 +431,9 @@ pub fn parse_incremental(path: &Path, state: &mut ParseState) -> anyhow::Result<
             _ => {}
         }
     }
+
+    // v0.8: rebuild the conversation-level token rollup at every parse cycle.
+    pawscope_core::recompute_token_summary(&mut state.conversation);
 
     // Mirror the conversation log onto SessionDetail so anyone holding only
     // `state.detail` (e.g. cache layer) sees the latest. We Clone because
