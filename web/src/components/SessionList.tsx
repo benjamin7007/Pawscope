@@ -20,7 +20,7 @@ type Props = {
   selected: string | null;
   realmFilter?: string | null;
   onClearRealmFilter?: () => void;
-  labels?: Record<string, { starred: boolean; tags: string[] }>;
+  labels?: Record<string, { starred: boolean; tags: string[]; note?: string | null }>;
   onToggleStar?: (id: string) => void;
   tokensMap?: Record<string, { in: number; out: number }>;
 };
@@ -86,7 +86,8 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
         (s.id?.toLowerCase().includes(q)) ||
         (s.repo?.toLowerCase().includes(q)) ||
         (s.summary?.toLowerCase().includes(q)) ||
-        (s.branch?.toLowerCase().includes(q))
+        (s.branch?.toLowerCase().includes(q)) ||
+        (lbl?.note?.toLowerCase().includes(q) ?? false)
       );
     });
 
@@ -170,6 +171,11 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
       <div className="text-sm mt-0.5 truncate text-slate-200">
         {s.summary || <span className="text-slate-500 italic">(no summary)</span>}
       </div>
+      {lbl?.note && (
+        <div className="text-[11px] mt-0.5 truncate text-amber-300/80 italic" title={lbl.note}>
+          📝 {lbl.note}
+        </div>
+      )}
       {(s.branch || (lbl?.tags?.length ?? 0) > 0 || tkTotal > 0) && (
         <div className="text-[11px] text-slate-500 mt-0.5 truncate flex items-center gap-1.5">
           {s.branch && <><span className="text-slate-600">⎇</span><span>{s.branch}</span></>}
@@ -252,12 +258,15 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
 
   const ROW_BASE = 52;
   const ROW_META = 68;
+  const ROW_NOTE_BUMP = 16;
   const HEADER_H = 30;
   const itemHeight = (it: FlatItem): number => {
     if (it.type === 'header') return HEADER_H;
     const lbl = labels?.[it.session.id];
     const hasMeta = !!it.session.branch || (lbl?.tags?.length ?? 0) > 0;
-    return hasMeta ? ROW_META : ROW_BASE;
+    let h = hasMeta ? ROW_META : ROW_BASE;
+    if (lbl?.note) h += ROW_NOTE_BUMP;
+    return h;
   };
 
   // Build cumulative offset table once per render.
