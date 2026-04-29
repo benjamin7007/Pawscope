@@ -46,25 +46,28 @@ pub fn price_for(normalized_model: &str) -> Option<ModelPrice> {
     // and the table compact for review.
     Some(match normalized_model {
         // Anthropic Claude
-        "claude-opus-4-5" | "claude-opus-4" | "claude-opus-4-1" => ModelPrice {
+        "claude-opus-4-7" | "claude-opus-4-6" | "claude-opus-4-5" | "claude-opus-4"
+        | "claude-opus-4-1" | "claude-3-opus" => ModelPrice {
             input_per_million: 15.0,
             output_per_million: 75.0,
             cache_write_multiplier: ANTHROPIC_CACHE_WRITE,
             cache_read_multiplier: ANTHROPIC_CACHE_READ,
         },
-        "claude-sonnet-4-5" | "claude-sonnet-4" | "claude-3-7-sonnet"
+        "claude-sonnet-4-6" | "claude-sonnet-4-5" | "claude-sonnet-4" | "claude-3-7-sonnet"
         | "claude-3-5-sonnet" => ModelPrice {
             input_per_million: 3.0,
             output_per_million: 15.0,
             cache_write_multiplier: ANTHROPIC_CACHE_WRITE,
             cache_read_multiplier: ANTHROPIC_CACHE_READ,
         },
-        "claude-haiku-4-5" | "claude-3-5-haiku" => ModelPrice {
-            input_per_million: 1.0,
-            output_per_million: 5.0,
-            cache_write_multiplier: ANTHROPIC_CACHE_WRITE,
-            cache_read_multiplier: ANTHROPIC_CACHE_READ,
-        },
+        "claude-haiku-4-7" | "claude-haiku-4-6" | "claude-haiku-4-5" | "claude-3-5-haiku" => {
+            ModelPrice {
+                input_per_million: 1.0,
+                output_per_million: 5.0,
+                cache_write_multiplier: ANTHROPIC_CACHE_WRITE,
+                cache_read_multiplier: ANTHROPIC_CACHE_READ,
+            }
+        }
         "claude-3-haiku" => ModelPrice {
             input_per_million: 0.25,
             output_per_million: 1.25,
@@ -73,13 +76,13 @@ pub fn price_for(normalized_model: &str) -> Option<ModelPrice> {
         },
 
         // OpenAI (Codex / GPT)
-        "gpt-5" | "gpt-5-codex" => ModelPrice {
+        "gpt-5" | "gpt-5-codex" | "gpt-5-3-codex" | "gpt-5-4" => ModelPrice {
             input_per_million: 1.25,
             output_per_million: 10.0,
             cache_write_multiplier: 0.0,
             cache_read_multiplier: 0.10,
         },
-        "gpt-5-mini" => ModelPrice {
+        "gpt-5-mini" | "gpt-5-4-mini" => ModelPrice {
             input_per_million: 0.25,
             output_per_million: 2.0,
             cache_write_multiplier: 0.0,
@@ -112,20 +115,20 @@ pub fn price_for(normalized_model: &str) -> Option<ModelPrice> {
 ///
 /// Rules:
 /// * lower-case
+/// * strip trailing `-latest`
+/// * normalize separators: `.` → `-` (so `gpt-5.4` → `gpt-5-4`,
+///   `claude-opus-4.7` → `claude-opus-4-7`)
 /// * strip trailing `-YYYYMMDD` date suffix (e.g.
 ///   `claude-sonnet-4-5-20250929` → `claude-sonnet-4-5`)
-/// * strip trailing `-latest`
-/// * leave dashes between version segments intact
 pub fn normalize_model(raw: &str) -> String {
-    let lower = raw.trim().to_ascii_lowercase();
-    let stripped = lower.strip_suffix("-latest").unwrap_or(&lower);
-    // Strip a trailing 8-digit date suffix.
+    let lower = raw.trim().to_ascii_lowercase().replace('.', "-");
+    let stripped = lower.strip_suffix("-latest").unwrap_or(&lower).to_string();
     if let Some((head, tail)) = stripped.rsplit_once('-') {
         if tail.len() == 8 && tail.chars().all(|c| c.is_ascii_digit()) {
             return head.to_string();
         }
     }
-    stripped.to_string()
+    stripped
 }
 
 /// Compute USD cost for a single [`TurnUsage`]. Returns `None` if the

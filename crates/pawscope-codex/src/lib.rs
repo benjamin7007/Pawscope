@@ -439,7 +439,7 @@ fn extract_user_text(payload: &serde_json::Value) -> Option<String> {
 
 fn parse_rollout_into_conversation(file: std::fs::File) -> pawscope_core::ConversationLog {
     use pawscope_core::{
-        AssistantTurn, ConversationLog, Interaction, TurnItem, UserMessageKind,
+        AssistantTurn, ConversationLog, Interaction, TurnItem, TurnUsage, UserMessageKind,
     };
     use std::collections::HashMap;
     use std::io::{BufRead, BufReader};
@@ -449,6 +449,11 @@ fn parse_rollout_into_conversation(file: std::fs::File) -> pawscope_core::Conver
     let mut current_turn: Option<usize> = None;
     // call_id -> (interaction_idx, turn_idx, item_idx)
     let mut call_pos: HashMap<String, (usize, usize, usize)> = HashMap::new();
+    // v0.8 token tracking. Codex `event_msg/token_count` payloads are
+    // *cumulative*, so we keep last-seen totals and emit per-turn deltas.
+    let mut last_input_total: u64 = 0;
+    let mut last_output_total: u64 = 0;
+    let mut current_model: String = String::new();
 
     let reader = BufReader::new(file);
     for line in reader.lines().map_while(std::result::Result::ok) {
@@ -466,6 +471,65 @@ fn parse_rollout_into_conversation(file: std::fs::File) -> pawscope_core::Conver
             .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
             .map(|dt| dt.with_timezone(&Utc));
         let kind = v.get("type").and_then(|t| t.as_str()).unwrap_or("");
+
+        // Capture model from session_meta header (rollout first line).
+        if kind == "session_meta" && current_model.is_empty() {
+            if let Some(m) = v
+                .pointer("/payload/meta/model")
+                .or_else(|| v.pointer("/payload/model"))
+                .and_then(|x| x.as_str())
+            {
+                current_model = m.to_string();
+            }
+        }
+
+        // Token deltas — cumulative totals; assign to the most recent
+        // assistant turn (current_turn). Skip if no turn exists yet.
+        if kind == "event_msg" {
+            if let Some(p) = v.get("payload") {
+                if p.get("type").and_then(|t| t.as_str()) == Some("token_count") {
+                    if let Some(usage) = p.pointer("/info/total_token_usage") {
+                        let inp_total = usage
+                            .get("input_tokens")
+                            .and_then(|x| x.as_u64())
+                            .unwrap_or(last_input_total);
+                        let out_total = usage
+                            .get("output_tokens")
+                            .and_then(|x| x.as_u64())
+                            .unwrap_or(last_output_total);
+                        let dinp = inp_total.saturating_sub(last_input_total);
+                        let dout = out_total.saturating_sub(last_output_total);
+                        last_input_total = inp_total;
+                        last_output_total = out_total;
+                        if let (Some(ii), Some(ti)) = (current_interaction, current_turn) {
+                            if let Some(turn) = log
+                                .interactions
+                                .get_mut(ii)
+                                .and_then(|i| i.turns.get_mut(ti))
+                            {
+                                let model = if current_model.is_empty() {
+                                    "gpt-5-codex".to_string()
+                                } else {
+                                    current_model.clone()
+                                };
+                                let mut tu = TurnUsage {
+                                    model,
+                                    input_tokens: Some(dinp),
+                                    output_tokens: Some(dout),
+                                    cache_read_tokens: None,
+                                    cache_write_tokens: None,
+                                    cost_usd: None,
+                                };
+                                tu.cost_usd = pawscope_core::pricing::compute_cost(&tu);
+                                turn.usage = Some(tu);
+                            }
+                        }
+                    }
+                }
+            }
+            continue;
+        }
+
         if kind != "response_item" {
             continue;
         }
@@ -662,6 +726,7 @@ fn parse_rollout_into_conversation(file: std::fs::File) -> pawscope_core::Conver
             _ => {}
         }
     }
+    pawscope_core::recompute_token_summary(&mut log);
     log
 }
 

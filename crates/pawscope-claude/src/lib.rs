@@ -385,6 +385,10 @@ fn parse_incremental(path: &Path, st: &mut ParseState) {
             _ => {}
         }
     }
+    // v0.8: refresh the conversation-level token rollup at the end of every
+    // parse cycle so the FE sees a consistent total. Cheap (O(turns)) and
+    // safe to run even when no usage was recorded — yields tokens=None.
+    pawscope_core::recompute_token_summary(&mut st.conversation);
 }
 
 // --- v0.7 conversation builders ---
@@ -536,6 +540,30 @@ fn apply_assistant_event(st: &mut ParseState, msg: &serde_json::Value) {
         items: Vec::new(),
         usage: None,
     };
+    // v0.8: capture per-turn token usage and cost. Claude embeds this on
+    // every assistant `message` event as `message.usage` (raw counts) plus
+    // `message.model`. Cache fields are Anthropic-specific and may be absent.
+    // Synthetic turns (model="<synthetic>") have zero-tokens placeholder
+    // usage records that would otherwise pollute the rollup — skip them.
+    if let (Some(model), Some(usage)) = (
+        msg.get("model").and_then(|m| m.as_str()),
+        msg.get("usage").and_then(|u| u.as_object()),
+    ) {
+        if model != "<synthetic>" {
+            let mut tu = pawscope_core::TurnUsage {
+                model: model.to_string(),
+                input_tokens: usage.get("input_tokens").and_then(|v| v.as_u64()),
+                output_tokens: usage.get("output_tokens").and_then(|v| v.as_u64()),
+                cache_read_tokens: usage.get("cache_read_input_tokens").and_then(|v| v.as_u64()),
+                cache_write_tokens: usage
+                    .get("cache_creation_input_tokens")
+                    .and_then(|v| v.as_u64()),
+                cost_usd: None,
+            };
+            tu.cost_usd = pawscope_core::pricing::compute_cost(&tu);
+            new_turn.usage = Some(tu);
+        }
+    }
     if let Some(arr) = msg.get("content").and_then(|c| c.as_array()) {
         for it in arr {
             match it.get("type").and_then(|t| t.as_str()) {

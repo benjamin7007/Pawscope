@@ -92,11 +92,21 @@ export type TurnItem =
       items: TurnItem[];
     };
 
+export type TurnUsage = {
+  model: string;
+  input_tokens?: number | null;
+  output_tokens?: number | null;
+  cache_read_tokens?: number | null;
+  cache_write_tokens?: number | null;
+  cost_usd?: number | null;
+};
+
 export type AssistantTurn = {
   turn_id: string;
   started_at: string;
   completed_at?: string | null;
   items: TurnItem[];
+  usage?: TurnUsage | null;
 };
 
 export type Interaction = {
@@ -111,11 +121,32 @@ export type Interaction = {
 export type SystemPromptMarker = { at: string; content: string };
 export type CompactionMarker = { started_at: string; completed_at?: string | null };
 
+export type ModelUsage = {
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_tokens: number;
+  cache_write_tokens: number;
+  turn_count: number;
+  cost_usd?: number | null;
+};
+
+export type TokenSummary = {
+  total_input_tokens: number;
+  total_output_tokens: number;
+  total_cache_read_tokens: number;
+  total_cache_write_tokens: number;
+  turn_count: number;
+  total_cost_usd?: number | null;
+  turns_with_known_model: number;
+  by_model: Record<string, ModelUsage>;
+};
+
 export type ConversationLog = {
   system_prompts: SystemPromptMarker[];
   compaction_markers: CompactionMarker[];
   interactions: Interaction[];
   version: number;
+  tokens?: TokenSummary | null;
 };
 
 // --- Helpers ---
@@ -126,6 +157,23 @@ function timeOnly(iso: string): string {
   } catch {
     return iso;
   }
+}
+
+// Compact integer formatter — 1234 → '1.2K', 12_345_678 → '12.3M'.
+function formatTokens(n: number | null | undefined): string {
+  if (n == null) return '–';
+  if (n < 1000) return String(n);
+  if (n < 1_000_000) return (n / 1000).toFixed(n < 10_000 ? 1 : 0).replace(/\.0$/, '') + 'K';
+  return (n / 1_000_000).toFixed(n < 10_000_000 ? 2 : 1).replace(/\.0+$/, '') + 'M';
+}
+
+// USD with adaptive precision: always 2-4 decimals so sub-cent costs stay legible.
+function formatUsd(n: number | null | undefined): string {
+  if (n == null) return '–';
+  if (n === 0) return '$0';
+  if (n >= 1) return '$' + n.toFixed(2);
+  if (n >= 0.01) return '$' + n.toFixed(3);
+  return '$' + n.toFixed(4);
 }
 
 function durationMs(a: string, b?: string | null): string | null {
@@ -223,9 +271,10 @@ function ItemBlock({ item, depth }: { item: TurnItem; depth: number }) {
 function TurnBlock({ turn, idx }: { turn: AssistantTurn; idx: number }) {
   const { t } = useT();
   const dur = durationMs(turn.started_at, turn.completed_at);
+  const u = turn.usage;
   return (
     <div className="ml-4 mt-2">
-      <div className="flex items-baseline gap-2 text-[11px] text-slate-400 mb-1">
+      <div className="flex items-baseline gap-2 text-[11px] text-slate-400 mb-1 flex-wrap">
         <span className="text-slate-500">─</span>
         <span className="font-medium text-slate-300">{t('flow.assistant_turn')} {idx + 1}</span>
         <span className="font-mono text-slate-500">
@@ -234,6 +283,27 @@ function TurnBlock({ turn, idx }: { turn: AssistantTurn; idx: number }) {
         </span>
         {dur && <span className="text-slate-500">({dur})</span>}
         {turn.completed_at ? <span className="text-emerald-400">✓</span> : <span className="text-amber-400 animate-pulse">…</span>}
+        {u && (
+          <span
+            className="ml-auto inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded border border-cyan-500/30 bg-cyan-500/10 text-cyan-200 font-mono text-[10px]"
+            title={
+              `model: ${u.model}\n` +
+              `input: ${u.input_tokens ?? '–'}\n` +
+              `output: ${u.output_tokens ?? '–'}\n` +
+              (u.cache_read_tokens ? `cache read: ${u.cache_read_tokens}\n` : '') +
+              (u.cache_write_tokens ? `cache write: ${u.cache_write_tokens}\n` : '') +
+              (u.cost_usd != null ? `cost: ${formatUsd(u.cost_usd)}` : 'cost: (model not in pricing table)')
+            }
+          >
+            {u.input_tokens != null && (
+              <span className="text-slate-400">↓<span className="text-cyan-200">{formatTokens(u.input_tokens)}</span></span>
+            )}
+            {u.output_tokens != null && (
+              <span className="text-slate-400">↑<span className="text-emerald-300">{formatTokens(u.output_tokens)}</span></span>
+            )}
+            {u.cost_usd != null && <span className="text-amber-300">{formatUsd(u.cost_usd)}</span>}
+          </span>
+        )}
       </div>
       <div className="ml-3 space-y-0.5">
         {turn.items.map((it, i) => (
@@ -349,6 +419,60 @@ function InteractionBlock({
 }
 
 // --- Main ---
+function SessionTokensSummary({
+  tokens,
+  t,
+}: {
+  tokens: TokenSummary;
+  t: (k: string) => string;
+}) {
+  const [open, setOpen] = useState(false);
+  const incomplete = tokens.turns_with_known_model < tokens.turn_count;
+  return (
+    <span className="ml-auto inline-flex flex-col items-end gap-0.5">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex items-center gap-2 px-2 py-0.5 rounded border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-200 font-mono text-[10px]"
+        title={t('flow.tokens_total_tip')}
+      >
+        <span className="text-slate-400">↓<span className="text-cyan-200">{formatTokens(tokens.total_input_tokens)}</span></span>
+        <span className="text-slate-400">↑<span className="text-emerald-300">{formatTokens(tokens.total_output_tokens)}</span></span>
+        {tokens.total_cost_usd != null && (
+          <span className="text-amber-300">{formatUsd(tokens.total_cost_usd)}</span>
+        )}
+        {incomplete && <span className="text-rose-300" title={t('flow.tokens_incomplete')}>!</span>}
+        <span className="text-slate-500">{open ? '▴' : '▾'}</span>
+      </button>
+      {open && (
+        <div className="mt-1 px-2 py-1.5 rounded border border-slate-700 bg-slate-900/80 text-[10px] font-mono space-y-1 min-w-[220px]">
+          {Object.entries(tokens.by_model).map(([model, mu]) => (
+            <div key={model} className="flex items-center gap-2">
+              <span className="text-slate-300 truncate max-w-[160px]" title={model}>{model}</span>
+              <span className="text-slate-500">×{mu.turn_count}</span>
+              <span className="ml-auto text-slate-400">↓{formatTokens(mu.input_tokens)}</span>
+              <span className="text-slate-400">↑{formatTokens(mu.output_tokens)}</span>
+              {mu.cost_usd != null && <span className="text-amber-300">{formatUsd(mu.cost_usd)}</span>}
+            </div>
+          ))}
+          {tokens.total_cache_read_tokens > 0 && (
+            <div className="text-slate-500">
+              {t('flow.tokens_cache_read')}: {formatTokens(tokens.total_cache_read_tokens)}
+              {tokens.total_cache_write_tokens > 0 && (
+                <>  · {t('flow.tokens_cache_write')}: {formatTokens(tokens.total_cache_write_tokens)}</>
+              )}
+            </div>
+          )}
+          {incomplete && (
+            <div className="text-rose-400 pt-1 border-t border-slate-800 mt-1">
+              {t('flow.tokens_incomplete_long').replace('{n}', String(tokens.turn_count - tokens.turns_with_known_model))}
+            </div>
+          )}
+        </div>
+      )}
+    </span>
+  );
+}
+
 type Props = { sessionId: string };
 
 export function ConversationFlow({ sessionId }: Props) {
@@ -485,7 +609,7 @@ export function ConversationFlow({ sessionId }: Props) {
 
   return (
     <div ref={containerRef} className="px-6 py-4 space-y-3">
-      <div className="text-[11px] text-slate-500 font-mono flex items-center gap-3">
+      <div className="text-[11px] text-slate-500 font-mono flex items-center gap-3 flex-wrap">
         <span>v{log.version}</span>
         {live && (
           <span className="inline-flex items-center gap-1 text-emerald-400">
@@ -502,6 +626,9 @@ export function ConversationFlow({ sessionId }: Props) {
             <span>·</span>
             <span>{log.compaction_markers.length} {t('flow.compactions_short')}</span>
           </>
+        )}
+        {log.tokens && log.tokens.turn_count > 0 && (
+          <SessionTokensSummary tokens={log.tokens} t={t} />
         )}
       </div>
 

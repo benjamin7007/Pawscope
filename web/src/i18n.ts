@@ -282,6 +282,11 @@ const dict: Record<string, { en: string; zh: string }> = {
   'flow.interactions_short': { en: 'interactions', zh: '次交互' },
   'flow.compactions_short': { en: 'compactions', zh: '次压缩' },
   'flow.live': { en: 'live', zh: '实时' },
+  'flow.tokens_total_tip': { en: 'Click for per-model breakdown', zh: '点击查看按模型拆分' },
+  'flow.tokens_cache_read': { en: 'cache read', zh: '缓存读' },
+  'flow.tokens_cache_write': { en: 'cache write', zh: '缓存写' },
+  'flow.tokens_incomplete': { en: 'Some turns use models not in the pricing table', zh: '部分轮次模型不在价格表中' },
+  'flow.tokens_incomplete_long': { en: '{n} turn(s) skipped — model not in pricing table', zh: '已跳过 {n} 轮 — 模型不在价格表中' },
   'flow.copy_link': { en: 'copy link to this interaction', zh: '复制此交互链接' },
 };
 
