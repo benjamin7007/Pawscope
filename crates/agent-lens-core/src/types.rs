@@ -35,12 +35,30 @@ pub struct SessionMeta {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct SubagentSummary {
+    pub id: String,
+    pub turns: u32,
+    pub tool_calls: u32,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct PromptSummary {
+    pub id: String,
+    pub timestamp: Option<chrono::DateTime<chrono::Utc>>,
+    pub snippet: String,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SessionDetail {
     pub turns: u32,
     pub user_messages: u32,
     pub assistant_messages: u32,
     pub tools_used: HashMap<String, u32>,
     pub skills_invoked: Vec<String>,
+    #[serde(default)]
+    pub subagents: Vec<SubagentSummary>,
+    #[serde(default)]
+    pub prompts: Vec<PromptSummary>,
 }
 
 #[cfg(test)]

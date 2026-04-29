@@ -94,12 +94,71 @@ impl ClaudeAdapter {
             .cloned()
             .unwrap_or_default();
         parse_incremental(path, &mut st);
+        let sub_dir = path
+            .parent()
+            .map(|p| p.join(id).join("subagents"))
+            .unwrap_or_default();
+        if sub_dir.is_dir() {
+            st.detail.subagents.clear();
+            if let Ok(entries) = std::fs::read_dir(&sub_dir) {
+                for ent in entries.flatten() {
+                    let p = ent.path();
+                    if p.extension().and_then(|s| s.to_str()) != Some("jsonl") {
+                        continue;
+                    }
+                    let stem = p
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("")
+                        .to_string();
+                    let (turns, tool_calls) = count_subagent(&p);
+                    st.detail.subagents.push(agent_lens_core::SubagentSummary {
+                        id: stem,
+                        turns,
+                        tool_calls,
+                    });
+                }
+            }
+            st.detail.subagents.sort_by(|a, b| b.turns.cmp(&a.turns));
+        }
         self.state
             .write()
             .unwrap()
             .insert(id.to_string(), st.clone());
         Some(st)
     }
+}
+
+fn count_subagent(path: &Path) -> (u32, u32) {
+    use std::io::{BufRead, BufReader};
+    let Ok(file) = std::fs::File::open(path) else {
+        return (0, 0);
+    };
+    let mut turns = 0u32;
+    let mut tools = 0u32;
+    for line in BufReader::new(file)
+        .lines()
+        .map_while(std::result::Result::ok)
+    {
+        let Ok(v) = serde_json::from_str::<serde_json::Value>(&line) else {
+            continue;
+        };
+        if v.get("type").and_then(|t| t.as_str()) == Some("assistant") {
+            turns += 1;
+            if let Some(arr) = v
+                .get("message")
+                .and_then(|m| m.get("content"))
+                .and_then(|c| c.as_array())
+            {
+                for it in arr {
+                    if it.get("type").and_then(|t| t.as_str()) == Some("tool_use") {
+                        tools += 1;
+                    }
+                }
+            }
+        }
+    }
+    (turns, tools)
 }
 
 fn parse_incremental(path: &Path, st: &mut ParseState) {
@@ -154,9 +213,27 @@ fn parse_incremental(path: &Path, st: &mut ParseState) {
         match v.get("type").and_then(|t| t.as_str()) {
             Some("user") => {
                 st.detail.user_messages += 1;
-                if st.summary.is_none() {
-                    if let Some(m) = v.get("message") {
-                        st.summary = Some(extract_text(m).chars().take(80).collect());
+                let prompt_id = v
+                    .get("promptId")
+                    .and_then(|p| p.as_str())
+                    .map(|s| s.to_string());
+                let snippet: String = v
+                    .get("message")
+                    .map(extract_text)
+                    .unwrap_or_default()
+                    .chars()
+                    .take(120)
+                    .collect();
+                if st.summary.is_none() && !snippet.is_empty() {
+                    st.summary = Some(snippet.chars().take(80).collect());
+                }
+                if let Some(id) = prompt_id {
+                    if !st.detail.prompts.iter().any(|p| p.id == id) {
+                        st.detail.prompts.push(agent_lens_core::PromptSummary {
+                            id,
+                            timestamp: st.last_event_at,
+                            snippet,
+                        });
                     }
                 }
             }

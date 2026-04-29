@@ -20,6 +20,8 @@ type Detail = {
   assistant_messages: number;
   tools_used: Record<string, number>;
   skills_invoked: string[];
+  subagents?: { id: string; turns: number; tool_calls: number }[];
+  prompts?: { id: string; timestamp: string | null; snippet: string }[];
 };
 
 type Props = { meta: Meta | undefined; detail: Detail | null };
@@ -208,6 +210,57 @@ export function SessionDetail({ meta, detail }: Props) {
               )}
             </div>
           </section>
+
+          {detail.subagents && detail.subagents.length > 0 && (
+            <section className="rounded-lg bg-slate-900/40 border border-slate-800">
+              <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
+                <h3 className="text-xs uppercase tracking-wider text-slate-400">Subagents</h3>
+                <span className="text-[11px] text-slate-500">{detail.subagents.length}</span>
+              </header>
+              <ul className="divide-y divide-slate-800/60">
+                {detail.subagents.map(sa => (
+                  <li key={sa.id} className="px-4 py-2 flex items-center gap-3 text-sm">
+                    <span className="font-mono text-[11px] text-slate-300 truncate flex-1">{sa.id}</span>
+                    <span className="text-slate-400 tabular-nums text-xs">
+                      <span className="text-slate-500">turns</span> {sa.turns}
+                    </span>
+                    <span className="text-slate-400 tabular-nums text-xs">
+                      <span className="text-slate-500">tools</span> {sa.tool_calls}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {detail.prompts && detail.prompts.length > 0 && (
+            <section className="rounded-lg bg-slate-900/40 border border-slate-800">
+              <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
+                <h3 className="text-xs uppercase tracking-wider text-slate-400">Prompts</h3>
+                <span className="text-[11px] text-slate-500">{detail.prompts.length}</span>
+              </header>
+              <ol className="divide-y divide-slate-800/60">
+                {detail.prompts.map((p, i) => (
+                  <li key={p.id} className="px-4 py-2.5 flex gap-3 text-sm">
+                    <span className="text-slate-600 tabular-nums w-6 text-right flex-shrink-0">{i + 1}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-slate-200 truncate" title={p.snippet}>
+                        {p.snippet || <span className="italic text-slate-500">(empty)</span>}
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="font-mono text-[10px] text-slate-600">{p.id.slice(0, 8)}</span>
+                        {p.timestamp && (
+                          <span className="text-[10px] text-slate-500" title={formatAbs(p.timestamp)}>
+                            {timeAgo(p.timestamp)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
 
           <section className="text-[11px] text-slate-600 px-1">
             Started {formatAbs(meta.started_at)} · Last event {formatAbs(meta.last_event_at)}
