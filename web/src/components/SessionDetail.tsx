@@ -248,6 +248,159 @@ function PromptRow({
   );
 }
 
+type ReplayEvent = {
+  kind: 'prompt' | 'tool';
+  timestamp: string;
+  label: string;
+  full: string;
+};
+
+function ReplaySection({
+  prompts,
+  tools,
+  t,
+}: {
+  prompts: ReplayEvent[];
+  tools: ReplayEvent[];
+  t: (k: string) => string;
+}) {
+  const events = useMemo(() => {
+    const all = [...prompts, ...tools];
+    all.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    return all;
+  }, [prompts, tools]);
+  const [open, setOpen] = useState(false);
+  const [idx, setIdx] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [speed, setSpeed] = useState(1);
+
+  useEffect(() => {
+    if (!playing || !open) return;
+    if (idx >= events.length - 1) { setPlaying(false); return; }
+    const baseMs = 800 / speed;
+    const id = setTimeout(() => setIdx((v) => Math.min(events.length - 1, v + 1)), baseMs);
+    return () => clearTimeout(id);
+  }, [playing, idx, events.length, speed, open]);
+
+  if (events.length === 0) return null;
+  const tStart = new Date(events[0].timestamp).getTime();
+  const tEnd = new Date(events[events.length - 1].timestamp).getTime();
+  const totalMs = Math.max(1, tEnd - tStart);
+  const current = events[idx];
+  const elapsed = new Date(current.timestamp).getTime() - tStart;
+  const visible = events.slice(0, idx + 1);
+
+  return (
+    <section className="rounded-lg bg-slate-900/40 border border-slate-800">
+      <header className="px-4 py-2.5 border-b border-slate-800 flex items-center justify-between">
+        <h3 className="text-xs uppercase tracking-wider text-slate-400">▶ {t('sec.replay')}</h3>
+        <button
+          onClick={() => { setOpen((v) => !v); if (!open) { setIdx(0); setPlaying(false); } }}
+          className="text-[11px] px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
+        >
+          {open ? t('misc.collapse') : `${t('misc.open_replay')} (${events.length})`}
+        </button>
+      </header>
+      {open && (
+        <div className="px-4 py-3 space-y-3">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPlaying((v) => !v)}
+              className="px-3 py-1 rounded bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium"
+            >
+              {playing ? '⏸ Pause' : '▶ Play'}
+            </button>
+            <button
+              onClick={() => { setIdx(0); setPlaying(false); }}
+              className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs"
+            >⏮</button>
+            <button
+              onClick={() => setIdx((v) => Math.max(0, v - 1))}
+              className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs"
+            >◀</button>
+            <button
+              onClick={() => setIdx((v) => Math.min(events.length - 1, v + 1))}
+              className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs"
+            >▶</button>
+            <select
+              value={speed}
+              onChange={(e) => setSpeed(Number(e.target.value))}
+              className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300 text-xs"
+            >
+              <option value={0.5}>0.5×</option>
+              <option value={1}>1×</option>
+              <option value={2}>2×</option>
+              <option value={4}>4×</option>
+              <option value={8}>8×</option>
+            </select>
+            <span className="ml-auto text-[11px] text-slate-500 tabular-nums">
+              {idx + 1} / {events.length} · +{(elapsed / 1000).toFixed(0)}s
+            </span>
+          </div>
+
+          <input
+            type="range"
+            min={0}
+            max={events.length - 1}
+            value={idx}
+            onChange={(e) => { setIdx(Number(e.target.value)); setPlaying(false); }}
+            className="w-full accent-cyan-400"
+          />
+          <div className="relative h-1 bg-slate-800 rounded">
+            <div
+              className="absolute inset-y-0 left-0 bg-cyan-500/40 rounded"
+              style={{ width: `${(elapsed / totalMs) * 100}%` }}
+            />
+            {events.map((ev, i) => {
+              const offset = ((new Date(ev.timestamp).getTime() - tStart) / totalMs) * 100;
+              const isPrompt = ev.kind === 'prompt';
+              return (
+                <div
+                  key={i}
+                  className={`absolute top-1/2 -translate-y-1/2 w-1 h-3 rounded-sm ${
+                    isPrompt ? 'bg-cyan-400' : 'bg-emerald-400'
+                  } ${i === idx ? 'ring-2 ring-white' : ''} opacity-${i <= idx ? '100' : '30'}`}
+                  style={{ left: `${offset}%` }}
+                  title={`${ev.kind}: ${ev.label}`}
+                />
+              );
+            })}
+          </div>
+
+          <div className="max-h-72 overflow-auto rounded bg-slate-950/60 border border-slate-800 p-2 space-y-1.5">
+            {visible.map((ev, i) => {
+              const isCurrent = i === idx;
+              const isPrompt = ev.kind === 'prompt';
+              return (
+                <div
+                  key={i}
+                  className={`text-xs px-2 py-1.5 rounded border-l-2 transition-all ${
+                    isPrompt
+                      ? 'border-cyan-400 bg-cyan-500/5'
+                      : 'border-emerald-400 bg-emerald-500/5'
+                  } ${isCurrent ? 'ring-1 ring-slate-600 scale-[1.01]' : 'opacity-70'}`}
+                >
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className={`text-[10px] font-semibold uppercase ${isPrompt ? 'text-cyan-400' : 'text-emerald-400'}`}>
+                      {isPrompt ? '💬 prompt' : '🔧 tool'}
+                    </span>
+                    <span className="text-[10px] text-slate-500 tabular-nums">
+                      +{((new Date(ev.timestamp).getTime() - tStart) / 1000).toFixed(0)}s
+                    </span>
+                  </div>
+                  <div className={`${isPrompt ? 'text-slate-200' : 'text-slate-300 font-mono'} ${isCurrent ? '' : 'truncate'}`}>
+                    {ev.label}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export function SessionDetail({ meta, detail, onOpenSkill, label, onSetLabel, onPrev, onNext, position }: Props) {
   const { t, lang } = useT();
   const [availSkills, setAvailSkills] = useState<{ name: string; description: string; source: string; path: string; invoked: boolean }[] | null>(null);
@@ -501,6 +654,22 @@ export function SessionDetail({ meta, detail, onOpenSkill, label, onSetLabel, on
           ) : null}
 
           <ToolTimeline calls={detail.tool_calls ?? []} />
+
+          <ReplaySection
+            prompts={(detail.prompts ?? []).filter(p => p.timestamp).map(p => ({
+              kind: 'prompt' as const,
+              timestamp: p.timestamp!,
+              label: p.snippet || p.text || '(prompt)',
+              full: p.text || p.snippet || '',
+            }))}
+            tools={(detail.tool_calls ?? []).map(c => ({
+              kind: 'tool' as const,
+              timestamp: c.timestamp,
+              label: c.name,
+              full: c.name,
+            }))}
+            t={t}
+          />
 
           <section className="rounded-lg bg-slate-900/40 border border-slate-800">
             <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
