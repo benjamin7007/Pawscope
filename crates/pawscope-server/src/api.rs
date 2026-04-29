@@ -64,6 +64,9 @@ pub async fn overview(State(s): State<AppState>) -> impl IntoResponse {
     let mut total_turns: u64 = 0;
     let mut total_user_msgs: u64 = 0;
     let mut total_assistant_msgs: u64 = 0;
+    let mut total_tokens_in: u64 = 0;
+    let mut total_tokens_out: u64 = 0;
+    let mut tokens_by_agent: HashMap<String, (u64, u64)> = HashMap::new();
     let mut tools_used: HashMap<String, u64> = HashMap::new();
     let mut skills_invoked: HashMap<String, u64> = HashMap::new();
     let mut subagents: Vec<serde_json::Value> = Vec::new();
@@ -120,6 +123,16 @@ pub async fn overview(State(s): State<AppState>) -> impl IntoResponse {
         });
     }
 
+    // Map session_id → agent label so we can break tokens down per agent.
+    let mut sess_agent_key: HashMap<String, String> = HashMap::new();
+    for sess in &sessions {
+        let agent_key = serde_json::to_value(sess.agent)
+            .ok()
+            .and_then(|v| v.as_str().map(|x| x.to_string()))
+            .unwrap_or_else(|| format!("{:?}", sess.agent).to_lowercase());
+        sess_agent_key.insert(sess.id.clone(), agent_key);
+    }
+
     let mut handles = Vec::with_capacity(sessions.len());
     for sess in &sessions {
         let adapter = s.adapter.clone();
@@ -135,6 +148,13 @@ pub async fn overview(State(s): State<AppState>) -> impl IntoResponse {
             total_turns += d.turns as u64;
             total_user_msgs += d.user_messages as u64;
             total_assistant_msgs += d.assistant_messages as u64;
+            total_tokens_in += d.tokens_in;
+            total_tokens_out += d.tokens_out;
+            if let Some(agent_key) = sess_agent_key.get(&sid) {
+                let entry = tokens_by_agent.entry(agent_key.clone()).or_insert((0, 0));
+                entry.0 += d.tokens_in;
+                entry.1 += d.tokens_out;
+            }
             let session_tools: u64 = d.tools_used.values().map(|&v| v as u64).sum();
             if let Some(key) = sess_realm_key.get(&sid) {
                 if let Some(r) = realms.get_mut(key) {
@@ -220,6 +240,12 @@ pub async fn overview(State(s): State<AppState>) -> impl IntoResponse {
     });
     let top_subagents: Vec<_> = subagents.into_iter().take(10).collect();
 
+    let tokens_by_agent_json: serde_json::Value = tokens_by_agent
+        .iter()
+        .map(|(k, (i, o))| (k.clone(), serde_json::json!({"in": i, "out": o})))
+        .collect::<serde_json::Map<_, _>>()
+        .into();
+
     Json(serde_json::json!({
         "total_sessions": total,
         "active_sessions": active,
@@ -228,6 +254,9 @@ pub async fn overview(State(s): State<AppState>) -> impl IntoResponse {
         "total_turns": total_turns,
         "total_user_messages": total_user_msgs,
         "total_assistant_messages": total_assistant_msgs,
+        "total_tokens_in": total_tokens_in,
+        "total_tokens_out": total_tokens_out,
+        "tokens_by_agent": tokens_by_agent_json,
         "tools_used": tools_used,
         "skills_invoked": skills_invoked,
         "subagent_count": subagent_count,
