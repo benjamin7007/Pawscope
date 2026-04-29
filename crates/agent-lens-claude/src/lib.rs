@@ -111,12 +111,38 @@ impl ClaudeAdapter {
                         .and_then(|s| s.to_str())
                         .unwrap_or("")
                         .to_string();
-                    let (turns, tool_calls, tools) = count_subagent(&p);
+                    let (turns, tool_calls, tools, started_at, ended_at) = count_subagent(&p);
+                    let meta_path = p.with_extension("meta.json");
+                    let (agent_type, description) = std::fs::read_to_string(&meta_path)
+                        .ok()
+                        .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+                        .map(|v| {
+                            (
+                                v.get("agentType")
+                                    .and_then(|x| x.as_str())
+                                    .map(str::to_string),
+                                v.get("description")
+                                    .and_then(|x| x.as_str())
+                                    .map(str::to_string),
+                            )
+                        })
+                        .unwrap_or((None, None));
+                    let active = std::fs::metadata(&p)
+                        .and_then(|m| m.modified())
+                        .ok()
+                        .and_then(|t| t.elapsed().ok())
+                        .map(|d| d.as_secs() < ACTIVE_WINDOW_SECS as u64)
+                        .unwrap_or(false);
                     st.detail.subagents.push(agent_lens_core::SubagentSummary {
                         id: stem,
                         turns,
                         tool_calls,
                         tools,
+                        agent_type,
+                        description,
+                        started_at,
+                        ended_at,
+                        active,
                     });
                 }
             }
@@ -130,14 +156,24 @@ impl ClaudeAdapter {
     }
 }
 
-fn count_subagent(path: &Path) -> (u32, u32, std::collections::HashMap<String, u32>) {
+type SubagentStats = (
+    u32,
+    u32,
+    std::collections::HashMap<String, u32>,
+    Option<chrono::DateTime<chrono::Utc>>,
+    Option<chrono::DateTime<chrono::Utc>>,
+);
+
+fn count_subagent(path: &Path) -> SubagentStats {
     use std::io::{BufRead, BufReader};
     let Ok(file) = std::fs::File::open(path) else {
-        return (0, 0, std::collections::HashMap::new());
+        return (0, 0, std::collections::HashMap::new(), None, None);
     };
     let mut turns = 0u32;
     let mut tool_calls = 0u32;
     let mut tools: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
+    let mut started_at: Option<chrono::DateTime<chrono::Utc>> = None;
+    let mut ended_at: Option<chrono::DateTime<chrono::Utc>> = None;
     for line in BufReader::new(file)
         .lines()
         .map_while(std::result::Result::ok)
@@ -145,6 +181,15 @@ fn count_subagent(path: &Path) -> (u32, u32, std::collections::HashMap<String, u
         let Ok(v) = serde_json::from_str::<serde_json::Value>(&line) else {
             continue;
         };
+        if let Some(ts_str) = v.get("timestamp").and_then(|t| t.as_str()) {
+            if let Ok(ts) = chrono::DateTime::parse_from_rfc3339(ts_str) {
+                let ts_utc = ts.with_timezone(&chrono::Utc);
+                if started_at.is_none() {
+                    started_at = Some(ts_utc);
+                }
+                ended_at = Some(ts_utc);
+            }
+        }
         if v.get("type").and_then(|t| t.as_str()) == Some("assistant") {
             turns += 1;
             if let Some(arr) = v
@@ -163,7 +208,7 @@ fn count_subagent(path: &Path) -> (u32, u32, std::collections::HashMap<String, u
             }
         }
     }
-    (turns, tool_calls, tools)
+    (turns, tool_calls, tools, started_at, ended_at)
 }
 
 fn parse_incremental(path: &Path, st: &mut ParseState) {

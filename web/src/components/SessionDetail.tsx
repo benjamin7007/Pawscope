@@ -20,7 +20,17 @@ type Detail = {
   assistant_messages: number;
   tools_used: Record<string, number>;
   skills_invoked: string[];
-  subagents?: { id: string; turns: number; tool_calls: number; tools?: Record<string, number> }[];
+  subagents?: {
+    id: string;
+    turns: number;
+    tool_calls: number;
+    tools?: Record<string, number>;
+    agent_type?: string | null;
+    description?: string | null;
+    started_at?: string | null;
+    ended_at?: string | null;
+    active?: boolean;
+  }[];
   prompts?: { id: string; timestamp: string | null; snippet: string }[];
 };
 
@@ -42,6 +52,19 @@ function timeAgo(iso?: string | null): string {
 function formatAbs(iso?: string | null): string {
   if (!iso) return '—';
   return new Date(iso).toLocaleString();
+}
+
+function duration(startIso?: string | null, endIso?: string | null): string {
+  if (!startIso || !endIso) return '';
+  const ms = new Date(endIso).getTime() - new Date(startIso).getTime();
+  if (ms < 0 || !isFinite(ms)) return '';
+  const s = Math.round(ms / 1000);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  const rem = s % 60;
+  if (m < 60) return rem ? `${m}m ${rem}s` : `${m}m`;
+  const h = Math.floor(m / 60);
+  return `${h}h ${m % 60}m`;
 }
 
 function StatCard({ label, value, hint }: { label: string; value: React.ReactNode; hint?: string }) {
@@ -222,22 +245,49 @@ export function SessionDetail({ meta, detail }: Props) {
                   const toolEntries = Object.entries(sa.tools || {}).sort((a, b) => b[1] - a[1]);
                   const maxTool = toolEntries[0]?.[1] ?? 1;
                   const hasTools = toolEntries.length > 0;
+                  const dur = duration(sa.started_at, sa.ended_at);
                   return (
                     <li key={sa.id}>
                       <details className="group">
                         <summary
-                          className={`px-4 py-2 flex items-center gap-3 text-sm list-none ${hasTools ? 'cursor-pointer hover:bg-slate-800/30' : ''}`}
+                          className={`px-4 py-2.5 flex items-center gap-3 text-sm list-none ${hasTools ? 'cursor-pointer hover:bg-slate-800/30' : ''}`}
                         >
                           <span
                             className={`text-slate-600 text-xs w-3 transition-transform ${hasTools ? 'group-open:rotate-90' : 'opacity-30'}`}
                           >▶</span>
-                          <span className="font-mono text-[11px] text-slate-300 truncate flex-1">{sa.id}</span>
-                          <span className="text-slate-400 tabular-nums text-xs">
+                          <span
+                            className={`w-2 h-2 rounded-full flex-shrink-0 ${sa.active ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`}
+                            title={sa.active ? 'active' : 'idle'}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              {sa.agent_type && (
+                                <span className="px-1.5 py-0.5 rounded bg-indigo-500/15 border border-indigo-500/30 text-[10px] font-medium text-indigo-300 flex-shrink-0">
+                                  {sa.agent_type}
+                                </span>
+                              )}
+                              <span className="text-slate-200 truncate" title={sa.description || sa.id}>
+                                {sa.description || <span className="font-mono text-[11px] text-slate-400">{sa.id}</span>}
+                              </span>
+                            </div>
+                            {sa.description && (
+                              <div className="font-mono text-[10px] text-slate-600 mt-0.5">{sa.id}</div>
+                            )}
+                          </div>
+                          <span className="text-slate-400 tabular-nums text-xs flex-shrink-0">
                             <span className="text-slate-500">turns</span> {sa.turns}
                           </span>
-                          <span className="text-slate-400 tabular-nums text-xs">
+                          <span className="text-slate-400 tabular-nums text-xs flex-shrink-0">
                             <span className="text-slate-500">tools</span> {sa.tool_calls}
                           </span>
+                          {dur && (
+                            <span
+                              className="text-slate-400 tabular-nums text-xs flex-shrink-0"
+                              title={`${formatAbs(sa.started_at)} → ${formatAbs(sa.ended_at)}`}
+                            >
+                              <span className="text-slate-500">⏱</span> {dur}
+                            </span>
+                          )}
                         </summary>
                         {hasTools && (
                           <div className="px-4 pt-1 pb-3 space-y-1 bg-slate-900/30">
