@@ -18,6 +18,25 @@ export async function fetchActivityGrid() {
   const r = await fetch('/api/activity/grid');
   return r.json();
 }
+
+export type SessionEventMsg =
+  | { kind: 'session_list_changed' }
+  | { kind: 'detail_updated'; session_id: string; detail: unknown }
+  | { kind: 'closed'; session_id: string };
+
+export function subscribeEvents(onEvent: (ev: SessionEventMsg) => void): () => void {
+  const es = new EventSource('/api/events');
+  const handler = (e: MessageEvent) => {
+    try {
+      onEvent(JSON.parse(e.data));
+    } catch {}
+  };
+  es.addEventListener('session', handler);
+  return () => {
+    es.removeEventListener('session', handler);
+    es.close();
+  };
+}
 export function connectWs(onEvent: (ev: any) => void): WebSocket {
   const ws = new WebSocket(`ws://${location.host}/ws`);
   ws.onmessage = e => { try { onEvent(JSON.parse(e.data)); } catch {} };
