@@ -868,6 +868,210 @@ struct WordcloudEntry {
     sessions: u64,
 }
 
+pub async fn sessions_pulse(State(s): State<AppState>) -> impl IntoResponse {
+    let bins = 20usize;
+    let sessions = match s.adapter.list_sessions().await {
+        Ok(v) => v,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    };
+    let pairs = s.detail_cache.fan_out(&s.adapter, &sessions).await;
+    let mut out = serde_json::Map::new();
+    for (meta, detail) in pairs {
+        let mut times: Vec<i64> = Vec::new();
+        for p in &detail.prompts {
+            if let Some(ts) = p.timestamp {
+                times.push(ts.timestamp_millis());
+            }
+        }
+        for c in &detail.tool_calls {
+            times.push(c.timestamp.timestamp_millis());
+        }
+        if times.len() < 2 {
+            continue;
+        }
+        times.sort_unstable();
+        let t0 = *times.first().unwrap();
+        let tn = *times.last().unwrap();
+        let span = (tn - t0).max(1);
+        let mut buckets = vec![0u32; bins];
+        for t in &times {
+            let idx = (((*t - t0) as f64 / span as f64) * bins as f64).floor() as usize;
+            let idx = idx.min(bins - 1);
+            buckets[idx] += 1;
+        }
+        out.insert(
+            meta.id,
+            serde_json::json!({
+                "bins": buckets,
+                "events": times.len(),
+            }),
+        );
+    }
+    Json(out).into_response()
+}
+
+#[derive(Debug, Serialize)]
+struct HeartbeatStats {
+    grid: Vec<Vec<u64>>,
+    days: Vec<String>,
+    by_hour: Vec<u64>,
+    by_dow: Vec<u64>,
+    peak_hour: u32,
+    peak_dow: u32,
+    total: u64,
+}
+
+pub async fn activity_heartbeat(State(s): State<AppState>) -> impl IntoResponse {
+    use chrono::{Datelike, Local, Timelike};
+    let sessions = match s.adapter.list_sessions().await {
+        Ok(v) => v,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    };
+    let pairs = s.detail_cache.fan_out(&s.adapter, &sessions).await;
+    let mut grid = vec![vec![0u64; 24]; 7];
+    let mut by_hour = vec![0u64; 24];
+    let mut by_dow = vec![0u64; 7];
+    let mut total: u64 = 0;
+    for (_, detail) in pairs {
+        for p in &detail.prompts {
+            if let Some(ts) = p.timestamp {
+                let local = ts.with_timezone(&Local);
+                let dow = local.weekday().num_days_from_monday() as usize;
+                let hour = local.hour() as usize;
+                grid[dow][hour] += 1;
+                by_hour[hour] += 1;
+                by_dow[dow] += 1;
+                total += 1;
+            }
+        }
+    }
+    let peak_hour = by_hour.iter().enumerate().max_by_key(|(_, c)| **c).map(|(i, _)| i as u32).unwrap_or(0);
+    let peak_dow = by_dow.iter().enumerate().max_by_key(|(_, c)| **c).map(|(i, _)| i as u32).unwrap_or(0);
+    Json(HeartbeatStats {
+        grid,
+        days: vec!["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].iter().map(|s| s.to_string()).collect(),
+        by_hour,
+        by_dow,
+        peak_hour,
+        peak_dow,
+        total,
+    }).into_response()
+}
+
+#[derive(Debug, Serialize)]
+struct DangerEntry {
+    name: String,
+    severity: String,
+    count: u64,
+    sessions: u64,
+}
+
+#[derive(Debug, Serialize)]
+struct DangerStats {
+    entries: Vec<DangerEntry>,
+    total_calls: u64,
+    sessions_affected: u64,
+}
+
+fn danger_severity(name: &str) -> Option<&'static str> {
+    let n = name.to_lowercase();
+    let high = [
+        "run_in_terminal", "execute_command", "shell", "bash", "powershell",
+        "delete_file", "rm_file", "remove_file", "delete", "drop_table",
+        "git_push", "force_push", "rebase",
+    ];
+    let medium = [
+        "write_file", "create_file", "edit_file", "edit", "replace_string_in_file",
+        "create", "patch", "apply_patch", "modify",
+    ];
+    let low = [
+        "fetch_webpage", "open_url", "browser", "web_search", "curl", "http_request",
+    ];
+    for k in &high { if n == *k || n.contains(k) { return Some("high"); } }
+    for k in &medium { if n == *k || n.contains(k) { return Some("medium"); } }
+    for k in &low { if n == *k || n.contains(k) { return Some("low"); } }
+    None
+}
+
+pub async fn tools_dangerous(State(s): State<AppState>) -> impl IntoResponse {
+    let sessions = match s.adapter.list_sessions().await {
+        Ok(v) => v,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    };
+    let pairs = s.detail_cache.fan_out(&s.adapter, &sessions).await;
+    let mut counts: HashMap<String, (u64, std::collections::HashSet<String>, &'static str)> = HashMap::new();
+    let mut affected: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut total: u64 = 0;
+    for (meta, detail) in pairs {
+        for c in &detail.tool_calls {
+            if let Some(sev) = danger_severity(&c.name) {
+                let entry = counts.entry(c.name.clone()).or_insert((0, std::collections::HashSet::new(), sev));
+                entry.0 += 1;
+                entry.1.insert(meta.id.clone());
+                affected.insert(meta.id.clone());
+                total += 1;
+            }
+        }
+    }
+    let mut entries: Vec<DangerEntry> = counts.into_iter().map(|(name, (count, sess, sev))| DangerEntry {
+        name, severity: sev.to_string(), count, sessions: sess.len() as u64,
+    }).collect();
+    let sev_rank = |s: &str| -> u8 { match s { "high" => 0, "medium" => 1, "low" => 2, _ => 3 } };
+    entries.sort_by(|a, b| sev_rank(&a.severity).cmp(&sev_rank(&b.severity)).then(b.count.cmp(&a.count)));
+    Json(DangerStats { entries, total_calls: total, sessions_affected: affected.len() as u64 }).into_response()
+}
+
+#[derive(Debug, Serialize)]
+struct HotFile {
+    path: String,
+    mentions: u64,
+    sessions: u64,
+}
+
+pub async fn files_hot(State(s): State<AppState>) -> impl IntoResponse {
+    let sessions = match s.adapter.list_sessions().await {
+        Ok(v) => v,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    };
+    let pairs = s.detail_cache.fan_out(&s.adapter, &sessions).await;
+    let re = match regex::Regex::new(r"(?:[A-Za-z0-9_./\-]+)?[A-Za-z0-9_\-]+\.[A-Za-z0-9]{1,6}\b") {
+        Ok(r) => r,
+        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "regex").into_response(),
+    };
+    let stop_ext: std::collections::HashSet<&str> = [
+        "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+    ].iter().copied().collect();
+    let mut counts: HashMap<String, (u64, std::collections::HashSet<String>)> = HashMap::new();
+    for (meta, detail) in pairs {
+        let mut seen_in_session: std::collections::HashSet<String> = std::collections::HashSet::new();
+        for p in &detail.prompts {
+            for m in re.find_iter(&p.text) {
+                let raw = m.as_str();
+                if raw.len() < 4 || raw.len() > 80 { continue; }
+                let after_dot = raw.rsplit('.').next().unwrap_or("");
+                if stop_ext.contains(after_dot) { continue; }
+                if !after_dot.chars().all(|c| c.is_ascii_alphabetic()) { continue; }
+                if !raw.chars().any(|c| c == '/' || c == '.') { continue; }
+                let normed = raw.trim_matches(|c: char| c == '.' || c == ',' || c == ')' || c == '(').to_string();
+                if normed.is_empty() { continue; }
+                let entry = counts.entry(normed.clone()).or_insert((0, std::collections::HashSet::new()));
+                entry.0 += 1;
+                if !seen_in_session.contains(&normed) {
+                    entry.1.insert(meta.id.clone());
+                    seen_in_session.insert(normed);
+                }
+            }
+        }
+    }
+    let mut entries: Vec<HotFile> = counts.into_iter().map(|(path, (m, sess))| HotFile {
+        path, mentions: m, sessions: sess.len() as u64,
+    }).collect();
+    entries.retain(|e| e.mentions >= 2);
+    entries.sort_by(|a, b| b.sessions.cmp(&a.sessions).then(b.mentions.cmp(&a.mentions)));
+    entries.truncate(40);
+    Json(entries).into_response()
+}
+
 fn is_cjk(c: char) -> bool {
     matches!(c as u32,
         0x4E00..=0x9FFF | 0x3400..=0x4DBF | 0x20000..=0x2A6DF |
