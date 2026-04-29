@@ -75,11 +75,16 @@ pub async fn overview(State(s): State<AppState>) -> impl IntoResponse {
         turns: u64,
         tool_calls: u64,
         active: u64,
+        sessions_this_week: u64,
+        sessions_prev_week: u64,
         last_event_at: Option<chrono::DateTime<chrono::Utc>>,
         agents: std::collections::BTreeSet<String>,
     }
     let mut realms: HashMap<String, Realm> = HashMap::new();
     let mut sess_realm_key: HashMap<String, String> = HashMap::new();
+    let now = chrono::Utc::now();
+    let this_week_start = now - chrono::Duration::days(7);
+    let prev_week_start = now - chrono::Duration::days(14);
 
     for sess in &sessions {
         let key = sess.repo.clone().unwrap_or_else(|| {
@@ -94,6 +99,11 @@ pub async fn overview(State(s): State<AppState>) -> impl IntoResponse {
         r.sessions += 1;
         if sess.status == SessionStatus::Active {
             r.active += 1;
+        }
+        if sess.last_event_at >= this_week_start {
+            r.sessions_this_week += 1;
+        } else if sess.last_event_at >= prev_week_start {
+            r.sessions_prev_week += 1;
         }
         let agent_key = serde_json::to_value(sess.agent)
             .ok()
@@ -162,6 +172,8 @@ pub async fn overview(State(s): State<AppState>) -> impl IntoResponse {
                 "active": r.active,
                 "turns": r.turns,
                 "tool_calls": r.tool_calls,
+                "sessions_this_week": r.sessions_this_week,
+                "sessions_prev_week": r.sessions_prev_week,
                 "last_event_at": r.last_event_at,
                 "agents": r.agents.into_iter().collect::<Vec<_>>(),
             })
