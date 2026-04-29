@@ -42,10 +42,41 @@ still alive. Pawscope reads the on-disk state each CLI already produces
 (`~/.copilot/session-state/`) and renders it on a single panel that updates in
 real time.
 
+## Install
+
+### Pre-built binaries (recommended)
+
+Grab the latest from [Releases](https://github.com/benjamin7007/Pawscope/releases/latest):
+
+| Platform | Asset |
+|---|---|
+| macOS (Apple Silicon) | `pawscope-aarch64-apple-darwin.tar.gz` |
+| macOS (Intel) | `pawscope-x86_64-apple-darwin.tar.gz` |
+| Linux (x86_64) | `pawscope-x86_64-unknown-linux-gnu.tar.gz` |
+| Linux (aarch64) | `pawscope-aarch64-unknown-linux-gnu.tar.gz` |
+| Windows (x86_64) | `pawscope-x86_64-pc-windows-msvc.zip` |
+
+```bash
+# macOS / Linux example
+curl -fsSL -o pawscope.tar.gz \
+  https://github.com/benjamin7007/Pawscope/releases/latest/download/pawscope-aarch64-apple-darwin.tar.gz
+tar -xzf pawscope.tar.gz
+./pawscope-aarch64-apple-darwin/pawscope serve
+```
+
+Each archive ships with a matching `.sha256` file for verification.
+
+### From source
+
+```bash
+git clone https://github.com/benjamin7007/Pawscope.git
+cd Pawscope
+cargo install --path .       # or: cargo build --release
+```
+
 ## Quick start
 
 ```bash
-cargo install --path .       # or: cargo build --release
 pawscope serve             # opens http://127.0.0.1:7777 in your browser
 ```
 
