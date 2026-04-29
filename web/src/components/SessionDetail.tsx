@@ -376,6 +376,40 @@ function ExportMenu({ events, sessionId, t }: { events: ReplayEvent[]; sessionId
   );
 }
 
+function HeatBar({ events, bins = 60 }: { events: ReplayEvent[]; bins?: number }) {
+  if (events.length < 2) return null;
+  const t0 = new Date(events[0].timestamp).getTime();
+  const tEnd = new Date(events[events.length - 1].timestamp).getTime();
+  const span = Math.max(1, tEnd - t0);
+  const counts = new Array(bins).fill(0).map(() => ({ p: 0, t: 0 }));
+  for (const ev of events) {
+    const off = new Date(ev.timestamp).getTime() - t0;
+    const i = Math.min(bins - 1, Math.max(0, Math.floor((off / span) * bins)));
+    if (ev.kind === 'prompt') counts[i].p++; else counts[i].t++;
+  }
+  const max = Math.max(1, ...counts.map(c => c.p + c.t));
+  return (
+    <div className="flex items-stretch gap-px h-3 w-40" title="Session pulse — darker = busier">
+      {counts.map((c, i) => {
+        const total = c.p + c.t;
+        if (total === 0) {
+          return <div key={i} className="flex-1 bg-slate-800/40 rounded-sm" />;
+        }
+        const intensity = total / max;
+        const promptDom = c.p >= c.t;
+        const hue = promptDom ? '34, 211, 238' : '52, 211, 153';
+        return (
+          <div
+            key={i}
+            className="flex-1 rounded-sm"
+            style={{ background: `rgba(${hue}, ${0.25 + intensity * 0.75})` }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
 function ReplaySection({
   prompts,
   tools,
@@ -599,8 +633,11 @@ function ReplaySection({
   return (
     <>
       <section className="rounded-lg bg-slate-900/40 border border-slate-800">
-        <header className="px-4 py-2.5 border-b border-slate-800 flex items-center justify-between">
-          <h3 className="text-xs uppercase tracking-wider text-slate-400">▶ {t('sec.replay')}</h3>
+        <header className="px-4 py-2.5 border-b border-slate-800 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <h3 className="text-xs uppercase tracking-wider text-slate-400 whitespace-nowrap">▶ {t('sec.replay')}</h3>
+            <HeatBar events={events} />
+          </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => { setFullscreen(true); setIdx(0); setPlaying(false); }}
