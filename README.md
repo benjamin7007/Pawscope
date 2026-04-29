@@ -92,10 +92,11 @@ pawscope serve                  # opens http://127.0.0.1:7777 in your browser
 
 | Version | Scope |
 |---|---|
-| **v0.1** (released) | Copilot CLI sessions · real-time updates · embedded UI |
-| **v0.2** | Claude Code adapter (`~/.claude/projects/`) · multi-adapter fan-out · activity heatmap |
-| **v0.3** | Codex CLI adapter (`~/.codex/state_*.sqlite`) |
-| v0.4 | Skill marketplace + one-click install across CLIs |
+| v0.1 (released) | Copilot CLI sessions · real-time updates · embedded UI |
+| v0.2 (released) | Claude Code adapter · multi-adapter fan-out · activity heatmap |
+| v0.3 (released) | Codex CLI adapter (`~/.codex/state_*.sqlite`) |
+| **v0.4** (released) | Skills coverage · prompts search · tool-call trend with drilldown · star+tag sessions · perf cache · UI polish (skeletons, toasts, progress bar, draggable sidebar, virtual scroll) |
+| v0.5 | Skill marketplace + one-click install across CLIs · session comparison · keyboard shortcuts |
 
 ## Project layout
 
