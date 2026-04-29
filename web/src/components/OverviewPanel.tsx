@@ -5,6 +5,7 @@ import { categorize, CATEGORY_ORDER } from '../skillCategory';
 import { CategoryDonut } from './CategoryDonut';
 import { OverviewSkeleton } from './Skeleton';
 import { ToolTrend } from './ToolTrend';
+import { estimateCostUsd, formatUsd, priceFor } from '../pricing';
 
 type Session = {
   id: string;
@@ -603,6 +604,8 @@ export function OverviewPanel({
   const [activity, setActivity] = useState<number[] | null>(null);
   const [grid, setGrid] = useState<number[][] | null>(null);
   const [active, setActive] = useState<Session[]>([]);
+  const [allSessions, setAllSessions] = useState<Session[]>([]);
+  const [tokensMap, setTokensMap] = useState<Record<string, { in: number; out: number }>>({});
   const [allSkills, setAllSkills] = useState<SkillEntry[] | null>(null);
   const [, forceTick] = useState(0);
   const [err, setErr] = useState<string | null>(null);
@@ -625,7 +628,15 @@ export function OverviewPanel({
     };
     const loadActive = () => {
       fetchSessions()
-        .then((s: Session[]) => !cancelled && setActive(s.filter(x => x.status === 'active')))
+        .then((s: Session[]) => {
+          if (cancelled) return;
+          setActive(s.filter(x => x.status === 'active'));
+          setAllSessions(s);
+        })
+        .catch(() => {});
+      fetch('/api/sessions/tokens')
+        .then(r => r.ok ? r.json() : {})
+        .then(d => { if (!cancelled) setTokensMap(d); })
         .catch(() => {});
     };
     load();
@@ -684,6 +695,37 @@ export function OverviewPanel({
 
   const categoryTotal = categoryStats.reduce((a, b) => a + b.invocations, 0);
 
+  // Aggregate cost across sessions using their model + token totals.
+  const costStats = useMemo(() => {
+    let total = 0;
+    let unknownTokens = 0;
+    let knownSessions = 0;
+    let unknownSessions = 0;
+    const byAgent: Record<string, number> = {};
+    const byModel: Record<string, { cost: number; sessions: number }> = {};
+    for (const s of allSessions) {
+      const tk = tokensMap[s.id];
+      if (!tk || (tk.in === 0 && tk.out === 0)) continue;
+      const cost = estimateCostUsd(s.model, tk.in, tk.out);
+      if (cost === null) {
+        unknownTokens += tk.in + tk.out;
+        unknownSessions++;
+        continue;
+      }
+      total += cost;
+      knownSessions++;
+      byAgent[s.agent] = (byAgent[s.agent] ?? 0) + cost;
+      const label = priceFor(s.model)?.label ?? s.model ?? 'unknown';
+      if (!byModel[label]) byModel[label] = { cost: 0, sessions: 0 };
+      byModel[label].cost += cost;
+      byModel[label].sessions++;
+    }
+    const modelEntries = Object.entries(byModel)
+      .map(([name, v]) => ({ name, ...v }))
+      .sort((a, b) => b.cost - a.cost);
+    return { total, unknownTokens, knownSessions, unknownSessions, byAgent, modelEntries };
+  }, [allSessions, tokensMap]);
+
   return (
     <main className="flex-1 overflow-y-auto">
       <header className="px-8 pt-6 pb-5 border-b border-slate-800 bg-slate-900/30">
@@ -712,6 +754,48 @@ export function OverviewPanel({
             daily7In={data.tokens_daily7_in ?? []}
             daily7Out={data.tokens_daily7_out ?? []}
           />
+        )}
+
+        {(costStats.total > 0 || costStats.unknownSessions > 0) && (
+          <section className="rounded-lg bg-slate-900/40 border border-slate-800">
+            <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
+              <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.cost_summary')}</h3>
+              <span className="text-[11px] text-slate-500 tabular-nums">
+                {costStats.knownSessions} {t('misc.sessions_priced')}
+                {costStats.unknownSessions > 0 && ` · ${costStats.unknownSessions} ${t('misc.sessions_unpriced')}`}
+              </span>
+            </header>
+            <div className="px-4 py-4 space-y-3">
+              <div className="flex items-baseline gap-3">
+                <span className="text-3xl font-semibold text-amber-300 tabular-nums">{formatUsd(costStats.total)}</span>
+                <span className="text-xs text-slate-500">{t('misc.total_estimated')}</span>
+              </div>
+              {costStats.modelEntries.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {costStats.modelEntries.slice(0, 6).map(m => {
+                    const pct = costStats.total > 0 ? (m.cost / costStats.total) * 100 : 0;
+                    return (
+                      <div key={m.name} className="rounded-md bg-slate-950/40 border border-slate-800/60 px-3 py-2">
+                        <div className="flex items-center gap-2 text-xs text-slate-300">
+                          <span className="font-medium truncate">{m.name}</span>
+                          <span className="ml-auto text-[10px] text-slate-500 tabular-nums">{pct.toFixed(0)}%</span>
+                        </div>
+                        <div className="mt-1 flex items-baseline justify-between">
+                          <span className="text-sm font-semibold text-amber-200 tabular-nums">{formatUsd(m.cost)}</span>
+                          <span className="text-[10px] text-slate-500">{m.sessions} {t('misc.sessions_short')}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {costStats.unknownSessions > 0 && (
+                <p className="text-[11px] text-slate-500">
+                  {t('misc.unpriced_note').replace('{N}', String(costStats.unknownSessions))}
+                </p>
+              )}
+            </div>
+          </section>
         )}
 
         {activity && <ActivityHeatmap buckets={activity} />}

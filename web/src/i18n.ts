@@ -112,6 +112,12 @@ const dict: Record<string, { en: string; zh: string }> = {
   'stat.cost_est': { en: 'Est. cost', zh: '估算费用' },
   'stat.cost_unknown': { en: 'unknown model', zh: '未识别模型' },
   'stat.cost_no_model': { en: 'no model recorded', zh: '未记录模型' },
+  'sec.cost_summary': { en: 'Estimated cost', zh: '费用估算' },
+  'misc.sessions_priced': { en: 'priced', zh: '已计价' },
+  'misc.sessions_unpriced': { en: 'unpriced', zh: '未识别' },
+  'misc.sessions_short': { en: 'sessions', zh: '会话' },
+  'misc.total_estimated': { en: 'total estimated USD', zh: '估算总额（美元）' },
+  'misc.unpriced_note': { en: '{N} session(s) skipped: model not in pricing table.', zh: '有 {N} 个会话因模型未在定价表中而未计入。' },
   'list.empty': { en: 'No sessions match.', zh: '没有匹配的会话。' },
 
   // SessionDetail
