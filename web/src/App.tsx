@@ -8,6 +8,7 @@ import { RealmPanel } from './components/RealmPanel';
 import { SkillsPanel } from './components/SkillsPanel';
 import { PromptsPanel } from './components/PromptsPanel';
 import { SidebarResizer } from './components/SidebarResizer';
+import { ProgressBar } from './components/ProgressBar';
 import { LangToggle } from './components/LangToggle';
 import { ThemeToggle } from './components/ThemeToggle';
 import { useT } from './i18n';
@@ -73,6 +74,7 @@ export default function App() {
 
   return (
     <div className="flex h-screen">
+      <ProgressBar />
       <div
         className="flex flex-col border-r border-slate-800 bg-slate-950/50 flex-shrink-0"
         style={{ width: sidebarWidth }}
