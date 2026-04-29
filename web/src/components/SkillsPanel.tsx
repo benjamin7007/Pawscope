@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { fetchSkills, fetchSkillContent, type SkillEntry, type SkillContent } from '../api';
+import { fetchSkills, fetchSkillContent, fetchSkillUsage, type SkillEntry, type SkillContent, type SkillUsage } from '../api';
 import { useT } from '../i18n';
 import { renderMarkdown } from '../markdown';
 
@@ -15,7 +15,7 @@ const SOURCE_COLORS: Record<string, string> = {
   'agents-skills': '#f59e0b',
 };
 
-export function SkillsPanel() {
+export function SkillsPanel({ onOpenSession }: { onOpenSession?: (id: string) => void } = {}) {
   const [skills, setSkills] = useState<SkillEntry[] | null>(null);
   const [bySource, setBySource] = useState<Record<string, number>>({});
   const [err, setErr] = useState<string | null>(null);
@@ -170,6 +170,7 @@ export function SkillsPanel() {
           content={openContent}
           err={openErr}
           onClose={() => setOpenSkill(null)}
+          onOpenSession={onOpenSession}
         />
       )}
       {/* keep linter happy */}
@@ -183,14 +184,19 @@ function SkillDrawer({
   content,
   err,
   onClose,
+  onOpenSession,
 }: {
   skill: SkillEntry;
   content: SkillContent | null;
   err: string | null;
   onClose: () => void;
+  onOpenSession?: (id: string) => void;
 }) {
-  const { lang, fmt } = useT();
+  const { lang, fmt, rel } = useT();
   const html = useMemo(() => (content ? renderMarkdown(content.content) : ''), [content]);
+  const [usage, setUsage] = useState<SkillUsage | null>(null);
+  const [usageErr, setUsageErr] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -199,6 +205,28 @@ function SkillDrawer({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setUsage(null);
+    setUsageErr(null);
+    fetchSkillUsage(skill.name)
+      .then(d => !cancelled && setUsage(d))
+      .catch(e => !cancelled && setUsageErr(String(e)));
+    return () => {
+      cancelled = true;
+    };
+  }, [skill.name]);
+
+  const onCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(skill.path);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true">
@@ -210,9 +238,16 @@ function SkillDrawer({
       <aside className="relative w-full max-w-2xl h-full bg-slate-950 border-l border-slate-800 shadow-2xl flex flex-col">
         <header className="px-5 py-3 border-b border-slate-800 flex items-baseline gap-3">
           <span className="font-mono text-slate-100 text-base font-semibold">{skill.name}</span>
-          <span className="text-[10px] text-slate-500 font-mono truncate max-w-[300px]" title={skill.path}>
+          <span className="text-[10px] text-slate-500 font-mono truncate max-w-[260px]" title={skill.path}>
             {skill.path.replace(/^.*\.(copilot|claude|agents)\//, '~/.$1/')}
           </span>
+          <button
+            onClick={onCopy}
+            className="text-[10px] px-2 py-0.5 rounded border border-slate-700 text-slate-400 hover:text-slate-100 hover:border-slate-500 transition-colors"
+            title={lang === 'zh' ? '复制路径' : 'Copy path'}
+          >
+            {copied ? (lang === 'zh' ? '已复制' : 'Copied') : (lang === 'zh' ? '复制路径' : 'Copy path')}
+          </button>
           {content && (
             <span className="text-[10px] text-slate-600 tabular-nums">
               {fmt(content.bytes)} {lang === 'zh' ? '字节' : 'bytes'}
@@ -226,7 +261,58 @@ function SkillDrawer({
             ✕
           </button>
         </header>
+
         <div className="flex-1 overflow-y-auto px-6 py-4 text-sm">
+          {/* Usage section */}
+          {usage && usage.total_invocations > 0 && (
+            <section className="mb-5 rounded-lg border border-slate-800 bg-slate-900/40 p-3">
+              <header className="flex items-baseline gap-2 mb-2">
+                <h3 className="text-[11px] uppercase tracking-wider text-slate-400">
+                  {lang === 'zh' ? '近 30 天使用情况' : '30-day usage'}
+                </h3>
+                <span className="text-[10px] text-slate-500">
+                  {fmt(usage.total_invocations)} {lang === 'zh' ? '次调用' : 'calls'} · {fmt(usage.session_count)} {lang === 'zh' ? '个会话' : 'sessions'}
+                </span>
+              </header>
+              <UsageSpark daily={usage.daily30} />
+              {usage.sessions.length > 0 && (
+                <ul className="mt-3 divide-y divide-slate-800/60">
+                  {usage.sessions.slice(0, 8).map(s => (
+                    <li key={s.id}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onOpenSession?.(s.id);
+                          onClose();
+                        }}
+                        className="w-full text-left py-1.5 text-xs flex items-center gap-2 hover:bg-slate-800/50 rounded px-1.5 transition-colors"
+                        disabled={!onOpenSession}
+                      >
+                        <span
+                          className="px-1.5 py-0.5 rounded text-[9px] font-medium uppercase"
+                          style={{
+                            background: '#64748b22',
+                            color: '#94a3b8',
+                            border: '1px solid #64748b55',
+                          }}
+                        >
+                          {s.agent}
+                        </span>
+                        <span className="text-emerald-300 tabular-nums w-10 text-right">×{s.invocations}</span>
+                        <span className="text-slate-200 truncate flex-1" title={s.summary || s.id}>
+                          {s.summary || s.id.slice(0, 12)}
+                        </span>
+                        <span className="text-slate-600 text-[10px] tabular-nums">{rel(s.last_event_at)}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
+          {usageErr && <div className="text-rose-400 text-xs mb-3">{usageErr}</div>}
+
+          {/* Content section */}
           {err && <div className="text-rose-400 text-xs">{err}</div>}
           {!err && !content && (
             <div className="text-slate-500 text-xs">
@@ -240,5 +326,26 @@ function SkillDrawer({
         </div>
       </aside>
     </div>
+  );
+}
+
+function UsageSpark({ daily }: { daily: number[] }) {
+  const max = Math.max(1, ...daily);
+  const w = 360;
+  const h = 36;
+  const stepX = w / Math.max(1, daily.length - 1);
+  const points = daily
+    .map((v, i) => `${(i * stepX).toFixed(1)},${(h - (v / max) * (h - 4) - 2).toFixed(1)}`)
+    .join(' ');
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-9">
+      <polyline points={points} fill="none" stroke="#34d399" strokeWidth="1.4" />
+      {daily.map((v, i) => {
+        if (v === 0) return null;
+        const x = (i * stepX).toFixed(1);
+        const y = (h - (v / max) * (h - 4) - 2).toFixed(1);
+        return <circle key={i} cx={x} cy={y} r={1.5} fill="#34d399" />;
+      })}
+    </svg>
   );
 }

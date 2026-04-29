@@ -113,7 +113,7 @@ export default function App() {
           }}
         />
       ) : view === 'skills' ? (
-        <SkillsPanel />
+        <SkillsPanel onOpenSession={setSelected} />
       ) : (
         <SessionDetail meta={sessions.find(s => s.id === selected)} detail={detail} />
       )}
