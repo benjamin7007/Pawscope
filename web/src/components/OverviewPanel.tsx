@@ -133,22 +133,49 @@ function HeroStat({ label, value, accent }: { label: string; value: React.ReactN
   );
 }
 
-function BarList({ entries, max, color }: { entries: [string, number][]; max: number; color: string }) {
+function BarList({
+  entries,
+  max,
+  color,
+  onClick,
+}: {
+  entries: [string, number][];
+  max: number;
+  color: string;
+  onClick?: (key: string) => void;
+}) {
   const { t, fmt } = useT();
   if (entries.length === 0) {
     return <div className="text-xs text-slate-600 text-center py-4">{t('misc.none')}</div>;
   }
   return (
     <ul className="divide-y divide-slate-800/60">
-      {entries.map(([k, v]) => (
-        <li key={k} className="px-4 py-2 flex items-center gap-3 text-sm">
-          <span className="font-mono text-slate-200 w-40 truncate">{k}</span>
-          <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-            <div className={`h-full ${color}`} style={{ width: `${max > 0 ? (v / max) * 100 : 0}%` }} />
-          </div>
-          <span className="text-slate-400 tabular-nums w-14 text-right">×{fmt(v)}</span>
-        </li>
-      ))}
+      {entries.map(([k, v]) => {
+        const row = (
+          <>
+            <span className="font-mono text-slate-200 w-40 truncate text-left">{k}</span>
+            <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+              <div className={`h-full ${color}`} style={{ width: `${max > 0 ? (v / max) * 100 : 0}%` }} />
+            </div>
+            <span className="text-slate-400 tabular-nums w-14 text-right">×{fmt(v)}</span>
+          </>
+        );
+        return (
+          <li key={k}>
+            {onClick ? (
+              <button
+                type="button"
+                onClick={() => onClick(k)}
+                className="w-full px-4 py-2 flex items-center gap-3 text-sm hover:bg-slate-800/40 transition-colors text-left"
+              >
+                {row}
+              </button>
+            ) : (
+              <div className="px-4 py-2 flex items-center gap-3 text-sm">{row}</div>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -417,9 +444,11 @@ function LiveTicker({ sessions, onOpen }: { sessions: Session[]; onOpen?: (id: s
 export function OverviewPanel({
   onOpenSession,
   onOpenRealm,
+  onOpenSkill,
 }: {
   onOpenSession?: (id: string) => void;
   onOpenRealm?: (name: string) => void;
+  onOpenSkill?: (name: string) => void;
 } = {}) {
   const { t } = useT();
   const [data, setData] = useState<Overview | null>(null);
@@ -517,7 +546,7 @@ export function OverviewPanel({
               <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.top_skills')}</h3>
               <span className="text-[11px] text-slate-500">{skills.length} unique</span>
             </header>
-            <BarList entries={skills.slice(0, 12)} max={skillsMax} color="bg-gradient-to-r from-sky-500/70 to-sky-400" />
+            <BarList entries={skills.slice(0, 12)} max={skillsMax} color="bg-gradient-to-r from-sky-500/70 to-sky-400" onClick={onOpenSkill} />
           </div>
         </section>
 
