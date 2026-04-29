@@ -30,7 +30,21 @@ export function SkillsPanel({
   const [sort, setSort] = useState<'invocations' | 'name' | 'source'>('invocations');
   const [category, setCategory] = useState<string>('all');
   const [groupByCategory, setGroupByCategory] = useState(true);
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => {
+    try {
+      const raw = localStorage.getItem('agent-lens.skills.collapsed');
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem('agent-lens.skills.collapsed', JSON.stringify(collapsed));
+    } catch {
+      // ignore quota / privacy-mode failures
+    }
+  }, [collapsed]);
   const [openSkill, setOpenSkill] = useState<SkillEntry | null>(null);
   const [openContent, setOpenContent] = useState<SkillContent | null>(null);
   const [openErr, setOpenErr] = useState<string | null>(null);
