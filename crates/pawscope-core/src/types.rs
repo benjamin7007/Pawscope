@@ -118,6 +118,10 @@ pub struct ConversationLog {
     pub compaction_markers: Vec<CompactionMarker>,
     #[serde(default)]
     pub interactions: Vec<Interaction>,
+    /// Aggregate token + cost usage across all turns in this conversation.
+    /// `None` if the adapter does not surface token usage for this session.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tokens: Option<TokenSummary>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -172,6 +176,73 @@ pub struct AssistantTurn {
     pub completed_at: Option<DateTime<Utc>>,
     #[serde(default)]
     pub items: Vec<TurnItem>,
+    /// Per-turn token + cost breakdown. Populated by adapters that expose
+    /// usage events (Claude `message.usage`, Codex `token_count`, Copilot
+    /// `outputTokens`). `None` for older sessions or adapters without data.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub usage: Option<TurnUsage>,
+}
+
+/// Token + cost usage for a single assistant turn.
+///
+/// All token counts are absolute (not deltas) for that turn. `cost_usd` is
+/// computed at parse time using the static rate table in
+/// [`crate::pricing`]; downstream consumers should treat it as
+/// best-effort, not invoice-grade.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct TurnUsage {
+    /// Model identifier reported by the adapter (e.g. `claude-sonnet-4-5-20250929`).
+    /// Stored verbatim; pricing logic normalizes via `pricing::normalize_model`.
+    pub model: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub input_tokens: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub output_tokens: Option<u64>,
+    /// Tokens served from prompt cache (Anthropic only — billed at 0.1x input).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache_read_tokens: Option<u64>,
+    /// Tokens written to prompt cache (Anthropic only — billed at 1.25x input).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache_write_tokens: Option<u64>,
+    /// Estimated USD cost for this turn. `None` if model is unknown to the
+    /// pricing table.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cost_usd: Option<f64>,
+}
+
+/// Per-model rollup inside a [`TokenSummary`].
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct ModelUsage {
+    pub input_tokens: u64,
+    pub output_tokens: u64,
+    pub cache_read_tokens: u64,
+    pub cache_write_tokens: u64,
+    pub turn_count: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cost_usd: Option<f64>,
+}
+
+/// Conversation-level rollup of all per-turn [`TurnUsage`] entries.
+///
+/// Recomputed at the end of each parse cycle by adapters; never mutated
+/// incrementally.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct TokenSummary {
+    pub total_input_tokens: u64,
+    pub total_output_tokens: u64,
+    pub total_cache_read_tokens: u64,
+    pub total_cache_write_tokens: u64,
+    pub turn_count: u64,
+    /// Sum of per-turn costs that had a known model; turns with unknown
+    /// models are excluded so the displayed total never silently undercounts
+    /// without a hint. UI should show "incomplete" when
+    /// `turns_with_known_model < turn_count`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub total_cost_usd: Option<f64>,
+    pub turns_with_known_model: u64,
+    /// Per-model breakdown keyed by the *normalized* model name.
+    #[serde(default)]
+    pub by_model: std::collections::BTreeMap<String, ModelUsage>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

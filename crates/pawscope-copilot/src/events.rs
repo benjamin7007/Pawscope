@@ -516,6 +516,7 @@ impl ParseState {
             started_at: at,
             completed_at: None,
             items: Vec::new(),
+            usage: None,
         });
         let turn_idx = interaction.turns.len() - 1;
         let scope = ScopeRef::Turn {
@@ -549,6 +550,7 @@ impl ParseState {
             started_at: at,
             completed_at: None,
             items: Vec::new(),
+            usage: None,
         });
         let turn_idx = interaction.turns.len() - 1;
         self.current_scope = Some(ScopeRef::Turn {

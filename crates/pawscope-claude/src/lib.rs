@@ -534,6 +534,7 @@ fn apply_assistant_event(st: &mut ParseState, msg: &serde_json::Value) {
         started_at: at,
         completed_at: Some(at), // Claude assistant events are atomic; one event = full turn.
         items: Vec::new(),
+        usage: None,
     };
     if let Some(arr) = msg.get("content").and_then(|c| c.as_array()) {
         for it in arr {

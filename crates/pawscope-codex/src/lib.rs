@@ -542,6 +542,7 @@ fn parse_rollout_into_conversation(file: std::fs::File) -> pawscope_core::Conver
                             started_at: at,
                             completed_at: Some(at),
                             items,
+                            usage: None,
                         });
                         current_turn = Some(log.interactions[ii].turns.len() - 1);
                         log.version += 1;
@@ -700,6 +701,7 @@ fn attach_tool_item(
                 started_at: at,
                 completed_at: Some(at),
                 items: Vec::new(),
+                usage: None,
             });
             let t = log.interactions[ii].turns.len() - 1;
             *current_turn = Some(t);
