@@ -53,6 +53,9 @@ type Overview = {
   total_turns: number;
   total_user_messages: number;
   total_assistant_messages: number;
+  total_tokens_in?: number;
+  total_tokens_out?: number;
+  tokens_by_agent?: Record<string, { in: number; out: number }>;
   tools_used: Record<string, number>;
   skills_invoked: Record<string, number>;
   subagent_count?: number;
@@ -445,6 +448,80 @@ function LiveTicker({ sessions, onOpen }: { sessions: Session[]; onOpen?: (id: s
 
 // tickerAgo removed; replaced by useT().rel()
 
+const AGENT_COLOR: Record<string, string> = {
+  copilot: 'bg-cyan-500/80',
+  claude: 'bg-amber-500/80',
+  codex: 'bg-emerald-500/80',
+};
+
+function fmtTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+  return n.toLocaleString();
+}
+
+function TokenUsageSection({
+  tokensIn,
+  tokensOut,
+  byAgent,
+}: {
+  tokensIn: number;
+  tokensOut: number;
+  byAgent: Record<string, { in: number; out: number }>;
+}) {
+  const { t } = useT();
+  const total = tokensIn + tokensOut;
+  const entries = Object.entries(byAgent)
+    .map(([name, v]) => ({ name, total: v.in + v.out, in: v.in, out: v.out }))
+    .filter((e) => e.total > 0)
+    .sort((a, b) => b.total - a.total);
+  return (
+    <section className="rounded-lg bg-slate-900/40 border border-slate-800">
+      <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
+        <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.token_usage')}</h3>
+        <span className="text-[11px] text-slate-500 tabular-nums">
+          {fmtTokens(tokensIn)} {t('misc.token_in_arrow')} · {fmtTokens(tokensOut)} {t('misc.token_out_arrow')} · <span className="text-slate-300">{fmtTokens(total)}</span>
+        </span>
+      </header>
+      <div className="px-4 py-4 space-y-3">
+        {/* Stacked bar by agent */}
+        <div className="flex h-6 rounded-md overflow-hidden bg-slate-950/50 border border-slate-800/60">
+          {entries.map((e) => {
+            const pct = (e.total / total) * 100;
+            return (
+              <div
+                key={e.name}
+                className={`${AGENT_COLOR[e.name] ?? 'bg-slate-500/70'} h-full`}
+                style={{ width: `${pct}%` }}
+                title={`${e.name}: ${fmtTokens(e.total)} (${pct.toFixed(1)}%)`}
+              />
+            );
+          })}
+        </div>
+        {/* Per-agent breakdown */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {entries.map((e) => {
+            const pct = (e.total / total) * 100;
+            return (
+              <div key={e.name} className="rounded-md bg-slate-950/40 border border-slate-800/60 px-3 py-2">
+                <div className="flex items-center gap-2 text-xs text-slate-300">
+                  <span className={`inline-block w-2.5 h-2.5 rounded-sm ${AGENT_COLOR[e.name] ?? 'bg-slate-500/70'}`} />
+                  <span className="font-medium capitalize">{e.name}</span>
+                  <span className="ml-auto text-[10px] text-slate-500 tabular-nums">{pct.toFixed(1)}%</span>
+                </div>
+                <div className="mt-1 text-sm font-semibold text-slate-100 tabular-nums">{fmtTokens(e.total)}</div>
+                <div className="text-[10px] text-slate-500 tabular-nums">
+                  {fmtTokens(e.in)} ↑ · {fmtTokens(e.out)} ↓
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function OverviewPanel({
   onOpenSession,
   onOpenRealm,
@@ -561,6 +638,14 @@ export function OverviewPanel({
           <HeroStat label={t('stat.turns')} value={data.total_turns.toLocaleString()} />
           <HeroStat label={t('stat.tool_calls')} value={totalTools.toLocaleString()} />
         </section>
+
+        {((data.total_tokens_in ?? 0) + (data.total_tokens_out ?? 0)) > 0 && (
+          <TokenUsageSection
+            tokensIn={data.total_tokens_in ?? 0}
+            tokensOut={data.total_tokens_out ?? 0}
+            byAgent={data.tokens_by_agent ?? {}}
+          />
+        )}
 
         {activity && <ActivityHeatmap buckets={activity} />}
         {grid && <WeekGrid grid={grid} />}
