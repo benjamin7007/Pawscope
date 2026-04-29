@@ -1,10 +1,10 @@
-# Agent Lens
+# Pawscope 🐾
 
 > **A local web dashboard for inspecting the runtime state of CLI agent sessions.**
 > Stop wondering what your agent is actually doing across 5 terminal windows.
 
 ```
-┌─ Agent Lens ────────────────────────────────────────────────┐
+┌─ Pawscope ──────────────────────────────────────────────────┐
 │  ● 4dac1bf8   Building feature X         master             │
 │  ○ 7c2afd91   Refactoring auth           feat/auth          │
 │  ──────────────────────────────────────────────────────────  │

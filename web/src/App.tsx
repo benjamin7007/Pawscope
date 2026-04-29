@@ -50,6 +50,10 @@ export default function App() {
   return (
     <div className="flex h-screen">
       <div className="w-80 flex flex-col border-r border-slate-800 bg-slate-950/50">
+        <div className="px-4 pt-4 pb-3 flex items-center gap-2 border-b border-slate-800/40">
+          <span className="text-2xl leading-none">🐾</span>
+          <span className="font-semibold text-slate-100 text-base tracking-tight">Pawscope</span>
+        </div>
         <nav className="flex border-b border-slate-800">
           <button
             onClick={() => setView('overview')}
