@@ -203,6 +203,10 @@ export function SkillsPanel({
           err={openErr}
           onClose={() => setOpenSkill(null)}
           onOpenSession={onOpenSession}
+          onOpenCoSkill={(name: string) => {
+            const hit = skills?.find(s => s.name === name);
+            if (hit) setOpenSkill(hit);
+          }}
           onPrev={(() => {
             const idx = filtered.findIndex(s => s.source === openSkill.source && s.path === openSkill.path);
             if (idx <= 0) return undefined;
@@ -231,6 +235,7 @@ function SkillDrawer({
   err,
   onClose,
   onOpenSession,
+  onOpenCoSkill,
   onPrev,
   onNext,
   position,
@@ -240,6 +245,7 @@ function SkillDrawer({
   err: string | null;
   onClose: () => void;
   onOpenSession?: (id: string) => void;
+  onOpenCoSkill?: (name: string) => void;
   onPrev?: () => void;
   onNext?: () => void;
   position?: { index: number; total: number } | null;
@@ -249,6 +255,7 @@ function SkillDrawer({
   const [usage, setUsage] = useState<SkillUsage | null>(null);
   const [usageErr, setUsageErr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [usageRange, setUsageRange] = useState<'30d' | '365d'>('30d');
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -361,13 +368,35 @@ function SkillDrawer({
             <section className="mb-5 rounded-lg border border-slate-800 bg-slate-900/40 p-3">
               <header className="flex items-baseline gap-2 mb-2">
                 <h3 className="text-[11px] uppercase tracking-wider text-slate-400">
-                  {lang === 'zh' ? '近 30 天使用情况' : '30-day usage'}
+                  {usageRange === '30d'
+                    ? lang === 'zh' ? '近 30 天使用情况' : '30-day usage'
+                    : lang === 'zh' ? '近 365 天使用情况' : '365-day usage'}
                 </h3>
                 <span className="text-[10px] text-slate-500">
                   {fmt(usage.total_invocations)} {lang === 'zh' ? '次调用' : 'calls'} · {fmt(usage.session_count)} {lang === 'zh' ? '个会话' : 'sessions'}
                 </span>
+                <div className="ml-auto inline-flex rounded border border-slate-700 overflow-hidden text-[10px]">
+                  <button
+                    type="button"
+                    onClick={() => setUsageRange('30d')}
+                    className={`px-2 py-0.5 ${usageRange === '30d' ? 'bg-slate-800 text-slate-100' : 'text-slate-400 hover:text-slate-200'}`}
+                  >
+                    30d
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setUsageRange('365d')}
+                    className={`px-2 py-0.5 border-l border-slate-700 ${usageRange === '365d' ? 'bg-slate-800 text-slate-100' : 'text-slate-400 hover:text-slate-200'}`}
+                  >
+                    365d
+                  </button>
+                </div>
               </header>
-              <UsageSpark daily={usage.daily30} />
+              {usageRange === '30d' ? (
+                <UsageSpark daily={usage.daily30} />
+              ) : (
+                <YearHeatmap daily={usage.daily365} lang={lang} />
+              )}
               {usage.sessions.length > 0 && (
                 <ul className="mt-3 divide-y divide-slate-800/60">
                   {usage.sessions.slice(0, 8).map(s => (
@@ -401,6 +430,35 @@ function SkillDrawer({
                   ))}
                 </ul>
               )}
+            </section>
+          )}
+
+          {/* Co-occurrence section */}
+          {usage && usage.cooccurring.length > 0 && (
+            <section className="mb-5 rounded-lg border border-slate-800 bg-slate-900/40 p-3">
+              <header className="flex items-baseline gap-2 mb-2">
+                <h3 className="text-[11px] uppercase tracking-wider text-slate-400">
+                  {lang === 'zh' ? '常一起使用' : 'Often used with'}
+                </h3>
+                <span className="text-[10px] text-slate-500">
+                  {lang === 'zh' ? `Top ${usage.cooccurring.length}` : `Top ${usage.cooccurring.length}`}
+                </span>
+              </header>
+              <div className="flex flex-wrap gap-1.5">
+                {usage.cooccurring.map(c => (
+                  <button
+                    key={c.name}
+                    type="button"
+                    onClick={() => onOpenCoSkill?.(c.name)}
+                    disabled={!onOpenCoSkill}
+                    className="px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-xs text-slate-200 hover:border-emerald-500/60 hover:text-emerald-200 disabled:cursor-not-allowed transition-colors"
+                    title={lang === 'zh' ? `共现 ${c.sessions} 个会话` : `Co-occurs in ${c.sessions} sessions`}
+                  >
+                    <span className="font-mono">{c.name}</span>
+                    <span className="ml-1.5 text-emerald-300 tabular-nums">{c.sessions}</span>
+                  </button>
+                ))}
+              </div>
             </section>
           )}
           {usageErr && <div className="text-rose-400 text-xs mb-3">{usageErr}</div>}
@@ -440,5 +498,106 @@ function UsageSpark({ daily }: { daily: number[] }) {
         return <circle key={i} cx={x} cy={y} r={1.5} fill="#34d399" />;
       })}
     </svg>
+  );
+}
+
+function YearHeatmap({ daily, lang }: { daily: number[]; lang: 'en' | 'zh' }) {
+  // 365 cells laid out GitHub-style: columns = weeks, rows = day of week.
+  // We anchor index `daily.length - 1` to "today" and walk backwards to fill weeks.
+  const cell = 11;
+  const gap = 2;
+  const today = new Date();
+  // dayOfWeek for today (0 = Sun)
+  const todayDow = today.getDay();
+  // Figure out how many leading blanks the most-recent week column needs.
+  // We want the last column to have rows 0..todayDow filled.
+  const trailing = 6 - todayDow; // empty cells appended after today in last column
+  const totalCells = daily.length + trailing;
+  const cols = Math.ceil(totalCells / 7);
+  const w = cols * (cell + gap);
+  const h = 7 * (cell + gap);
+
+  // Build cells: for index i in `daily` (0 oldest .. n-1 newest), compute the
+  // visual position. The last cell (i = daily.length - 1) sits at column cols-1, row todayDow.
+  const max = Math.max(1, ...daily);
+  const color = (v: number) => {
+    if (v === 0) return 'var(--heat-empty, #1e293b)';
+    const t = v / max;
+    if (t < 0.2) return '#064e3b';
+    if (t < 0.4) return '#047857';
+    if (t < 0.7) return '#10b981';
+    return '#34d399';
+  };
+
+  const cells: { x: number; y: number; v: number; date: Date }[] = [];
+  const startDate = new Date(today);
+  startDate.setDate(today.getDate() - (daily.length - 1));
+  for (let i = 0; i < daily.length; i++) {
+    const date = new Date(startDate);
+    date.setDate(startDate.getDate() + i);
+    const offsetFromEnd = daily.length - 1 - i;
+    // Walk back from (cols-1, todayDow) by offsetFromEnd days
+    let col = cols - 1;
+    let row = todayDow - offsetFromEnd;
+    while (row < 0) {
+      row += 7;
+      col -= 1;
+    }
+    if (col < 0) continue;
+    cells.push({
+      x: col * (cell + gap),
+      y: row * (cell + gap),
+      v: daily[i],
+      date,
+    });
+  }
+
+  // Month labels along the top
+  const monthLabels: { x: number; label: string }[] = [];
+  const fmtMonth = new Intl.DateTimeFormat(lang === 'zh' ? 'zh-CN' : 'en-US', { month: 'short' });
+  let lastMonth = -1;
+  for (const c of cells) {
+    if (c.y !== 0) continue;
+    const m = c.date.getMonth();
+    if (m !== lastMonth) {
+      monthLabels.push({ x: c.x, label: fmtMonth.format(c.date) });
+      lastMonth = m;
+    }
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <svg viewBox={`0 -14 ${w} ${h + 14}`} width={w} height={h + 14} className="block" style={{ maxWidth: '100%' }}>
+        {monthLabels.map((m, i) => (
+          <text
+            key={i}
+            x={m.x}
+            y={-4}
+            fill="currentColor"
+            opacity={0.45}
+            fontSize={9}
+            fontFamily="ui-sans-serif, system-ui"
+          >
+            {m.label}
+          </text>
+        ))}
+        {cells.map((c, i) => (
+          <rect
+            key={i}
+            x={c.x}
+            y={c.y}
+            width={cell}
+            height={cell}
+            rx={2}
+            ry={2}
+            fill={color(c.v)}
+          >
+            <title>
+              {c.date.toISOString().slice(0, 10)} · {c.v} {lang === 'zh' ? '次' : c.v === 1 ? 'call' : 'calls'}
+            </title>
+          </rect>
+        ))}
+      </svg>
+    </div>
   );
 }
