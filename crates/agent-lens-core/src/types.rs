@@ -41,6 +41,16 @@ pub struct SubagentSummary {
     pub tool_calls: u32,
     #[serde(default)]
     pub tools: HashMap<String, u32>,
+    #[serde(default)]
+    pub agent_type: Option<String>,
+    #[serde(default)]
+    pub description: Option<String>,
+    #[serde(default)]
+    pub started_at: Option<chrono::DateTime<chrono::Utc>>,
+    #[serde(default)]
+    pub ended_at: Option<chrono::DateTime<chrono::Utc>>,
+    #[serde(default)]
+    pub active: bool,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
