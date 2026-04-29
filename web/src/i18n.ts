@@ -57,6 +57,9 @@ const dict: Record<string, { en: string; zh: string }> = {
   'stat.subagents': { en: 'Subagents', zh: '子代理' },
   'stat.user_msgs': { en: 'User msgs', zh: '用户消息' },
   'stat.assistant_msgs': { en: 'Assistant msgs', zh: '助手消息' },
+  'stat.tokens_in': { en: 'Tokens in', zh: '输入 tokens' },
+  'stat.tokens_out': { en: 'Tokens out', zh: '输出 tokens' },
+  'stat.tokens_total': { en: 'Tokens total', zh: 'Token 总计' },
 
   // Section titles
   'sec.live_ticker': { en: 'LIVE', zh: '实时' },
@@ -129,6 +132,7 @@ const dict: Record<string, { en: string; zh: string }> = {
   'misc.total': { en: 'total', zh: '总计' },
   'misc.inbound': { en: '↑ inbound', zh: '↑ 收到' },
   'misc.outbound': { en: '↓ outbound', zh: '↓ 发出' },
+  'misc.cumulative': { en: 'cumulative', zh: '累计' },
   'misc.no_summary': { en: '(no summary)', zh: '(尚无摘要)' },
   'status.active': { en: 'active', zh: '活跃' },
   'status.idle': { en: 'idle', zh: '空闲' },

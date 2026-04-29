@@ -81,6 +81,10 @@ pub struct SessionDetail {
     pub prompts: Vec<PromptSummary>,
     #[serde(default)]
     pub tool_calls: Vec<ToolCall>,
+    #[serde(default)]
+    pub tokens_in: u64,
+    #[serde(default)]
+    pub tokens_out: u64,
 }
 
 #[cfg(test)]
