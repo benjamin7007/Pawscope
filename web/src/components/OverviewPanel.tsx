@@ -506,18 +506,6 @@ export function OverviewPanel({
     };
   }, []);
 
-  if (err) return <main className="flex-1 p-8 text-rose-400 text-sm">Failed: {err}</main>;
-  if (!data) return <main className="flex-1 p-8 text-slate-500 text-sm">{t('overview.aggregating')}</main>;
-
-  const tools = Object.entries(data.tools_used).sort((a, b) => b[1] - a[1]);
-  const skills = Object.entries(data.skills_invoked).sort((a, b) => b[1] - a[1]);
-  const repos = Object.entries(data.by_repo).sort((a, b) => b[1] - a[1]);
-  const agents = Object.entries(data.by_agent).sort((a, b) => b[1] - a[1]);
-  const toolsMax = tools[0]?.[1] ?? 0;
-  const skillsMax = skills[0]?.[1] ?? 0;
-  const reposMax = repos[0]?.[1] ?? 0;
-  const totalTools = tools.reduce((a, [, v]) => a + v, 0);
-
   const categoryStats = useMemo(() => {
     if (!allSkills) return [];
     const byCat: Record<string, { invocations: number; count: number; used: number }> = {};
@@ -537,6 +525,19 @@ export function OverviewPanel({
       .map(([name, v]) => ({ name, ...v }))
       .sort((a, b) => b.invocations - a.invocations || order(a.name) - order(b.name));
   }, [allSkills]);
+
+  if (err) return <main className="flex-1 p-8 text-rose-400 text-sm">Failed: {err}</main>;
+  if (!data) return <main className="flex-1 p-8 text-slate-500 text-sm">{t('overview.aggregating')}</main>;
+
+  const tools = Object.entries(data.tools_used).sort((a, b) => b[1] - a[1]);
+  const skills = Object.entries(data.skills_invoked).sort((a, b) => b[1] - a[1]);
+  const repos = Object.entries(data.by_repo).sort((a, b) => b[1] - a[1]);
+  const agents = Object.entries(data.by_agent).sort((a, b) => b[1] - a[1]);
+  const toolsMax = tools[0]?.[1] ?? 0;
+  const skillsMax = skills[0]?.[1] ?? 0;
+  const reposMax = repos[0]?.[1] ?? 0;
+  const totalTools = tools.reduce((a, [, v]) => a + v, 0);
+
   const categoryTotal = categoryStats.reduce((a, b) => a + b.invocations, 0);
 
   return (
