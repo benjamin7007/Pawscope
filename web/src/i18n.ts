@@ -134,6 +134,7 @@ const dict: Record<string, { en: string; zh: string }> = {
   'misc.this_vs_last': { en: 'this vs last', zh: '本周 vs 上周' },
   'misc.collapse': { en: 'Collapse', zh: '收起' },
   'misc.open_replay': { en: 'Open replay', zh: '打开回放' },
+  'misc.fullscreen': { en: 'Fullscreen', zh: '全屏' },
   'misc.length_chars': { en: 'length in characters', zh: '字符数' },
   'misc.show': { en: 'show', zh: '展开' },
   'misc.hide': { en: 'hide', zh: '收起' },

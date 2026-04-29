@@ -270,17 +270,31 @@ function ReplaySection({
     return all;
   }, [prompts, tools]);
   const [open, setOpen] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
   const [idx, setIdx] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
 
   useEffect(() => {
-    if (!playing || !open) return;
+    const active = open || fullscreen;
+    if (!playing || !active) return;
     if (idx >= events.length - 1) { setPlaying(false); return; }
     const baseMs = 800 / speed;
     const id = setTimeout(() => setIdx((v) => Math.min(events.length - 1, v + 1)), baseMs);
     return () => clearTimeout(id);
-  }, [playing, idx, events.length, speed, open]);
+  }, [playing, idx, events.length, speed, open, fullscreen]);
+
+  useEffect(() => {
+    if (!fullscreen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFullscreen(false);
+      else if (e.key === ' ') { e.preventDefault(); setPlaying((v) => !v); }
+      else if (e.key === 'ArrowRight') setIdx((v) => Math.min(events.length - 1, v + 1));
+      else if (e.key === 'ArrowLeft') setIdx((v) => Math.max(0, v - 1));
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [fullscreen, events.length]);
 
   if (events.length === 0) return null;
   const tStart = new Date(events[0].timestamp).getTime();
@@ -290,114 +304,197 @@ function ReplaySection({
   const elapsed = new Date(current.timestamp).getTime() - tStart;
   const visible = events.slice(0, idx + 1);
 
-  return (
-    <section className="rounded-lg bg-slate-900/40 border border-slate-800">
-      <header className="px-4 py-2.5 border-b border-slate-800 flex items-center justify-between">
-        <h3 className="text-xs uppercase tracking-wider text-slate-400">▶ {t('sec.replay')}</h3>
-        <button
-          onClick={() => { setOpen((v) => !v); if (!open) { setIdx(0); setPlaying(false); } }}
-          className="text-[11px] px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
-        >
-          {open ? t('misc.collapse') : `${t('misc.open_replay')} (${events.length})`}
-        </button>
-      </header>
-      {open && (
-        <div className="px-4 py-3 space-y-3">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setPlaying((v) => !v)}
-              className="px-3 py-1 rounded bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium"
-            >
-              {playing ? '⏸ Pause' : '▶ Play'}
-            </button>
-            <button
-              onClick={() => { setIdx(0); setPlaying(false); }}
-              className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs"
-            >⏮</button>
-            <button
-              onClick={() => setIdx((v) => Math.max(0, v - 1))}
-              className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs"
-            >◀</button>
-            <button
-              onClick={() => setIdx((v) => Math.min(events.length - 1, v + 1))}
-              className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs"
-            >▶</button>
-            <select
-              value={speed}
-              onChange={(e) => setSpeed(Number(e.target.value))}
-              className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300 text-xs"
-            >
-              <option value={0.5}>0.5×</option>
-              <option value={1}>1×</option>
-              <option value={2}>2×</option>
-              <option value={4}>4×</option>
-              <option value={8}>8×</option>
-            </select>
-            <span className="ml-auto text-[11px] text-slate-500 tabular-nums">
-              {idx + 1} / {events.length} · +{(elapsed / 1000).toFixed(0)}s
-            </span>
-          </div>
+  const controls = (
+    <div className="flex items-center gap-2 flex-wrap">
+      <button
+        onClick={() => setPlaying((v) => !v)}
+        className="px-3 py-1 rounded bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium"
+      >
+        {playing ? '⏸ Pause' : '▶ Play'}
+      </button>
+      <button
+        onClick={() => { setIdx(0); setPlaying(false); }}
+        className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs"
+      >⏮</button>
+      <button
+        onClick={() => setIdx((v) => Math.max(0, v - 1))}
+        className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs"
+      >◀</button>
+      <button
+        onClick={() => setIdx((v) => Math.min(events.length - 1, v + 1))}
+        className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs"
+      >▶</button>
+      <select
+        value={speed}
+        onChange={(e) => setSpeed(Number(e.target.value))}
+        className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300 text-xs"
+      >
+        <option value={0.5}>0.5×</option>
+        <option value={1}>1×</option>
+        <option value={2}>2×</option>
+        <option value={4}>4×</option>
+        <option value={8}>8×</option>
+      </select>
+      <span className="ml-auto text-[11px] text-slate-500 tabular-nums">
+        {idx + 1} / {events.length} · +{(elapsed / 1000).toFixed(0)}s
+      </span>
+      <button
+        onClick={() => setFullscreen((v) => !v)}
+        className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs"
+        title={fullscreen ? 'Exit fullscreen (Esc)' : 'Fullscreen'}
+      >{fullscreen ? '⤓' : '⛶'}</button>
+    </div>
+  );
 
-          <input
-            type="range"
-            min={0}
-            max={events.length - 1}
-            value={idx}
-            onChange={(e) => { setIdx(Number(e.target.value)); setPlaying(false); }}
-            className="w-full accent-cyan-400"
-          />
-          <div className="relative h-1 bg-slate-800 rounded">
+  const slider = (
+    <>
+      <input
+        type="range"
+        min={0}
+        max={events.length - 1}
+        value={idx}
+        onChange={(e) => { setIdx(Number(e.target.value)); setPlaying(false); }}
+        className="w-full accent-cyan-400"
+      />
+      <div className="relative h-1 bg-slate-800 rounded">
+        <div
+          className="absolute inset-y-0 left-0 bg-cyan-500/40 rounded"
+          style={{ width: `${(elapsed / totalMs) * 100}%` }}
+        />
+        {events.map((ev, i) => {
+          const offset = ((new Date(ev.timestamp).getTime() - tStart) / totalMs) * 100;
+          const isPrompt = ev.kind === 'prompt';
+          return (
             <div
-              className="absolute inset-y-0 left-0 bg-cyan-500/40 rounded"
-              style={{ width: `${(elapsed / totalMs) * 100}%` }}
+              key={i}
+              className={`absolute top-1/2 -translate-y-1/2 w-1 h-3 rounded-sm ${
+                isPrompt ? 'bg-cyan-400' : 'bg-emerald-400'
+              } ${i === idx ? 'ring-2 ring-white' : ''} ${i <= idx ? '' : 'opacity-30'}`}
+              style={{ left: `${offset}%` }}
+              title={`${ev.kind}: ${ev.label}`}
             />
-            {events.map((ev, i) => {
-              const offset = ((new Date(ev.timestamp).getTime() - tStart) / totalMs) * 100;
-              const isPrompt = ev.kind === 'prompt';
-              return (
-                <div
-                  key={i}
-                  className={`absolute top-1/2 -translate-y-1/2 w-1 h-3 rounded-sm ${
-                    isPrompt ? 'bg-cyan-400' : 'bg-emerald-400'
-                  } ${i === idx ? 'ring-2 ring-white' : ''} opacity-${i <= idx ? '100' : '30'}`}
-                  style={{ left: `${offset}%` }}
-                  title={`${ev.kind}: ${ev.label}`}
-                />
-              );
-            })}
-          </div>
+          );
+        })}
+      </div>
+    </>
+  );
 
-          <div className="max-h-72 overflow-auto rounded bg-slate-950/60 border border-slate-800 p-2 space-y-1.5">
-            {visible.map((ev, i) => {
-              const isCurrent = i === idx;
-              const isPrompt = ev.kind === 'prompt';
-              return (
-                <div
-                  key={i}
-                  className={`text-xs px-2 py-1.5 rounded border-l-2 transition-all ${
-                    isPrompt
-                      ? 'border-cyan-400 bg-cyan-500/5'
-                      : 'border-emerald-400 bg-emerald-500/5'
-                  } ${isCurrent ? 'ring-1 ring-slate-600 scale-[1.01]' : 'opacity-70'}`}
-                >
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className={`text-[10px] font-semibold uppercase ${isPrompt ? 'text-cyan-400' : 'text-emerald-400'}`}>
-                      {isPrompt ? '💬 prompt' : '🔧 tool'}
-                    </span>
-                    <span className="text-[10px] text-slate-500 tabular-nums">
-                      +{((new Date(ev.timestamp).getTime() - tStart) / 1000).toFixed(0)}s
-                    </span>
-                  </div>
-                  <div className={`${isPrompt ? 'text-slate-200' : 'text-slate-300 font-mono'} ${isCurrent ? '' : 'truncate'}`}>
-                    {ev.label}
-                  </div>
-                </div>
-              );
-            })}
+  const isCurrentPrompt = current.kind === 'prompt';
+  const preview = (
+    <div className={`rounded border ${
+      isCurrentPrompt
+        ? 'border-cyan-500/40 bg-cyan-500/5'
+        : 'border-emerald-500/40 bg-emerald-500/5'
+    } p-3 ${fullscreen ? 'min-h-[180px]' : 'max-h-44'} overflow-auto`}>
+      <div className="flex items-center gap-2 mb-2 text-[11px]">
+        <span className={`font-semibold uppercase tracking-wider ${
+          isCurrentPrompt ? 'text-cyan-300' : 'text-emerald-300'
+        }`}>
+          {isCurrentPrompt ? '💬 prompt' : '🔧 tool call'}
+        </span>
+        <span className="text-slate-500 tabular-nums">+{(elapsed / 1000).toFixed(1)}s</span>
+        <span className="text-slate-500">·</span>
+        <span className="text-slate-500">{new Date(current.timestamp).toLocaleString()}</span>
+      </div>
+      <div className={`${
+        isCurrentPrompt ? 'text-slate-100 whitespace-pre-wrap break-words' : 'text-slate-200 font-mono'
+      } ${fullscreen ? 'text-sm leading-relaxed' : 'text-xs'}`}>
+        {current.full || current.label}
+      </div>
+    </div>
+  );
+
+  const eventList = (
+    <div className={`overflow-auto rounded bg-slate-950/60 border border-slate-800 p-2 space-y-1.5 ${
+      fullscreen ? 'flex-1 min-h-0' : 'max-h-72'
+    }`}>
+      {visible.map((ev, i) => {
+        const isCurrent = i === idx;
+        const isPrompt = ev.kind === 'prompt';
+        return (
+          <button
+            key={i}
+            onClick={() => { setIdx(i); setPlaying(false); }}
+            className={`w-full text-left text-xs px-2 py-1.5 rounded border-l-2 transition-all ${
+              isPrompt
+                ? 'border-cyan-400 bg-cyan-500/5 hover:bg-cyan-500/10'
+                : 'border-emerald-400 bg-emerald-500/5 hover:bg-emerald-500/10'
+            } ${isCurrent ? 'ring-1 ring-slate-600' : 'opacity-70 hover:opacity-100'}`}
+          >
+            <div className="flex items-center gap-2 mb-0.5">
+              <span className={`text-[10px] font-semibold uppercase ${isPrompt ? 'text-cyan-400' : 'text-emerald-400'}`}>
+                {isPrompt ? '💬 prompt' : '🔧 tool'}
+              </span>
+              <span className="text-[10px] text-slate-500 tabular-nums">
+                +{((new Date(ev.timestamp).getTime() - tStart) / 1000).toFixed(0)}s
+              </span>
+            </div>
+            <div className={`${isPrompt ? 'text-slate-200' : 'text-slate-300 font-mono'} truncate`}>
+              {ev.label}
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const inline = open && !fullscreen && (
+    <div className="px-4 py-3 space-y-3">
+      {controls}
+      {slider}
+      {preview}
+      {eventList}
+    </div>
+  );
+
+  const fullscreenOverlay = fullscreen && (
+    <div className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-sm flex flex-col">
+      <header className="px-6 py-3 border-b border-slate-800 flex items-center justify-between">
+        <h2 className="text-sm uppercase tracking-wider text-slate-300">▶ {t('sec.replay')} · {t('misc.fullscreen')}</h2>
+        <button
+          onClick={() => setFullscreen(false)}
+          className="text-[11px] px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
+        >Esc · {t('misc.collapse')}</button>
+      </header>
+      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4 p-6">
+        <div className="flex flex-col gap-3 min-h-0">
+          {controls}
+          {slider}
+          <div className="flex-1 min-h-0 overflow-auto">
+            {preview}
           </div>
         </div>
-      )}
-    </section>
+        <div className="flex flex-col gap-2 min-h-0">
+          <div className="text-[10px] uppercase tracking-wider text-slate-500">events</div>
+          {eventList}
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      <section className="rounded-lg bg-slate-900/40 border border-slate-800">
+        <header className="px-4 py-2.5 border-b border-slate-800 flex items-center justify-between">
+          <h3 className="text-xs uppercase tracking-wider text-slate-400">▶ {t('sec.replay')}</h3>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => { setFullscreen(true); setIdx(0); setPlaying(false); }}
+              className="text-[11px] px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
+              title={t('misc.fullscreen')}
+            >⛶ {t('misc.fullscreen')}</button>
+            <button
+              onClick={() => { setOpen((v) => !v); if (!open) { setIdx(0); setPlaying(false); } }}
+              className="text-[11px] px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
+            >
+              {open ? t('misc.collapse') : `${t('misc.open_replay')} (${events.length})`}
+            </button>
+          </div>
+        </header>
+        {inline}
+      </section>
+      {fullscreenOverlay}
+    </>
   );
 }
 
