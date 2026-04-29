@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import './styles.css';
 import { fetchSessions, fetchDetail, connectWs, fetchLabels, setLabel as apiSetLabel, type LabelMap } from './api';
 import { toast } from './toast';
@@ -109,6 +109,23 @@ export default function App() {
   const selectSession = (id: string | null) => navigate({ selected: id, view: id ? 'session' : view });
 
   const activeCount = sessions.filter(s => s.status === 'active').length;
+
+  // Prev/next session navigation, sorted by last_event_at desc (matches default list order).
+  const sortedSessions = useMemo(() => {
+    return [...sessions].sort((a, b) => {
+      const ta = a.last_event_at ? new Date(a.last_event_at).getTime() : 0;
+      const tb = b.last_event_at ? new Date(b.last_event_at).getTime() : 0;
+      return tb - ta;
+    });
+  }, [sessions]);
+  const sessionPos = useMemo(() => {
+    if (!selected || sortedSessions.length === 0) return null;
+    const idx = sortedSessions.findIndex(s => s.id === selected);
+    if (idx < 0) return null;
+    return { idx, total: sortedSessions.length };
+  }, [selected, sortedSessions]);
+  const prevSession = sessionPos && sessionPos.idx > 0 ? sortedSessions[sessionPos.idx - 1].id : null;
+  const nextSession = sessionPos && sessionPos.idx < sessionPos.total - 1 ? sortedSessions[sessionPos.idx + 1].id : null;
 
   // Build breadcrumbs from current state.
   const crumbs: { label: string; onClick?: () => void }[] = [
@@ -248,6 +265,9 @@ export default function App() {
               }}
               label={selected ? labels[selected] : undefined}
               onSetLabel={selected ? (lbl) => updateLabel(selected, lbl) : undefined}
+              onPrev={prevSession ? () => selectSession(prevSession) : undefined}
+              onNext={nextSession ? () => selectSession(nextSession) : undefined}
+              position={sessionPos ? { index: sessionPos.idx + 1, total: sessionPos.total } : undefined}
             />
           )}
         </div>

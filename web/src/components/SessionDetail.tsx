@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useT } from '../i18n';
 import { SessionDetailSkeleton } from './Skeleton';
 
@@ -43,6 +43,9 @@ type Props = {
   onOpenSkill?: (name: string) => void;
   label?: { starred: boolean; tags: string[] };
   onSetLabel?: (label: { starred: boolean; tags: string[] }) => void;
+  onPrev?: () => void;
+  onNext?: () => void;
+  position?: { index: number; total: number };
 };
 
 function timeAgo(iso?: string | null): string {
@@ -156,7 +159,7 @@ function PromptRow({
   );
 }
 
-export function SessionDetail({ meta, detail, onOpenSkill, label, onSetLabel }: Props) {
+export function SessionDetail({ meta, detail, onOpenSkill, label, onSetLabel, onPrev, onNext, position }: Props) {
   const { t, lang } = useT();
   const tools = useMemo(() => {
     if (!detail?.tools_used) return [];
@@ -164,6 +167,25 @@ export function SessionDetail({ meta, detail, onOpenSkill, label, onSetLabel }: 
   }, [detail]);
   const toolsTotal = tools.reduce((acc, [, v]) => acc + v, 0);
   const toolsMax = tools[0]?.[1] ?? 0;
+
+  // Keyboard shortcuts: [ = prev, ] = next. Skip when typing in input/textarea.
+  useEffect(() => {
+    if (!onPrev && !onNext) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const tgt = e.target as HTMLElement | null;
+      if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return;
+      if (e.key === '[' && onPrev) {
+        e.preventDefault();
+        onPrev();
+      } else if (e.key === ']' && onNext) {
+        e.preventDefault();
+        onNext();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onPrev, onNext]);
 
   if (!meta) {
     return (
@@ -197,6 +219,27 @@ export function SessionDetail({ meta, detail, onOpenSkill, label, onSetLabel }: 
               <span className="text-[11px] uppercase tracking-wider text-slate-500">{meta.agent}</span>
               {meta.pid && (
                 <span className="text-[11px] text-slate-500 font-mono">pid {meta.pid}</span>
+              )}
+              {(onPrev || onNext) && (
+                <span className="ml-1 inline-flex items-center gap-0.5 text-[11px] text-slate-400">
+                  <button
+                    onClick={onPrev}
+                    disabled={!onPrev}
+                    title="Previous session ( [ )"
+                    className={`px-1.5 py-0.5 rounded ${onPrev ? 'hover:bg-slate-800 hover:text-slate-100' : 'opacity-30 cursor-not-allowed'}`}
+                  >‹</button>
+                  {position && (
+                    <span className="text-[10px] text-slate-500 font-mono px-0.5 select-none">
+                      {position.index}/{position.total}
+                    </span>
+                  )}
+                  <button
+                    onClick={onNext}
+                    disabled={!onNext}
+                    title="Next session ( ] )"
+                    className={`px-1.5 py-0.5 rounded ${onNext ? 'hover:bg-slate-800 hover:text-slate-100' : 'opacity-30 cursor-not-allowed'}`}
+                  >›</button>
+                </span>
               )}
               {onSetLabel && (
                 <button
