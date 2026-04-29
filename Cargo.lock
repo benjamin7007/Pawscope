@@ -1343,6 +1343,7 @@ version = "0.7.0"
 dependencies = [
  "anyhow",
  "axum",
+ "chrono",
  "clap",
  "open",
  "pawscope-claude",
@@ -1350,6 +1351,9 @@ dependencies = [
  "pawscope-copilot",
  "pawscope-core",
  "pawscope-server",
+ "rusqlite",
+ "serde_json",
+ "tempfile",
  "tokio",
  "tracing",
  "tracing-subscriber",
