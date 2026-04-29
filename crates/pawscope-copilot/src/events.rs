@@ -102,6 +102,25 @@ pub fn parse_incremental(path: &Path, state: &mut ParseState) -> anyhow::Result<
                     state.model = Some(m.to_string());
                 }
             }
+            "session.shutdown" => {
+                // On shutdown Copilot writes a final tally per-model under
+                // data.modelMetrics.<model>.usage.{inputTokens,outputTokens}.
+                // Sum across models so cross-model sessions are correct.
+                if let Some(metrics) = ev.data.get("modelMetrics").and_then(|v| v.as_object()) {
+                    let (mut tin, mut tout) = (0u64, 0u64);
+                    for (_model, entry) in metrics {
+                        let usage = entry.get("usage");
+                        if let Some(u) = usage {
+                            tin += u.get("inputTokens").and_then(|v| v.as_u64()).unwrap_or(0);
+                            tout += u.get("outputTokens").and_then(|v| v.as_u64()).unwrap_or(0);
+                        }
+                    }
+                    if tin > 0 || tout > 0 {
+                        state.detail.tokens_in = tin;
+                        state.detail.tokens_out = tout;
+                    }
+                }
+            }
             _ => {}
         }
     }
@@ -151,5 +170,21 @@ mod tests {
         let mut s = ParseState::default();
         parse_incremental(&p, &mut s).unwrap();
         assert_eq!(s.detail.user_messages, 2);
+    }
+
+    #[test]
+    fn extracts_tokens_from_session_shutdown() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("events.jsonl");
+        let mut f = std::fs::File::create(&p).unwrap();
+        writeln!(
+            f,
+            r#"{{"type":"session.shutdown","data":{{"modelMetrics":{{"gpt-5":{{"usage":{{"inputTokens":1000,"outputTokens":200}}}},"claude-opus":{{"usage":{{"inputTokens":500,"outputTokens":100}}}}}}}}}}"#
+        )
+        .unwrap();
+        let mut s = ParseState::default();
+        parse_incremental(&p, &mut s).unwrap();
+        assert_eq!(s.detail.tokens_in, 1500);
+        assert_eq!(s.detail.tokens_out, 300);
     }
 }
