@@ -1,4 +1,4 @@
-use agent_lens_core::AgentAdapter;
+use pawscope_core::AgentAdapter;
 use axum::{Router, routing::{get, post}};
 use std::sync::Arc;
 use tokio::sync::broadcast;
@@ -15,7 +15,7 @@ pub use multi::MultiAdapter;
 #[derive(Clone)]
 pub struct AppState {
     pub adapter: Arc<dyn AgentAdapter>,
-    pub events: broadcast::Sender<agent_lens_core::SessionEvent>,
+    pub events: broadcast::Sender<pawscope_core::SessionEvent>,
 }
 
 pub fn build_app(adapter: Arc<dyn AgentAdapter>) -> (Router, AppState) {
@@ -59,7 +59,7 @@ pub fn spawn_watcher(state: AppState) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use agent_lens_core::*;
+    use pawscope_core::*;
     use async_trait::async_trait;
     use std::sync::Arc;
     use tokio::sync::mpsc;

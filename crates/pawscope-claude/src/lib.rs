@@ -8,7 +8,7 @@
 //! Active detection: Claude Code writes no PID lock; we mark a session "active" when
 //! its file mtime is within the last 5 minutes.
 
-use agent_lens_core::{
+use pawscope_core::{
     AgentAdapter, AgentKind, CoreError, Result, SessionDetail, SessionEvent, SessionMeta,
     SessionStatus,
 };
@@ -133,7 +133,7 @@ impl ClaudeAdapter {
                         .and_then(|t| t.elapsed().ok())
                         .map(|d| d.as_secs() < ACTIVE_WINDOW_SECS as u64)
                         .unwrap_or(false);
-                    st.detail.subagents.push(agent_lens_core::SubagentSummary {
+                    st.detail.subagents.push(pawscope_core::SubagentSummary {
                         id: stem,
                         turns,
                         tool_calls,
@@ -274,7 +274,7 @@ fn parse_incremental(path: &Path, st: &mut ParseState) {
                 }
                 if let Some(id) = prompt_id {
                     if !st.detail.prompts.iter().any(|p| p.id == id) {
-                        st.detail.prompts.push(agent_lens_core::PromptSummary {
+                        st.detail.prompts.push(pawscope_core::PromptSummary {
                             id,
                             timestamp: st.last_event_at,
                             snippet,

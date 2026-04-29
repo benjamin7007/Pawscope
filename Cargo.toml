@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/agent-lens-core", "crates/agent-lens-copilot", "crates/agent-lens-claude", "crates/agent-lens-codex", "crates/agent-lens-server"]
+members = ["crates/pawscope-core", "crates/pawscope-copilot", "crates/pawscope-claude", "crates/pawscope-codex", "crates/pawscope-server"]
 
 [workspace.package]
 version = "0.1.0"
@@ -19,21 +19,21 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [package]
-name = "agent-lens"
+name = "pawscope"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [[bin]]
-name = "agent-lens"
+name = "pawscope"
 path = "src/main.rs"
 
 [dependencies]
-agent-lens-core = { path = "crates/agent-lens-core" }
-agent-lens-copilot = { path = "crates/agent-lens-copilot" }
-agent-lens-claude = { path = "crates/agent-lens-claude" }
-agent-lens-codex = { path = "crates/agent-lens-codex" }
-agent-lens-server = { path = "crates/agent-lens-server" }
+pawscope-core = { path = "crates/pawscope-core" }
+pawscope-copilot = { path = "crates/pawscope-copilot" }
+pawscope-claude = { path = "crates/pawscope-claude" }
+pawscope-codex = { path = "crates/pawscope-codex" }
+pawscope-server = { path = "crates/pawscope-server" }
 axum = { version = "0.8", features = ["ws"] }
 clap = { version = "4", features = ["derive"] }
 tokio.workspace = true

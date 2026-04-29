@@ -20,7 +20,7 @@
 When you're juggling several `copilot`, `claude`, or `codex` sessions in
 different terminals, you can't see at a glance which skills are loaded, which
 tools have run, how many turns deep each conversation is, or which sessions are
-still alive. Agent Lens reads the on-disk state each CLI already produces
+still alive. Pawscope reads the on-disk state each CLI already produces
 (`~/.copilot/session-state/`) and renders it on a single panel that updates in
 real time.
 
@@ -28,7 +28,7 @@ real time.
 
 ```bash
 cargo install --path .       # or: cargo build --release
-agent-lens serve             # opens http://127.0.0.1:7777 in your browser
+pawscope serve             # opens http://127.0.0.1:7777 in your browser
 ```
 
 Flags:
@@ -61,9 +61,9 @@ Flags:
                                (single binary)
 ```
 
-- **Adapter trait** — `AgentAdapter` in `agent-lens-core` makes V2 (Claude Code,
+- **Adapter trait** — `AgentAdapter` in `pawscope-core` makes V2 (Claude Code,
   Codex) a pure addition: implement the trait, register the adapter.
-- **No daemon** — `agent-lens serve` is a regular CLI process; close the
+- **No daemon** — `pawscope serve` is a regular CLI process; close the
   terminal and it's gone.
 - **Local only** — binds `127.0.0.1` by default, no auth token, no telemetry.
 
@@ -78,13 +78,13 @@ Flags:
 
 ## Architecture
 
-Cargo workspace with three library crates plus the `agent-lens` binary:
+Cargo workspace with three library crates plus the `pawscope` binary:
 
 ```
 crates/
-  agent-lens-core/      # Adapter trait, shared types, errors
-  agent-lens-copilot/   # V1 backend: Copilot CLI session-state reader
-  agent-lens-server/    # axum REST + WebSocket + embedded SPA
+  pawscope-core/      # Adapter trait, shared types, errors
+  pawscope-copilot/   # V1 backend: Copilot CLI session-state reader
+  pawscope-server/    # axum REST + WebSocket + embedded SPA
 src/main.rs             # CLI entrypoint
 web/                    # React 19 + Vite + Tailwind 4 dashboard
 e2e/                    # Playwright smoke tests
@@ -94,4 +94,4 @@ Test counts: 12 Rust unit/integration tests + 2 Playwright e2e tests.
 
 ## License
 
-[MIT](./LICENSE) © 2026 Agent Lens contributors
+[MIT](./LICENSE) © 2026 Pawscope contributors

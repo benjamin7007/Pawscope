@@ -3,7 +3,7 @@ use clap::{Parser, Subcommand};
 use std::sync::Arc;
 
 #[derive(Parser)]
-#[command(name = "agent-lens", version)]
+#[command(name = "pawscope", version)]
 struct Cli {
     #[command(subcommand)]
     cmd: Cmd,
@@ -25,24 +25,24 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.cmd {
         Cmd::Serve { bind, no_open } => {
-            let mut adapters: Vec<Arc<dyn agent_lens_core::AgentAdapter>> = Vec::new();
-            match agent_lens_copilot::CopilotAdapter::new() {
+            let mut adapters: Vec<Arc<dyn pawscope_core::AgentAdapter>> = Vec::new();
+            match pawscope_copilot::CopilotAdapter::new() {
                 Ok(a) => adapters.push(Arc::new(a)),
                 Err(e) => tracing::warn!("copilot adapter disabled: {e}"),
             }
-            match agent_lens_claude::ClaudeAdapter::new() {
+            match pawscope_claude::ClaudeAdapter::new() {
                 Ok(a) => adapters.push(Arc::new(a)),
                 Err(e) => tracing::warn!("claude adapter disabled: {e}"),
             }
-            match agent_lens_codex::CodexAdapter::new() {
+            match pawscope_codex::CodexAdapter::new() {
                 Ok(a) => adapters.push(Arc::new(a)),
                 Err(e) => tracing::warn!("codex adapter disabled: {e}"),
             }
             tracing::info!("active adapters: {}", adapters.len());
-            let adapter: Arc<dyn agent_lens_core::AgentAdapter> =
-                Arc::new(agent_lens_server::MultiAdapter::new(adapters));
-            let (router, state) = agent_lens_server::build_app(adapter);
-            agent_lens_server::spawn_watcher(state);
+            let adapter: Arc<dyn pawscope_core::AgentAdapter> =
+                Arc::new(pawscope_server::MultiAdapter::new(adapters));
+            let (router, state) = pawscope_server::build_app(adapter);
+            pawscope_server::spawn_watcher(state);
             let listener = tokio::net::TcpListener::bind(&bind).await?;
             tracing::info!("listening on http://{bind}");
             if !no_open {

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 export type Lang = 'en' | 'zh';
 
-const STORAGE_KEY = 'agent-lens.lang';
+const STORAGE_KEY = 'pawscope.lang';
 const DEFAULT_LANG: Lang =
   typeof navigator !== 'undefined' && navigator.language?.toLowerCase().startsWith('zh') ? 'zh' : 'en';
 

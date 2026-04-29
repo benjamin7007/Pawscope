@@ -4,7 +4,7 @@ import { spawn, ChildProcess } from 'child_process';
 let proc: ChildProcess;
 
 test.beforeAll(async () => {
-  proc = spawn('../target/release/agent-lens', ['serve', '--no-open'], {
+  proc = spawn('../target/release/pawscope', ['serve', '--no-open'], {
     env: { ...process.env, COPILOT_STATE_DIR: '../tests/fixtures/copilot' },
     stdio: 'pipe'
   });

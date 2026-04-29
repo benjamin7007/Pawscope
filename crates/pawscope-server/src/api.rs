@@ -1,5 +1,5 @@
 use crate::AppState;
-use agent_lens_core::SessionStatus;
+use pawscope_core::SessionStatus;
 use axum::{
     Json,
     extract::{Path, State},
@@ -253,7 +253,7 @@ pub async fn realm_detail(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     };
 
-    let realm_key = |sess: &agent_lens_core::SessionMeta| -> String {
+    let realm_key = |sess: &pawscope_core::SessionMeta| -> String {
         sess.repo.clone().unwrap_or_else(|| {
             sess.cwd
                 .file_name()
@@ -294,7 +294,7 @@ pub async fn realm_detail(
             (id, detail, activity)
         }));
     }
-    let mut detail_map: BTreeMap<String, agent_lens_core::SessionDetail> = BTreeMap::new();
+    let mut detail_map: BTreeMap<String, pawscope_core::SessionDetail> = BTreeMap::new();
     let mut activity_map: BTreeMap<String, Vec<u64>> = BTreeMap::new();
     for h in handles {
         if let Ok((sid, Ok(d), act)) = h.await {

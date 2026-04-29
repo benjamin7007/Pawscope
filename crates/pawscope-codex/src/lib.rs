@@ -1,4 +1,4 @@
-use agent_lens_core::{
+use pawscope_core::{
     AgentAdapter, AgentKind, CoreError, Result, SessionDetail, SessionEvent, SessionMeta,
     SessionStatus,
 };
@@ -183,7 +183,7 @@ impl AgentAdapter for CodexAdapter {
             let mut detail = SessionDetail::default();
             if !fum.trim().is_empty() {
                 let snippet: String = fum.chars().take(120).collect();
-                detail.prompts.push(agent_lens_core::PromptSummary {
+                detail.prompts.push(pawscope_core::PromptSummary {
                     id: "first".into(),
                     timestamp: Utc.timestamp_opt(created, 0).single(),
                     snippet,
