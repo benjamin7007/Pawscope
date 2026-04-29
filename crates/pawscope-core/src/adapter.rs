@@ -15,6 +15,14 @@ pub enum SessionEvent {
     Closed {
         session_id: String,
     },
+    /// Emitted when an adapter's per-session conversation log mutates.
+    /// Carries only the new version cursor so the wire payload stays
+    /// tiny; clients refetch `/api/sessions/:id/conversation` (optionally
+    /// with `?since_version=N` once delta support lands).
+    ConversationUpdated {
+        session_id: String,
+        version: u64,
+    },
 }
 
 #[async_trait]

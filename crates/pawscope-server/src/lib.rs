@@ -86,6 +86,7 @@ pub fn spawn_watcher(state: AppState) {
                 | pawscope_core::SessionEvent::Closed { session_id } => {
                     cache.invalidate(session_id).await;
                 }
+                pawscope_core::SessionEvent::ConversationUpdated { .. } => {}
                 pawscope_core::SessionEvent::SessionListChanged => {}
             }
             let _ = tx.send(ev);

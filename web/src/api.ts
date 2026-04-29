@@ -93,7 +93,8 @@ export async function revealSkill(path: string): Promise<void> {
 export type SessionEventMsg =
   | { kind: 'session_list_changed' }
   | { kind: 'detail_updated'; session_id: string; detail: unknown }
-  | { kind: 'closed'; session_id: string };
+  | { kind: 'closed'; session_id: string }
+  | { kind: 'conversation_updated'; session_id: string; version: number };
 
 export function subscribeEvents(onEvent: (ev: SessionEventMsg) => void): () => void {
   const es = new EventSource('/api/events');
