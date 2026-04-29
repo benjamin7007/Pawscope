@@ -1,0 +1,1919 @@
+{
+  "categories": [
+    {
+      "id": "writing",
+      "label_zh": "写作阅读",
+      "label_en": "Writing & Reading",
+      "description": "内容创作、文章写作、格式排版、翻译和阅读工具。",
+      "icon_hint": "BookOpen"
+    },
+    {
+      "id": "design",
+      "label_zh": "画图设计",
+      "label_en": "Design & Visuals",
+      "description": "设计工具、图表、图形、插图和视觉内容创建。",
+      "icon_hint": "PaintBrush"
+    },
+    {
+      "id": "video",
+      "label_zh": "视频制作",
+      "label_en": "Video & Media",
+      "description": "视频编辑、录制、转录和多媒体生产工具。",
+      "icon_hint": "Film"
+    },
+    {
+      "id": "development",
+      "label_zh": "软件开发",
+      "label_en": "Software Development",
+      "description": "代码模式、测试、安全、架构和语言特定工具。",
+      "icon_hint": "Code"
+    },
+    {
+      "id": "devops",
+      "label_zh": "运行运维",
+      "label_en": "Operations & DevOps",
+      "description": "部署、CI/CD、监控、基础设施和自动化工具。",
+      "icon_hint": "Cpu"
+    },
+    {
+      "id": "research",
+      "label_zh": "搜索研究",
+      "label_en": "Search & Research",
+      "description": "数据分析、网络研究、数据抓取和情报收集工具。",
+      "icon_hint": "Search"
+    },
+    {
+      "id": "platforms",
+      "label_zh": "平台工具",
+      "label_en": "Platform Integration",
+      "description": "Lark、GitHub、Jira等工作平台集成。",
+      "icon_hint": "Plug"
+    },
+    {
+      "id": "business",
+      "label_zh": "业务合规",
+      "label_en": "Business & Compliance",
+      "description": "CRM、计费、合规、监管和业务运营工具。",
+      "icon_hint": "Briefcase"
+    },
+    {
+      "id": "ai-methodology",
+      "label_zh": "AI助手方法论",
+      "label_en": "AI & Agent Methodology",
+      "description": "Agent模式、自主循环、团队协调和AI工作流。",
+      "icon_hint": "Brain"
+    },
+    {
+      "id": "tools",
+      "label_zh": "工具集成",
+      "label_en": "Tools & Utilities",
+      "description": "通用工具、CLI工具和杂项集成。",
+      "icon_hint": "Wrench"
+    },
+    {
+      "id": "distribution",
+      "label_zh": "内容分发",
+      "label_en": "Content Distribution",
+      "description": "发布到社交媒体和消息平台。",
+      "icon_hint": "Share2"
+    },
+    {
+      "id": "marketing",
+      "label_zh": "市场营销",
+      "label_en": "Marketing & SEO",
+      "description": "营销自动化、SEO和推广内容工具。",
+      "icon_hint": "Megaphone"
+    }
+  ],
+  "skills": [
+    {
+      "name": "agent-harness-construction",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "Design..."
+    },
+    {
+      "name": "agent-introspection-debugging",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "Structured..."
+    },
+    {
+      "name": "agent-reach",
+      "source": "agents",
+      "category": "research",
+      "language_tag": null,
+      "popularity": 9,
+      "popularity_reason": "Foundational workflow tool with universal applicability.",
+      "summary_zh": "Give..."
+    },
+    {
+      "name": "agent-sort",
+      "source": "claude",
+      "category": "ai-methodology",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Build..."
+    },
+    {
+      "name": "agentic-engineering",
+      "source": "claude",
+      "category": "ai-methodology",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Operate..."
+    },
+    {
+      "name": "ai-first-engineering",
+      "source": "claude",
+      "category": "ai-methodology",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Engineering..."
+    },
+    {
+      "name": "ai-regression-testing",
+      "source": "claude",
+      "category": "writing",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Regression..."
+    },
+    {
+      "name": "android-clean-architecture",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Technical tool with niche but active usage.",
+      "summary_zh": "Clean..."
+    },
+    {
+      "name": "api-connector-builder",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Technical tool with niche but active usage.",
+      "summary_zh": "Build..."
+    },
+    {
+      "name": "api-design",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "REST..."
+    },
+    {
+      "name": "article-writing",
+      "source": "claude",
+      "category": "writing",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Write..."
+    },
+    {
+      "name": "automation-audit-ops",
+      "source": "claude",
+      "category": "devops",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Evidence-first..."
+    },
+    {
+      "name": "autonomous-loops",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Technical tool with niche but active usage.",
+      "summary_zh": "\"Patterns..."
+    },
+    {
+      "name": "backend-patterns",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "Backend..."
+    },
+    {
+      "name": "baoyu-article-illustrator",
+      "source": "agents",
+      "category": "writing",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Analyzes..."
+    },
+    {
+      "name": "baoyu-comic",
+      "source": "agents",
+      "category": "writing",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Knowledge..."
+    },
+    {
+      "name": "baoyu-compress-image",
+      "source": "agents",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "Compresses..."
+    },
+    {
+      "name": "baoyu-cover-image",
+      "source": "agents",
+      "category": "writing",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Generates..."
+    },
+    {
+      "name": "baoyu-danger-gemini-web",
+      "source": "agents",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 3,
+      "popularity_reason": "Experimental/reverse-engineered; limited reliability.",
+      "summary_zh": "Generates..."
+    },
+    {
+      "name": "baoyu-danger-x-to-markdown",
+      "source": "agents",
+      "category": "writing",
+      "language_tag": null,
+      "popularity": 3,
+      "popularity_reason": "Experimental/reverse-engineered; limited reliability.",
+      "summary_zh": "Converts..."
+    },
+    {
+      "name": "baoyu-diagram",
+      "source": "agents",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 10,
+      "popularity_reason": "Universal design/content tool with broad applicability.",
+      "summary_zh": "Create..."
+    },
+    {
+      "name": "baoyu-format-markdown",
+      "source": "agents",
+      "category": "writing",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Formats..."
+    },
+    {
+      "name": "baoyu-image-cards",
+      "source": "agents",
+      "category": "writing",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Generates..."
+    },
+    {
+      "name": "baoyu-imagine",
+      "source": "agents",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "AI..."
+    },
+    {
+      "name": "baoyu-infographic",
+      "source": "agents",
+      "category": "writing",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Generate..."
+    },
+    {
+      "name": "baoyu-markdown-to-html",
+      "source": "agents",
+      "category": "writing",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Converts..."
+    },
+    {
+      "name": "baoyu-post-to-wechat",
+      "source": "agents",
+      "category": "writing",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Posts..."
+    },
+    {
+      "name": "baoyu-post-to-weibo",
+      "source": "agents",
+      "category": "writing",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Posts..."
+    },
+    {
+      "name": "baoyu-post-to-x",
+      "source": "agents",
+      "category": "writing",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Posts..."
+    },
+    {
+      "name": "baoyu-slide-deck",
+      "source": "agents",
+      "category": "writing",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Generates..."
+    },
+    {
+      "name": "baoyu-translate",
+      "source": "agents",
+      "category": "writing",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Translates..."
+    },
+    {
+      "name": "baoyu-url-to-markdown",
+      "source": "agents",
+      "category": "writing",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Fetch..."
+    },
+    {
+      "name": "baoyu-youtube-transcript",
+      "source": "agents",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "Downloads..."
+    },
+    {
+      "name": "blueprint",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "Turn..."
+    },
+    {
+      "name": "brand-voice",
+      "source": "claude",
+      "category": "writing",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Build..."
+    },
+    {
+      "name": "carrier-relationship-management",
+      "source": "claude",
+      "category": "business",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Codified..."
+    },
+    {
+      "name": "claude-api",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "Anthropic..."
+    },
+    {
+      "name": "claude-devfleet",
+      "source": "claude",
+      "category": "ai-methodology",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Orchestrate..."
+    },
+    {
+      "name": "cli-anything",
+      "source": "agents",
+      "category": "tools",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "\"CLI-Anything:..."
+    },
+    {
+      "name": "clickhouse-io",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Technical tool with niche but active usage.",
+      "summary_zh": "ClickHouse..."
+    },
+    {
+      "name": "code-tour",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Technical tool with niche but active usage.",
+      "summary_zh": "Create..."
+    },
+    {
+      "name": "coding-standards",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Technical tool with niche but active usage.",
+      "summary_zh": "Baseline..."
+    },
+    {
+      "name": "compose-multiplatform-patterns",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "Language-specific patterns; widely useful for developers.",
+      "summary_zh": "Compose..."
+    },
+    {
+      "name": "configure-ecc",
+      "source": "claude",
+      "category": "tools",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Interactive..."
+    },
+    {
+      "name": "connections-optimizer",
+      "source": "claude",
+      "category": "research",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Reorganize..."
+    },
+    {
+      "name": "content-engine",
+      "source": "claude",
+      "category": "writing",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Create..."
+    },
+    {
+      "name": "content-hash-cache-pattern",
+      "source": "claude",
+      "category": "writing",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Cache..."
+    },
+    {
+      "name": "continuous-agent-loop",
+      "source": "claude",
+      "category": "ai-methodology",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Patterns..."
+    },
+    {
+      "name": "continuous-learning",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Technical tool with niche but active usage.",
+      "summary_zh": "Automatically..."
+    },
+    {
+      "name": "continuous-learning-v2",
+      "source": "claude",
+      "category": "devops",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Instinct-based..."
+    },
+    {
+      "name": "cost-aware-llm-pipeline",
+      "source": "claude",
+      "category": "devops",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Cost..."
+    },
+    {
+      "name": "council",
+      "source": "claude",
+      "category": "devops",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Convene..."
+    },
+    {
+      "name": "cpp-coding-standards",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Technical tool with niche but active usage.",
+      "summary_zh": "C++..."
+    },
+    {
+      "name": "cpp-testing",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "Use..."
+    },
+    {
+      "name": "crosspost",
+      "source": "claude",
+      "category": "writing",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Multi-platform..."
+    },
+    {
+      "name": "csharp-testing",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Technical tool with niche but active usage.",
+      "summary_zh": "C#..."
+    },
+    {
+      "name": "customer-billing-ops",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "Operate..."
+    },
+    {
+      "name": "customs-trade-compliance",
+      "source": "claude",
+      "category": "business",
+      "language_tag": null,
+      "popularity": 2,
+      "popularity_reason": "Very narrow scope; experimental or unclear value.",
+      "summary_zh": "Codified..."
+    },
+    {
+      "name": "dart-flutter-patterns",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "Production-ready..."
+    },
+    {
+      "name": "dashboard-builder",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "Build..."
+    },
+    {
+      "name": "data-scraper-agent",
+      "source": "claude",
+      "category": "research",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Build..."
+    },
+    {
+      "name": "database-migrations",
+      "source": "claude",
+      "category": "devops",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Database..."
+    },
+    {
+      "name": "deep-research",
+      "source": "claude",
+      "category": "research",
+      "language_tag": null,
+      "popularity": 8,
+      "popularity_reason": "High-value specialized tool in active use.",
+      "summary_zh": "Multi-source..."
+    },
+    {
+      "name": "defi-amm-security",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 2,
+      "popularity_reason": "Very narrow scope; experimental or unclear value.",
+      "summary_zh": "Security..."
+    },
+    {
+      "name": "deployment-patterns",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "Language-specific patterns; widely useful for developers.",
+      "summary_zh": "Deployment..."
+    },
+    {
+      "name": "django-patterns",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "Django..."
+    },
+    {
+      "name": "django-security",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "development best-practice tool; high professional value.",
+      "summary_zh": "Django..."
+    },
+    {
+      "name": "django-tdd",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "Django..."
+    },
+    {
+      "name": "django-verification",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "\"Verification..."
+    },
+    {
+      "name": "dmux-workflows",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Technical tool with niche but active usage.",
+      "summary_zh": "Multi-agent..."
+    },
+    {
+      "name": "docker-patterns",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "Language-specific patterns; widely useful for developers.",
+      "summary_zh": "Docker..."
+    },
+    {
+      "name": "dotnet-patterns",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "Language-specific patterns; widely useful for developers.",
+      "summary_zh": "Idiomatic..."
+    },
+    {
+      "name": "e2e-testing",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Technical tool with niche but active usage.",
+      "summary_zh": "Playwright..."
+    },
+    {
+      "name": "ecc-tools-cost-audit",
+      "source": "claude",
+      "category": "business",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Evidence-first..."
+    },
+    {
+      "name": "email-ops",
+      "source": "claude",
+      "category": "devops",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Evidence-first..."
+    },
+    {
+      "name": "energy-procurement",
+      "source": "claude",
+      "category": "business",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Codified..."
+    },
+    {
+      "name": "enterprise-agent-ops",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Technical tool with niche but active usage.",
+      "summary_zh": "Operate..."
+    },
+    {
+      "name": "eval-harness",
+      "source": "claude",
+      "category": "ai-methodology",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Formal..."
+    },
+    {
+      "name": "evm-token-decimals",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 2,
+      "popularity_reason": "Very narrow scope; experimental or unclear value.",
+      "summary_zh": "Prevent..."
+    },
+    {
+      "name": "exa-search",
+      "source": "claude",
+      "category": "research",
+      "language_tag": null,
+      "popularity": 8,
+      "popularity_reason": "High-value specialized tool in active use.",
+      "summary_zh": "Neural..."
+    },
+    {
+      "name": "fal-ai-media",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "Unified..."
+    },
+    {
+      "name": "finance-billing-ops",
+      "source": "claude",
+      "category": "devops",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Evidence-first..."
+    },
+    {
+      "name": "find-skills",
+      "source": "agents",
+      "category": "ai-methodology",
+      "language_tag": null,
+      "popularity": 10,
+      "popularity_reason": "Core infrastructure for discovering capabilities; foundational.",
+      "summary_zh": "Helps..."
+    },
+    {
+      "name": "foundation-models-on-device",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Technical tool with niche but active usage.",
+      "summary_zh": "Apple..."
+    },
+    {
+      "name": "frontend-design",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "Create..."
+    },
+    {
+      "name": "frontend-patterns",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "Language-specific patterns; widely useful for developers.",
+      "summary_zh": "Frontend..."
+    },
+    {
+      "name": "frontend-slides",
+      "source": "agents",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "Create..."
+    },
+    {
+      "name": "github-ops",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Technical tool with niche but active usage.",
+      "summary_zh": "GitHub..."
+    },
+    {
+      "name": "golang-patterns",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 8,
+      "popularity_reason": "Language-specific patterns; widely useful for developers.",
+      "summary_zh": "Idiomatic..."
+    },
+    {
+      "name": "golang-testing",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "design best-practice tool; high professional value.",
+      "summary_zh": "Go..."
+    },
+    {
+      "name": "google-workspace-ops",
+      "source": "claude",
+      "category": "devops",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Operate..."
+    },
+    {
+      "name": "healthcare-phi-compliance",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 2,
+      "popularity_reason": "Very narrow scope; experimental or unclear value.",
+      "summary_zh": "Protected..."
+    },
+    {
+      "name": "hipaa-compliance",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "HIPAA-specific..."
+    },
+    {
+      "name": "hookify-rules",
+      "source": "claude",
+      "category": "writing",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "This..."
+    },
+    {
+      "name": "huashu-nuwa",
+      "source": "agents",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "|..."
+    },
+    {
+      "name": "hv-analysis",
+      "source": "agents",
+      "category": "research",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "|..."
+    },
+    {
+      "name": "hyperframes",
+      "source": "agents",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "Create..."
+    },
+    {
+      "name": "hyperframes-cli",
+      "source": "agents",
+      "category": "devops",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "HyperFrames..."
+    },
+    {
+      "name": "inventory-demand-planning",
+      "source": "claude",
+      "category": "research",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Codified..."
+    },
+    {
+      "name": "investor-materials",
+      "source": "claude",
+      "category": "business",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Create..."
+    },
+    {
+      "name": "investor-outreach",
+      "source": "claude",
+      "category": "business",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Draft..."
+    },
+    {
+      "name": "iterative-retrieval",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Technical tool with niche but active usage.",
+      "summary_zh": "Pattern..."
+    },
+    {
+      "name": "java-coding-standards",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Technical tool with niche but active usage.",
+      "summary_zh": "\"Java..."
+    },
+    {
+      "name": "jira-integration",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Technical tool with niche but active usage.",
+      "summary_zh": "Use..."
+    },
+    {
+      "name": "jpa-patterns",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "JPA/Hibernate..."
+    },
+    {
+      "name": "khazix-writer",
+      "source": "agents",
+      "category": "writing",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "|..."
+    },
+    {
+      "name": "knowledge-ops",
+      "source": "claude",
+      "category": "devops",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Knowledge..."
+    },
+    {
+      "name": "kotlin-coroutines-flows",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Technical tool with niche but active usage.",
+      "summary_zh": "Kotlin..."
+    },
+    {
+      "name": "kotlin-exposed-patterns",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "Language-specific patterns; widely useful for developers.",
+      "summary_zh": "JetBrains..."
+    },
+    {
+      "name": "kotlin-ktor-patterns",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "Language-specific patterns; widely useful for developers.",
+      "summary_zh": "Ktor..."
+    },
+    {
+      "name": "kotlin-patterns",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "Language-specific patterns; widely useful for developers.",
+      "summary_zh": "Idiomatic..."
+    },
+    {
+      "name": "kotlin-testing",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "Kotlin..."
+    },
+    {
+      "name": "laravel-patterns",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "Language-specific patterns; widely useful for developers.",
+      "summary_zh": "Laravel..."
+    },
+    {
+      "name": "laravel-plugin-discovery",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "Discover..."
+    },
+    {
+      "name": "laravel-security",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "development best-practice tool; high professional value.",
+      "summary_zh": "Laravel..."
+    },
+    {
+      "name": "laravel-tdd",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "Test-driven..."
+    },
+    {
+      "name": "laravel-verification",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "\"Verification..."
+    },
+    {
+      "name": "lark-approval",
+      "source": "agents",
+      "category": "platforms",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Platform integration with steady adoption.",
+      "summary_zh": "\"飞书审批 API：审批实例、审批任务管理。\"..."
+    },
+    {
+      "name": "lark-attendance",
+      "source": "agents",
+      "category": "platforms",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Platform integration with steady adoption.",
+      "summary_zh": "\"飞书考勤打卡：查询自己的考勤打卡记录\"..."
+    },
+    {
+      "name": "lark-base",
+      "source": "agents",
+      "category": "platforms",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Platform integration with steady adoption.",
+      "summary_zh": "\"当需要用..."
+    },
+    {
+      "name": "lark-calendar",
+      "source": "agents",
+      "category": "platforms",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Platform integration with steady adoption.",
+      "summary_zh": "\"飞书日历（calendar）：提供日历与日程（会议）的全面..."
+    },
+    {
+      "name": "lark-contact",
+      "source": "agents",
+      "category": "platforms",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Platform integration with steady adoption.",
+      "summary_zh": "\"飞书通讯录：查询组织架构、人员信息和搜索员工。获取当前用户..."
+    },
+    {
+      "name": "lark-doc",
+      "source": "agents",
+      "category": "research",
+      "language_tag": null,
+      "popularity": 10,
+      "popularity_reason": "Universal design/content tool with broad applicability.",
+      "summary_zh": "\"飞书云文档：创建和编辑飞书文档。从..."
+    },
+    {
+      "name": "lark-drive",
+      "source": "agents",
+      "category": "platforms",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Platform integration with steady adoption.",
+      "summary_zh": "\"飞书云空间：管理云空间中的文件和文件夹。上传和下载文件、创..."
+    },
+    {
+      "name": "lark-event",
+      "source": "agents",
+      "category": "platforms",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Platform integration with steady adoption.",
+      "summary_zh": "\"飞书事件订阅：通过..."
+    },
+    {
+      "name": "lark-im",
+      "source": "agents",
+      "category": "platforms",
+      "language_tag": null,
+      "popularity": 10,
+      "popularity_reason": "Foundational workflow tool with universal applicability.",
+      "summary_zh": "\"飞书即时通讯：收发消息和管理群聊。发送和回复消息、搜索聊天..."
+    },
+    {
+      "name": "lark-mail",
+      "source": "agents",
+      "category": "research",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "\"飞书邮箱..."
+    },
+    {
+      "name": "lark-minutes",
+      "source": "agents",
+      "category": "platforms",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Platform integration with steady adoption.",
+      "summary_zh": "\"飞书妙记：妙记相关基本功能。1.查询妙记列表（按关键词/所..."
+    },
+    {
+      "name": "lark-okr",
+      "source": "agents",
+      "category": "platforms",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Platform integration with steady adoption.",
+      "summary_zh": "\"飞书..."
+    },
+    {
+      "name": "lark-openapi-explorer",
+      "source": "agents",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Technical tool with niche but active usage.",
+      "summary_zh": "\"飞书/Lark..."
+    },
+    {
+      "name": "lark-shared",
+      "source": "agents",
+      "category": "platforms",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Platform integration with steady adoption.",
+      "summary_zh": "\"飞书/Lark..."
+    },
+    {
+      "name": "lark-sheets",
+      "source": "agents",
+      "category": "research",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "\"飞书电子表格：创建和操作电子表格。创建表格并写入表头和数据..."
+    },
+    {
+      "name": "lark-skill-maker",
+      "source": "agents",
+      "category": "ai-methodology",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "\"创建..."
+    },
+    {
+      "name": "lark-slides",
+      "source": "agents",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "\"飞书幻灯片：以..."
+    },
+    {
+      "name": "lark-task",
+      "source": "agents",
+      "category": "platforms",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Platform integration with steady adoption.",
+      "summary_zh": "\"飞书任务：管理任务和清单。创建待办任务、查看和更新任务状态..."
+    },
+    {
+      "name": "lark-vc",
+      "source": "agents",
+      "category": "platforms",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Platform integration with steady adoption.",
+      "summary_zh": "\"飞书视频会议：查询会议记录、获取会议纪要产物（总结、待办、..."
+    },
+    {
+      "name": "lark-whiteboard",
+      "source": "agents",
+      "category": "platforms",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Platform integration with steady adoption.",
+      "summary_zh": "飞书画板：查询和编辑飞书云文档中的画板。支持导出画板为预览图..."
+    },
+    {
+      "name": "lark-whiteboard-cli",
+      "source": "agents",
+      "category": "platforms",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Platform integration with steady adoption.",
+      "summary_zh": "当用户要求或使用飞书画板绘制架构图、流程图、思维导图、时序图..."
+    },
+    {
+      "name": "lark-wiki",
+      "source": "agents",
+      "category": "platforms",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Platform integration with steady adoption.",
+      "summary_zh": "\"飞书知识库：管理知识空间、空间成员和文档节点。创建和查询知..."
+    },
+    {
+      "name": "lark-workflow-meeting-summary",
+      "source": "agents",
+      "category": "platforms",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Platform integration with steady adoption.",
+      "summary_zh": "\"会议纪要整理工作流：汇总指定时间范围内的会议纪要并生成结构..."
+    },
+    {
+      "name": "lark-workflow-standup-report",
+      "source": "agents",
+      "category": "platforms",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Platform integration with steady adoption.",
+      "summary_zh": "\"日程待办摘要：编排..."
+    },
+    {
+      "name": "lead-intelligence",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "AI-native..."
+    },
+    {
+      "name": "liquid-glass-design",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "iOS..."
+    },
+    {
+      "name": "llm-trading-agent-security",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 3,
+      "popularity_reason": "Specialized tool for specific use cases.",
+      "summary_zh": "Security..."
+    },
+    {
+      "name": "logistics-exception-management",
+      "source": "claude",
+      "category": "business",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Codified..."
+    },
+    {
+      "name": "manim-video",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "Build..."
+    },
+    {
+      "name": "market-research",
+      "source": "claude",
+      "category": "research",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Conduct..."
+    },
+    {
+      "name": "mcp-server-patterns",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "Language-specific patterns; widely useful for developers.",
+      "summary_zh": "Build..."
+    },
+    {
+      "name": "mempalace",
+      "source": "agents",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 3,
+      "popularity_reason": "Specialized tool for specific use cases.",
+      "summary_zh": "Persistent..."
+    },
+    {
+      "name": "messages-ops",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "Evidence-first..."
+    },
+    {
+      "name": "nanoclaw-repl",
+      "source": "claude",
+      "category": "tools",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Operate..."
+    },
+    {
+      "name": "nestjs-patterns",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "Language-specific patterns; widely useful for developers.",
+      "summary_zh": "NestJS..."
+    },
+    {
+      "name": "nodejs-keccak256",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Technical tool with niche but active usage.",
+      "summary_zh": "Prevent..."
+    },
+    {
+      "name": "nutrient-document-processing",
+      "source": "claude",
+      "category": "research",
+      "language_tag": null,
+      "popularity": 3,
+      "popularity_reason": "Specialized tool for specific use cases.",
+      "summary_zh": "Process,..."
+    },
+    {
+      "name": "perl-patterns",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "Language-specific patterns; widely useful for developers.",
+      "summary_zh": "Modern..."
+    },
+    {
+      "name": "perl-security",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "Comprehensive..."
+    },
+    {
+      "name": "perl-testing",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "Perl..."
+    },
+    {
+      "name": "plankton-code-quality",
+      "source": "claude",
+      "category": "writing",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "\"Write-time..."
+    },
+    {
+      "name": "playwright-cli",
+      "source": "agents",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Technical tool with niche but active usage.",
+      "summary_zh": "Browser..."
+    },
+    {
+      "name": "postgres-patterns",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "PostgreSQL..."
+    },
+    {
+      "name": "product-capability",
+      "source": "claude",
+      "category": "research",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Translate..."
+    },
+    {
+      "name": "production-scheduling",
+      "source": "claude",
+      "category": "research",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Codified..."
+    },
+    {
+      "name": "project-flow-ops",
+      "source": "claude",
+      "category": "devops",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Operate..."
+    },
+    {
+      "name": "prompt-optimizer",
+      "source": "claude",
+      "category": "writing",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Analyze..."
+    },
+    {
+      "name": "python-patterns",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 8,
+      "popularity_reason": "Language-specific patterns; widely useful for developers.",
+      "summary_zh": "Pythonic..."
+    },
+    {
+      "name": "python-testing",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "design best-practice tool; high professional value.",
+      "summary_zh": "Python..."
+    },
+    {
+      "name": "quality-nonconformance",
+      "source": "claude",
+      "category": "business",
+      "language_tag": null,
+      "popularity": 3,
+      "popularity_reason": "Specialized tool for specific use cases.",
+      "summary_zh": "Codified..."
+    },
+    {
+      "name": "ralphinho-rfc-pipeline",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Technical tool with niche but active usage.",
+      "summary_zh": "RFC-driven..."
+    },
+    {
+      "name": "regex-vs-llm-structured-text",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Technical tool with niche but active usage.",
+      "summary_zh": "Decision..."
+    },
+    {
+      "name": "remotion-video-creation",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "Best..."
+    },
+    {
+      "name": "research-ops",
+      "source": "claude",
+      "category": "devops",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Evidence-first..."
+    },
+    {
+      "name": "returns-reverse-logistics",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Technical tool with niche but active usage.",
+      "summary_zh": "Codified..."
+    },
+    {
+      "name": "rust-patterns",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 8,
+      "popularity_reason": "Language-specific patterns; widely useful for developers.",
+      "summary_zh": "Idiomatic..."
+    },
+    {
+      "name": "rust-testing",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "design best-practice tool; high professional value.",
+      "summary_zh": "Rust..."
+    },
+    {
+      "name": "search-first",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Technical tool with niche but active usage.",
+      "summary_zh": "Research-before-coding..."
+    },
+    {
+      "name": "security-bounty-hunter",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "development best-practice tool; high professional value.",
+      "summary_zh": "Hunt..."
+    },
+    {
+      "name": "security-review",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "development best-practice tool; high professional value.",
+      "summary_zh": "Use..."
+    },
+    {
+      "name": "security-scan",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "development best-practice tool; high professional value.",
+      "summary_zh": "Scan..."
+    },
+    {
+      "name": "seo",
+      "source": "claude",
+      "category": "marketing",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Audit,..."
+    },
+    {
+      "name": "social-graph-ranker",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "Weighted..."
+    },
+    {
+      "name": "springboot-patterns",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "Spring..."
+    },
+    {
+      "name": "springboot-security",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "development best-practice tool; high professional value.",
+      "summary_zh": "Spring..."
+    },
+    {
+      "name": "springboot-tdd",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "High-value specialized tool in active use.",
+      "summary_zh": "Test-driven..."
+    },
+    {
+      "name": "springboot-verification",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "\"Verification..."
+    },
+    {
+      "name": "strategic-compact",
+      "source": "claude",
+      "category": "business",
+      "language_tag": null,
+      "popularity": 3,
+      "popularity_reason": "Specialized tool for specific use cases.",
+      "summary_zh": "Suggests..."
+    },
+    {
+      "name": "swift-actor-persistence",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "Thread-safe..."
+    },
+    {
+      "name": "swift-concurrency-6-2",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Technical tool with niche but active usage.",
+      "summary_zh": "Swift..."
+    },
+    {
+      "name": "swift-protocol-di-testing",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Technical tool with niche but active usage.",
+      "summary_zh": "Protocol-based..."
+    },
+    {
+      "name": "swiftui-patterns",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "Language-specific patterns; widely useful for developers.",
+      "summary_zh": "SwiftUI..."
+    },
+    {
+      "name": "tdd-workflow",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "Use..."
+    },
+    {
+      "name": "team-builder",
+      "source": "claude",
+      "category": "ai-methodology",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Interactive..."
+    },
+    {
+      "name": "terminal-ops",
+      "source": "claude",
+      "category": "devops",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Evidence-first..."
+    },
+    {
+      "name": "token-budget-advisor",
+      "source": "claude",
+      "category": "tools",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Offers..."
+    },
+    {
+      "name": "ui-demo",
+      "source": "claude",
+      "category": "writing",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Record..."
+    },
+    {
+      "name": "unified-notifications-ops",
+      "source": "claude",
+      "category": "devops",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Operate..."
+    },
+    {
+      "name": "verification-loop",
+      "source": "claude",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Technical tool with niche but active usage.",
+      "summary_zh": "\"A..."
+    },
+    {
+      "name": "video-editing",
+      "source": "claude",
+      "category": "video",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "AI-assisted..."
+    },
+    {
+      "name": "videodb",
+      "source": "claude",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Useful visual creation tool; moderate demand.",
+      "summary_zh": "See,..."
+    },
+    {
+      "name": "visa-doc-translate",
+      "source": "claude",
+      "category": "tools",
+      "language_tag": null,
+      "popularity": 2,
+      "popularity_reason": "Very narrow scope; experimental or unclear value.",
+      "summary_zh": "Translate..."
+    },
+    {
+      "name": "workspace-surface-audit",
+      "source": "claude",
+      "category": "tools",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "Audit..."
+    },
+    {
+      "name": "x-api",
+      "source": "claude",
+      "category": "writing",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Specialized tool with moderate applicability.",
+      "summary_zh": "X/Twitter..."
+    }
+  ],
+  "stats": {
+    "total_skills": 201,
+    "by_category": {
+      "ai-methodology": 9,
+      "business": 9,
+      "design": 52,
+      "development": 51,
+      "devops": 14,
+      "marketing": 1,
+      "platforms": 18,
+      "research": 14,
+      "tools": 6,
+      "video": 1,
+      "writing": 26
+    },
+    "by_source": {
+      "agents": 54,
+      "claude": 147
+    }
+  }
+}

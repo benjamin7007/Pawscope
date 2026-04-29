@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { fetchSkills, fetchSkillContent, fetchSkillUsage, revealSkill, type SkillEntry, type SkillContent, type SkillUsage } from '../api';
 import { useT } from '../i18n';
 import { renderMarkdown } from '../markdown';
-import { categorize, CATEGORY_ORDER } from '../skillCategory';
+import { categorize, CATEGORY_ORDER, categoryLabel, popularityFor, summaryFor, languageTagFor } from '../skillCategory';
 import { CategoryDonut } from './CategoryDonut';
 import { SkillsSkeleton } from './Skeleton';
 
@@ -232,7 +232,7 @@ export function SkillsPanel({
           <option value="all">{lang === 'zh' ? '全部分类' : 'All categories'}</option>
           {CATEGORY_ORDER.filter(k => (categoryCounts[k] ?? 0) > 0).map(k => (
             <option key={k} value={k}>
-              {k} ({categoryCounts[k]})
+              {categoryLabel(k, lang === 'zh' ? 'zh' : 'en')} ({categoryCounts[k]})
             </option>
           ))}
         </select>
@@ -288,6 +288,7 @@ export function SkillsPanel({
             compact
             selected={category === 'all' ? null : category}
             onPick={(name: string) => setCategory(c => (c === name ? 'all' : name))}
+            getLabel={(name: string) => categoryLabel(name, lang === 'zh' ? 'zh' : 'en')}
           />
         </div>
       )}
@@ -314,9 +315,27 @@ export function SkillsPanel({
                 </span>
                 {!groupByCategory && (
                   <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-800 border border-slate-700 text-slate-300">
-                    {categorize(s.name)}
+                    {categoryLabel(categorize(s.name), lang === 'zh' ? 'zh' : 'en')}
                   </span>
                 )}
+                {(() => {
+                  const lt = languageTagFor(s.name);
+                  return lt ? (
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-slate-900/60 border border-slate-800 text-slate-500">
+                      {lt}
+                    </span>
+                  ) : null;
+                })()}
+                {(() => {
+                  const p = popularityFor(s.name);
+                  if (p < 6) return null;
+                  const tone = p >= 9 ? 'text-amber-300' : p >= 7 ? 'text-amber-400/80' : 'text-slate-500';
+                  return (
+                    <span className={`text-[11px] tabular-nums ${tone}`} title={`popularity ${p}/10`}>
+                      ★{p}
+                    </span>
+                  );
+                })()}
                 {s.invocations > 0 && (
                   <span className="text-[11px] text-emerald-300 tabular-nums">
                     ×{fmt(s.invocations)}
@@ -326,11 +345,17 @@ export function SkillsPanel({
                   {s.path.replace(/^.*\.(copilot|claude|agents)\//, '~/.$1/')}
                 </span>
               </div>
-              {s.description && (
-                <div className="text-xs text-slate-400 mt-1 line-clamp-2 leading-relaxed">
-                  {s.description}
-                </div>
-              )}
+              {(() => {
+                const zh = summaryFor(s.name);
+                if (lang === 'zh' && zh) {
+                  return <div className="text-xs text-slate-300 mt-1 leading-relaxed">{zh}</div>;
+                }
+                return s.description ? (
+                  <div className="text-xs text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                    {s.description}
+                  </div>
+                ) : null;
+              })()}
             </button>
           </li>
         );
@@ -365,7 +390,7 @@ export function SkillsPanel({
                       {isCollapsed ? '▶' : '▼'}
                     </span>
                     <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-300">
-                      {g.name}
+                      {categoryLabel(g.name, lang === 'zh' ? 'zh' : 'en')}
                     </span>
                     <span className="text-[10px] text-slate-500 tabular-nums">{fmt(g.items.length)}</span>
                   </button>
