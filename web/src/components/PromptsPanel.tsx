@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { searchPrompts, type PromptHit, type PromptSearchFilters } from '../api';
+import { toast } from '../toast';
 import { useT } from '../i18n';
 
 const AGENT_BADGE: Record<string, string> = {
@@ -239,7 +240,11 @@ export function PromptsPanel({ onOpenSession }: Props) {
                 {modal.session_id}
               </span>
               <button
-                onClick={() => navigator.clipboard.writeText(modal.text || modal.snippet)}
+                onClick={() => {
+                  navigator.clipboard.writeText(modal.text || modal.snippet)
+                    .then(() => toast.success('Copied to clipboard'))
+                    .catch(() => toast.error('Copy failed'));
+                }}
                 className="px-2.5 py-1 text-xs text-slate-300 bg-slate-800 hover:bg-slate-700 rounded"
               >Copy</button>
               <button

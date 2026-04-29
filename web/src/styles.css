@@ -112,3 +112,12 @@ html.theme-light .pawscope-skeleton::after {
     transparent
   );
 }
+
+/* Toast slide-in */
+.pawscope-toast {
+  animation: pawscope-toast-in 200ms ease-out;
+}
+@keyframes pawscope-toast-in {
+  from { transform: translateX(20px); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
