@@ -53,12 +53,12 @@ export default function App() {
     fetchLabels().then(setLabels).catch(() => setLabels({}));
   }, []);
 
-  const updateLabel = (id: string, label: { starred: boolean; tags: string[] }) => {
+  const updateLabel = (id: string, label: { starred: boolean; tags: string[]; note?: string | null }) => {
     setLabels((prev) => ({ ...prev, [id]: label }));
     apiSetLabel(id, label).catch(() => toast.error('Failed to save label'));
   };
   const toggleStar = (id: string) => {
-    const cur = labels[id] ?? { starred: false, tags: [] };
+    const cur = labels[id] ?? { starred: false, tags: [], note: null };
     updateLabel(id, { ...cur, starred: !cur.starred });
   };
 

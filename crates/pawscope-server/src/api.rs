@@ -1003,6 +1003,19 @@ pub async fn set_label(
             .filter(|t| !t.is_empty() && t.len() <= 32)
             .take(16)
             .collect(),
+        note: label.note.and_then(|n| {
+            let trimmed = n.trim();
+            if trimmed.is_empty() {
+                None
+            } else {
+                let max = 4096;
+                Some(if trimmed.len() <= max {
+                    trimmed.to_string()
+                } else {
+                    trimmed.chars().take(max).collect()
+                })
+            }
+        }),
     };
     match s.labels.set(&id, normalized.clone()).await {
         Ok(()) => Json(normalized).into_response(),

@@ -190,6 +190,7 @@ export async function searchPrompts(
 export interface Label {
   starred: boolean;
   tags: string[];
+  note?: string | null;
 }
 export type LabelMap = Record<string, Label>;
 
