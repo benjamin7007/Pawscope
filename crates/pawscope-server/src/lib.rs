@@ -50,6 +50,7 @@ pub fn build_app(adapter: Arc<dyn AgentAdapter>) -> (Router, AppState) {
         .route("/api/skills/content", get(skills::skill_content))
         .route("/api/skills/usage", get(skills::skill_usage))
         .route("/api/skills/reveal", post(skills::skill_reveal))
+        .route("/api/sessions/{id}/skills", get(skills::session_skills))
         .route("/api/events", get(sse::sse_handler))
         .route("/ws", get(ws::ws_handler))
         .fallback(assets::static_handler)

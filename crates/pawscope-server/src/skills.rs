@@ -403,6 +403,113 @@ pub async fn skill_reveal(
     }
 }
 
+#[derive(Serialize)]
+pub struct SessionSkillEntry {
+    pub name: String,
+    pub description: String,
+    pub source: String,
+    pub path: String,
+    pub invoked: bool,
+}
+
+#[derive(Serialize)]
+pub struct SessionSkillsResponse {
+    pub agent: String,
+    pub cwd: String,
+    pub skills: Vec<SessionSkillEntry>,
+    pub total: usize,
+    pub by_source: HashMap<String, usize>,
+}
+
+pub async fn session_skills(
+    axum::extract::Path(id): axum::extract::Path<String>,
+    State(state): State<AppState>,
+) -> Result<Json<SessionSkillsResponse>, StatusCode> {
+    let detail = state
+        .adapter
+        .get_detail(&id)
+        .await
+        .map_err(|_| StatusCode::NOT_FOUND)?;
+    let metas = state
+        .adapter
+        .list_sessions()
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let meta = metas
+        .iter()
+        .find(|m| m.id == id)
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    let agent_key = serde_json::to_value(meta.agent)
+        .ok()
+        .and_then(|v| v.as_str().map(|x| x.to_string()))
+        .unwrap_or_else(|| format!("{:?}", meta.agent).to_lowercase());
+    let cwd = meta.cwd.clone();
+    let invoked: std::collections::HashSet<String> = detail.skills_invoked.into_iter().collect();
+
+    let home = std::env::var("HOME").unwrap_or_default();
+    let mut sources: Vec<(&'static str, PathBuf)> = vec![(
+        "agents-skills",
+        PathBuf::from(format!("{home}/.agents/skills")),
+    )];
+    match agent_key.as_str() {
+        "copilot" => {
+            sources.push((
+                "copilot-superpowers",
+                PathBuf::from(format!("{home}/.copilot/installed-plugins")),
+            ));
+            sources.push(("project-github", cwd.join(".github").join("skills")));
+            sources.push(("project-agents", cwd.join(".agents").join("skills")));
+        }
+        "claude" => {
+            sources.push((
+                "claude-skills",
+                PathBuf::from(format!("{home}/.claude/skills")),
+            ));
+            sources.push(("project-claude", cwd.join(".claude").join("skills")));
+            sources.push(("project-agents", cwd.join(".agents").join("skills")));
+        }
+        _ => {
+            sources.push(("project-agents", cwd.join(".agents").join("skills")));
+        }
+    }
+
+    let mut skills: Vec<SessionSkillEntry> = Vec::new();
+    let mut by_source: HashMap<String, usize> = HashMap::new();
+    let mut seen = std::collections::HashSet::new();
+    for (label, root) in sources {
+        let found = scan_skills_recursive(&root, label, 4);
+        for s in found {
+            if !seen.insert(s.path.clone()) {
+                continue;
+            }
+            let inv = invoked.contains(&s.name);
+            *by_source.entry(label.to_string()).or_default() += 1;
+            skills.push(SessionSkillEntry {
+                name: s.name,
+                description: s.description,
+                source: label.to_string(),
+                path: s.path,
+                invoked: inv,
+            });
+        }
+    }
+    skills.sort_by(|a, b| {
+        b.invoked
+            .cmp(&a.invoked)
+            .then_with(|| a.name.cmp(&b.name))
+    });
+
+    let total = skills.len();
+    Ok(Json(SessionSkillsResponse {
+        agent: agent_key,
+        cwd: cwd.display().to_string(),
+        skills,
+        total,
+        by_source,
+    }))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -74,6 +74,7 @@ const dict: Record<string, { en: string; zh: string }> = {
   'sec.top_repos': { en: 'Top repos', zh: '仓库排行' },
   'sec.agents': { en: 'Agents', zh: 'Agent 分布' },
   'sec.skills_invoked': { en: 'Skills invoked', zh: '已调用技能' },
+  'sec.skills_available': { en: 'Available skills', zh: '可调用的技能' },
   'sec.tools_used': { en: 'Tools used', zh: '已用工具' },
   'sec.prompts': { en: 'Prompts', zh: '用户提示' },
   'sec.heatmap': { en: 'Activity heatmap (14 days · weekday × hour)', zh: '活跃热力图（14 天 · 星期 × 小时）' },

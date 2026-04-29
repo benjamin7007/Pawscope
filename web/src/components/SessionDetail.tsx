@@ -169,6 +169,17 @@ function PromptRow({
 
 export function SessionDetail({ meta, detail, onOpenSkill, label, onSetLabel, onPrev, onNext, position }: Props) {
   const { t, lang } = useT();
+  const [availSkills, setAvailSkills] = useState<{ name: string; description: string; source: string; path: string; invoked: boolean }[] | null>(null);
+  useEffect(() => {
+    setAvailSkills(null);
+    if (!meta?.id) return;
+    let cancel = false;
+    fetch(`/api/sessions/${encodeURIComponent(meta.id)}/skills`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (!cancel && d) setAvailSkills(d.skills || []); })
+      .catch(() => {});
+    return () => { cancel = true; };
+  }, [meta?.id]);
   const tools = useMemo(() => {
     if (!detail?.tools_used) return [];
     return Object.entries(detail.tools_used).sort((a, b) => b[1] - a[1]);
@@ -419,6 +430,57 @@ export function SessionDetail({ meta, detail, onOpenSkill, label, onSetLabel, on
                       );
                     })}
                 </div>
+              )}
+            </div>
+          </section>
+
+          <section className="rounded-lg bg-slate-900/40 border border-slate-800">
+            <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
+              <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.skills_available')}</h3>
+              <span className="text-[11px] text-slate-500">
+                {availSkills === null ? '…' : availSkills.length}
+              </span>
+            </header>
+            <div className="p-4">
+              {availSkills === null ? (
+                <div className="text-xs text-slate-600 text-center py-2">…</div>
+              ) : availSkills.length === 0 ? (
+                <div className="text-xs text-slate-600 text-center py-2">{t('detail.no_skills')}</div>
+              ) : (
+                <details>
+                  <summary className="cursor-pointer text-[11px] text-slate-500 hover:text-slate-300 mb-2 select-none">
+                    {lang === 'zh'
+                      ? `展开 ${availSkills.length} 个可用技能（${availSkills.filter(s => s.invoked).length} 已使用）`
+                      : `Show ${availSkills.length} available skills (${availSkills.filter(s => s.invoked).length} used)`}
+                  </summary>
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {availSkills.map(s => {
+                      const cls = s.invoked
+                        ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-200'
+                        : 'bg-slate-800/60 border-slate-700 text-slate-400 hover:text-slate-200';
+                      const title = `${s.source}\n${s.path}\n\n${s.description}`;
+                      return onOpenSkill ? (
+                        <button
+                          key={s.path}
+                          type="button"
+                          onClick={() => onOpenSkill(s.name)}
+                          className={`px-2 py-0.5 rounded-full border text-[11px] font-mono transition-colors ${cls}`}
+                          title={title}
+                        >
+                          {s.name}
+                        </button>
+                      ) : (
+                        <span
+                          key={s.path}
+                          className={`px-2 py-0.5 rounded-full border text-[11px] font-mono ${cls}`}
+                          title={title}
+                        >
+                          {s.name}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </details>
               )}
             </div>
           </section>
