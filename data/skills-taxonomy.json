@@ -393,6 +393,15 @@
       "summary_zh": "Turn..."
     },
     {
+      "name": "brainstorming",
+      "source": "superpowers",
+      "category": "ai-methodology",
+      "language_tag": null,
+      "popularity": 9,
+      "popularity_reason": "Structured idea exploration before implementation",
+      "summary_zh": "需求脑暴：在动手前梳理意图、需求与设计"
+    },
+    {
       "name": "brand-voice",
       "source": "claude",
       "category": "writing",
@@ -672,6 +681,15 @@
       "summary_zh": "Deployment..."
     },
     {
+      "name": "dispatching-parallel-agents",
+      "source": "superpowers",
+      "category": "ai-methodology",
+      "language_tag": null,
+      "popularity": 9,
+      "popularity_reason": "Parallel sub-agent orchestration patterns",
+      "summary_zh": "并行调度子 agent 的实战手册"
+    },
+    {
       "name": "django-patterns",
       "source": "claude",
       "category": "design",
@@ -807,6 +825,15 @@
       "summary_zh": "Neural..."
     },
     {
+      "name": "executing-plans",
+      "source": "superpowers",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 9,
+      "popularity_reason": "Disciplined plan execution with checkpoints",
+      "summary_zh": "按计划文档执行任务的工程纪律"
+    },
+    {
       "name": "fal-ai-media",
       "source": "claude",
       "category": "design",
@@ -832,6 +859,15 @@
       "popularity": 10,
       "popularity_reason": "Core infrastructure for discovering capabilities; foundational.",
       "summary_zh": "Helps..."
+    },
+    {
+      "name": "finishing-a-development-branch",
+      "source": "superpowers",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 8,
+      "popularity_reason": "Closing out a dev branch cleanly",
+      "summary_zh": "收尾开发分支：合并、清理、PR"
     },
     {
       "name": "foundation-models-on-device",
@@ -1599,6 +1635,15 @@
       "summary_zh": "RFC-driven..."
     },
     {
+      "name": "receiving-code-review",
+      "source": "superpowers",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "Responding to code review feedback",
+      "summary_zh": "处理 code review 反馈的标准流程"
+    },
+    {
       "name": "regex-vs-llm-structured-text",
       "source": "claude",
       "category": "development",
@@ -1615,6 +1660,15 @@
       "popularity": 5,
       "popularity_reason": "Useful visual creation tool; moderate demand.",
       "summary_zh": "Best..."
+    },
+    {
+      "name": "requesting-code-review",
+      "source": "superpowers",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "Preparing changes for code review",
+      "summary_zh": "提交 code review 前的准备清单"
     },
     {
       "name": "research-ops",
@@ -1698,6 +1752,15 @@
       "summary_zh": "Audit,..."
     },
     {
+      "name": "skill-stocktake",
+      "source": "superpowers",
+      "category": "ai-methodology",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Periodic audit of installed skills",
+      "summary_zh": "定期盘点已安装的 skills"
+    },
+    {
       "name": "social-graph-ranker",
       "source": "claude",
       "category": "design",
@@ -1752,6 +1815,15 @@
       "summary_zh": "Suggests..."
     },
     {
+      "name": "subagent-driven-development",
+      "source": "superpowers",
+      "category": "ai-methodology",
+      "language_tag": null,
+      "popularity": 9,
+      "popularity_reason": "Building features via sub-agent delegation",
+      "summary_zh": "用子 agent 驱动功能开发"
+    },
+    {
       "name": "swift-actor-persistence",
       "source": "claude",
       "category": "design",
@@ -1788,6 +1860,15 @@
       "summary_zh": "SwiftUI..."
     },
     {
+      "name": "systematic-debugging",
+      "source": "superpowers",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 9,
+      "popularity_reason": "Scientific-method debugging workflow",
+      "summary_zh": "科学方法论式系统化调试"
+    },
+    {
       "name": "tdd-workflow",
       "source": "claude",
       "category": "design",
@@ -1815,6 +1896,15 @@
       "summary_zh": "Evidence-first..."
     },
     {
+      "name": "test-driven-development",
+      "source": "superpowers",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 9,
+      "popularity_reason": "Red-green-refactor TDD discipline",
+      "summary_zh": "TDD：红绿重构的开发节奏"
+    },
+    {
       "name": "token-budget-advisor",
       "source": "claude",
       "category": "tools",
@@ -1840,6 +1930,33 @@
       "popularity": 5,
       "popularity_reason": "Specialized tool with moderate applicability.",
       "summary_zh": "Operate..."
+    },
+    {
+      "name": "using-git-worktrees",
+      "source": "superpowers",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "Parallel branches via git worktree",
+      "summary_zh": "用 git worktree 并行多分支"
+    },
+    {
+      "name": "using-superpowers",
+      "source": "superpowers",
+      "category": "ai-methodology",
+      "language_tag": null,
+      "popularity": 8,
+      "popularity_reason": "Meta guide to the superpowers skill set",
+      "summary_zh": "superpowers skill 集合的入门指引"
+    },
+    {
+      "name": "verification-before-completion",
+      "source": "superpowers",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 9,
+      "popularity_reason": "Verify-don’t-claim work is done",
+      "summary_zh": "完成前先验证：避免假完成"
     },
     {
       "name": "verification-loop",
@@ -1887,6 +2004,24 @@
       "summary_zh": "Audit..."
     },
     {
+      "name": "writing-plans",
+      "source": "superpowers",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 9,
+      "popularity_reason": "How to author actionable plan.md",
+      "summary_zh": "如何写出可执行的 plan.md"
+    },
+    {
+      "name": "writing-skills",
+      "source": "superpowers",
+      "category": "ai-methodology",
+      "language_tag": null,
+      "popularity": 8,
+      "popularity_reason": "How to author new skills",
+      "summary_zh": "如何编写新的 skill 文件"
+    },
+    {
       "name": "x-api",
       "source": "claude",
       "category": "writing",
@@ -1897,12 +2032,12 @@
     }
   ],
   "stats": {
-    "total_skills": 201,
+    "total_skills": 216,
     "by_category": {
-      "ai-methodology": 9,
+      "ai-methodology": 15,
       "business": 9,
       "design": 52,
-      "development": 51,
+      "development": 60,
       "devops": 14,
       "marketing": 1,
       "platforms": 18,
@@ -1913,7 +2048,8 @@
     },
     "by_source": {
       "agents": 54,
-      "claude": 147
+      "claude": 147,
+      "superpowers": 15
     }
   }
 }
