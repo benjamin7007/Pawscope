@@ -604,6 +604,105 @@ function PromptLengthHist({ stats, t }: {
   );
 }
 
+function TechStack({ entries, t }: {
+  entries: { key: string; label: string; icon: string; hits: number; sessions: number }[];
+  t: (k: string) => string;
+}) {
+  if (!entries.length) return null;
+  const maxSess = Math.max(1, ...entries.map(e => e.sessions));
+  return (
+    <div className="px-4 py-4">
+      <div className="flex flex-wrap gap-2">
+        {entries.map(e => {
+          const intensity = 0.3 + (e.sessions / maxSess) * 0.7;
+          return (
+            <div
+              key={e.key}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-slate-700 bg-slate-800/40 hover:border-cyan-500/60 transition-colors"
+              style={{ opacity: intensity }}
+              title={`${e.sessions} sessions, ${e.hits} mentions`}
+            >
+              <span>{e.icon}</span>
+              <span className="text-[12px] font-medium text-slate-200">{e.label}</span>
+              <span className="text-[10px] text-slate-500 tabular-nums">{e.sessions}</span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="text-[10px] text-slate-600 mt-2">{t('misc.detected_from_prompts')}</div>
+    </div>
+  );
+}
+
+function WeeklyTrendChart({ data, t }: {
+  data: {
+    weeks: { label: string; days: number[] }[];
+    total_this_week: number;
+    total_last_week: number;
+    delta_pct: number;
+  };
+  t: (k: string) => string;
+}) {
+  const allVals = data.weeks.flatMap(w => w.days);
+  const max = Math.max(1, ...allVals);
+  const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const W = 280, H = 90, padX = 24, padY = 8;
+  const stepX = (W - padX * 2) / 6;
+  const colors = ['#22d3ee', '#94a3b8', '#64748b', '#475569'];
+  const pathFor = (vals: number[]) => vals.map((v, i) => {
+    const x = padX + i * stepX;
+    const y = padY + (1 - v / max) * (H - padY * 2);
+    return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
+  }).join(' ');
+  const delta = data.delta_pct;
+  const deltaColor = delta > 0 ? 'text-emerald-400' : delta < 0 ? 'text-rose-400' : 'text-slate-400';
+  return (
+    <div className="px-4 py-4 space-y-3">
+      <div className="flex items-center gap-4 text-[11px]">
+        <div>
+          <span className="text-slate-500">{t('misc.this_week')}: </span>
+          <span className="text-cyan-300 font-semibold tabular-nums">{data.total_this_week}</span>
+        </div>
+        <div>
+          <span className="text-slate-500">{t('misc.last_week')}: </span>
+          <span className="text-slate-300 tabular-nums">{data.total_last_week}</span>
+        </div>
+        <div className={`${deltaColor} font-medium tabular-nums`}>
+          {delta >= 0 ? '▲' : '▼'} {Math.abs(delta).toFixed(0)}%
+        </div>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-24">
+        {[0, 0.5, 1].map((f, i) => (
+          <line key={i} x1={padX} y1={padY + f * (H - padY * 2)} x2={W - padX} y2={padY + f * (H - padY * 2)} stroke="#1e293b" strokeWidth="0.5"/>
+        ))}
+        {data.weeks.slice().reverse().map((w, idx) => {
+          const realIdx = data.weeks.length - 1 - idx;
+          const isThis = realIdx === 0;
+          return (
+            <path
+              key={w.label}
+              d={pathFor(w.days)}
+              fill="none"
+              stroke={colors[realIdx] ?? '#475569'}
+              strokeWidth={isThis ? 2 : 1}
+              strokeDasharray={isThis ? '0' : '3,2'}
+              opacity={isThis ? 1 : 0.6}
+            />
+          );
+        })}
+        {data.weeks[0]?.days.map((v, i) => {
+          const x = padX + i * stepX;
+          const y = padY + (1 - v / max) * (H - padY * 2);
+          return <circle key={i} cx={x} cy={y} r="2.5" fill="#22d3ee" />;
+        })}
+        {dayLabels.map((d, i) => (
+          <text key={d} x={padX + i * stepX} y={H - 1} fontSize="8" fill="#64748b" textAnchor="middle">{d}</text>
+        ))}
+      </svg>
+    </div>
+  );
+}
+
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded bg-slate-800/40 border border-slate-800 px-2 py-1.5 flex flex-col">
@@ -764,6 +863,13 @@ export function OverviewPanel({
     total: number; mean: number; median: number; p95: number; p99: number; max: number;
     buckets: { label: string; min: number; max: number; count: number }[];
   } | null>(null);
+  const [techStack, setTechStack] = useState<{
+    key: string; label: string; icon: string; hits: number; sessions: number;
+  }[]>([]);
+  const [weekly, setWeekly] = useState<{
+    weeks: { label: string; days: number[] }[];
+    total_this_week: number; total_last_week: number; delta_pct: number;
+  } | null>(null);
   const [, forceTick] = useState(0);
   const [err, setErr] = useState<string | null>(null);
 
@@ -802,6 +908,14 @@ export function OverviewPanel({
       fetch('/api/prompts/length')
         .then(r => r.ok ? r.json() : null)
         .then(d => { if (!cancelled && d) setPromptLen(d); })
+        .catch(() => {});
+      fetch('/api/prompts/techstack')
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (!cancelled && d) setTechStack(d.entries ?? []); })
+        .catch(() => {});
+      fetch('/api/activity/weekly?weeks=2')
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (!cancelled && d) setWeekly(d); })
         .catch(() => {});
     };
     load();
@@ -996,6 +1110,27 @@ export function OverviewPanel({
             <PromptLengthHist stats={promptLen} t={t} />
           </section>
         )}
+
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {techStack.length > 0 && (
+            <div className="rounded-lg bg-slate-900/40 border border-slate-800">
+              <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
+                <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.tech_stack')}</h3>
+                <span className="text-[11px] text-slate-500">{techStack.length} {t('misc.detected')}</span>
+              </header>
+              <TechStack entries={techStack} t={t} />
+            </div>
+          )}
+          {weekly && (
+            <div className="rounded-lg bg-slate-900/40 border border-slate-800">
+              <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
+                <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.weekly_trend')}</h3>
+                <span className="text-[11px] text-slate-500">{t('misc.this_vs_last')}</span>
+              </header>
+              <WeeklyTrendChart data={weekly} t={t} />
+            </div>
+          )}
+        </section>
 
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="rounded-lg bg-slate-900/40 border border-slate-800">
