@@ -93,10 +93,11 @@ pawscope serve                  # 自动在浏览器打开 http://127.0.0.1:7777
 
 | 版本 | 范围 |
 |---|---|
-| **v0.1**(已发布) | Copilot CLI 会话 · 实时更新 · 内嵌 UI |
-| **v0.2** | Claude Code 适配器(`~/.claude/projects/`)· 多适配器汇聚 · 活动热力图 |
-| **v0.3** | Codex CLI 适配器(`~/.codex/state_*.sqlite`) |
-| v0.4 | 跨 CLI 的技能市场 + 一键安装 |
+| v0.1(已发布) | Copilot CLI 会话 · 实时更新 · 内嵌 UI |
+| v0.2(已发布) | Claude Code 适配器 · 多适配器汇聚 · 活动热力图 |
+| v0.3(已发布) | Codex CLI 适配器(`~/.codex/state_*.sqlite`) |
+| **v0.4**(已发布) | 技能覆盖 · Prompts 搜索 · 工具调用趋势钻取 · 收藏标签 · 性能缓存 · UI 打磨(骨架屏/Toast/进度条/可拖拽侧栏/虚拟滚动) |
+| v0.5 | 跨 CLI 的技能市场 + 一键安装 · 会话对比 · 键盘快捷键 |
 
 ## 项目结构
 
