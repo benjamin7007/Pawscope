@@ -108,6 +108,7 @@ const dict: Record<string, { en: string; zh: string }> = {
   'list.sort_recent': { en: 'Recent', zh: '最近' },
   'list.sort_oldest': { en: 'Oldest', zh: '最早' },
   'list.sort_repo': { en: 'Repo A→Z', zh: '仓库 A→Z' },
+  'list.sort_tokens': { en: 'Tokens ↓', zh: 'Token ↓' },
   'list.empty': { en: 'No sessions match.', zh: '没有匹配的会话。' },
 
   // SessionDetail

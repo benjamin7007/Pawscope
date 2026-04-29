@@ -20,6 +20,7 @@ type Props = {
   onClearRealmFilter?: () => void;
   labels?: Record<string, { starred: boolean; tags: string[] }>;
   onToggleStar?: (id: string) => void;
+  tokensMap?: Record<string, { in: number; out: number }>;
 };
 
 function timeAgo(iso?: string | null): string {
@@ -46,9 +47,9 @@ function sessionRealmKey(s: Session): string {
   return parts.length ? `~/${parts[parts.length - 1]}` : cwd;
 }
 
-type SortMode = 'recent' | 'oldest' | 'repo';
+type SortMode = 'recent' | 'oldest' | 'repo' | 'tokens';
 
-export function SessionList({ items, onSelect, selected, realmFilter, onClearRealmFilter, labels, onToggleStar }: Props) {
+export function SessionList({ items, onSelect, selected, realmFilter, onClearRealmFilter, labels, onToggleStar, tokensMap }: Props) {
   const { t } = useT();
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -91,6 +92,11 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
       if (sortMode === 'repo') {
         return (a.repo ?? '').localeCompare(b.repo ?? '');
       }
+      if (sortMode === 'tokens') {
+        const ta = (tokensMap?.[a.id]?.in ?? 0) + (tokensMap?.[a.id]?.out ?? 0);
+        const tb = (tokensMap?.[b.id]?.in ?? 0) + (tokensMap?.[b.id]?.out ?? 0);
+        return tb - ta;
+      }
       const ta = a.last_event_at ? new Date(a.last_event_at).getTime() : 0;
       const tb = b.last_event_at ? new Date(b.last_event_at).getTime() : 0;
       return sortMode === 'oldest' ? ta - tb : tb - ta;
@@ -115,13 +121,16 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
     });
 
     return { active, byRepo, repoOrder, total: filtered.length };
-  }, [items, query, agentFilter, activeOnly, sortMode, realmFilter, starredOnly, tagFilter, labels]);
+  }, [items, query, agentFilter, activeOnly, sortMode, realmFilter, starredOnly, tagFilter, labels, tokensMap]);
 
   const toggle = (key: string) =>
     setCollapsed(prev => ({ ...prev, [key]: !prev[key] }));
 
   const renderRow = (s: Session) => {
     const lbl = labels?.[s.id];
+    const tk = tokensMap?.[s.id];
+    const tkTotal = tk ? tk.in + tk.out : 0;
+    const fmtK = (n: number) => n >= 1_000_000 ? `${(n/1_000_000).toFixed(1)}M` : n >= 1000 ? `${(n/1000).toFixed(1)}k` : `${n}`;
     return (
     <button
       key={s.id}
@@ -154,12 +163,20 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
       <div className="text-sm mt-0.5 truncate text-slate-200">
         {s.summary || <span className="text-slate-500 italic">(no summary)</span>}
       </div>
-      {(s.branch || (lbl?.tags?.length ?? 0) > 0) && (
+      {(s.branch || (lbl?.tags?.length ?? 0) > 0 || tkTotal > 0) && (
         <div className="text-[11px] text-slate-500 mt-0.5 truncate flex items-center gap-1.5">
           {s.branch && <><span className="text-slate-600">⎇</span><span>{s.branch}</span></>}
           {lbl?.tags?.map((t) => (
             <span key={t} className="px-1 rounded bg-violet-500/10 text-violet-300 text-[10px]">#{t}</span>
           ))}
+          {tkTotal > 0 && (
+            <span
+              className="ml-auto px-1.5 rounded bg-emerald-500/10 text-emerald-300 text-[10px] tabular-nums"
+              title={`in ${tk!.in.toLocaleString()} · out ${tk!.out.toLocaleString()}`}
+            >
+              ⚡ {fmtK(tkTotal)}
+            </span>
+          )}
         </div>
       )}
     </button>
@@ -314,6 +331,7 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
             <option value="recent">{t('list.sort_recent')}</option>
             <option value="oldest">{t('list.sort_oldest')}</option>
             <option value="repo">{t('list.sort_repo')}</option>
+            <option value="tokens">{t('list.sort_tokens')}</option>
           </select>
           <button
             onClick={() => setActiveOnly(v => !v)}
