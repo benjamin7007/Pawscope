@@ -6,11 +6,12 @@ import { SessionDetail } from './components/SessionDetail';
 import { OverviewPanel } from './components/OverviewPanel';
 import { RealmPanel } from './components/RealmPanel';
 import { SkillsPanel } from './components/SkillsPanel';
+import { PromptsPanel } from './components/PromptsPanel';
 import { LangToggle } from './components/LangToggle';
 import { ThemeToggle } from './components/ThemeToggle';
 import { useT } from './i18n';
 
-type View = 'overview' | 'session' | 'realm' | 'skills';
+type View = 'overview' | 'session' | 'realm' | 'skills' | 'prompts';
 
 export default function App() {
   const { t } = useT();
@@ -98,6 +99,16 @@ export default function App() {
           >
             {t('nav.skills')}
           </button>
+          <button
+            onClick={() => setView('prompts')}
+            className={`flex-1 px-3 py-2.5 text-xs font-medium transition-colors ${
+              view === 'prompts'
+                ? 'bg-slate-800/80 text-slate-100 border-b-2 border-emerald-400'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
+            }`}
+          >
+            {t('nav.prompts')}
+          </button>
           <div className="px-2 flex items-center gap-1 border-l border-slate-800">
             <ThemeToggle />
             <LangToggle />
@@ -144,6 +155,8 @@ export default function App() {
           autoCategory={pendingCategory?.name ?? null}
           autoCategoryNonce={pendingCategory?.n ?? 0}
         />
+      ) : view === 'prompts' ? (
+        <PromptsPanel onOpenSession={setSelected} />
       ) : (
         <SessionDetail
           meta={sessions.find(s => s.id === selected)}

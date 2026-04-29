@@ -12,7 +12,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use pawscope_core::{
     AgentAdapter, AgentKind, CoreError, Result, SessionDetail, SessionEvent, SessionMeta,
-    SessionStatus,
+    SessionStatus, ToolCall,
 };
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -297,6 +297,12 @@ fn parse_incremental(path: &Path, st: &mut ParseState) {
                             if it.get("type").and_then(|t| t.as_str()) == Some("tool_use") {
                                 if let Some(name) = it.get("name").and_then(|n| n.as_str()) {
                                     *st.detail.tools_used.entry(name.to_string()).or_default() += 1;
+                                    if let Some(ts) = st.last_event_at {
+                                        st.detail.tool_calls.push(ToolCall {
+                                            name: name.to_string(),
+                                            timestamp: ts,
+                                        });
+                                    }
                                 }
                             }
                         }

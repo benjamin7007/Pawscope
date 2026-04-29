@@ -63,6 +63,12 @@ pub struct PromptSummary {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ToolCall {
+    pub name: String,
+    pub timestamp: chrono::DateTime<chrono::Utc>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SessionDetail {
     pub turns: u32,
     pub user_messages: u32,
@@ -73,6 +79,8 @@ pub struct SessionDetail {
     pub subagents: Vec<SubagentSummary>,
     #[serde(default)]
     pub prompts: Vec<PromptSummary>,
+    #[serde(default)]
+    pub tool_calls: Vec<ToolCall>,
 }
 
 #[cfg(test)]

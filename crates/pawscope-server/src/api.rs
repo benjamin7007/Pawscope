@@ -1,11 +1,12 @@
 use crate::AppState;
 use axum::{
     Json,
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
 };
 use pawscope_core::SessionStatus;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 pub async fn list_sessions(State(s): State<AppState>) -> impl IntoResponse {
@@ -380,4 +381,72 @@ pub async fn realm_detail(
         "sessions": session_summaries,
     }))
     .into_response()
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PromptSearchQuery {
+    #[serde(default)]
+    pub q: Option<String>,
+    #[serde(default)]
+    pub limit: Option<usize>,
+}
+
+#[derive(Debug, Serialize)]
+struct PromptHit {
+    session_id: String,
+    agent: pawscope_core::AgentKind,
+    cwd: String,
+    repo: Option<String>,
+    branch: Option<String>,
+    summary: String,
+    prompt_id: String,
+    timestamp: Option<chrono::DateTime<chrono::Utc>>,
+    snippet: String,
+}
+
+pub async fn prompts_search(
+    Query(p): Query<PromptSearchQuery>,
+    State(s): State<AppState>,
+) -> impl IntoResponse {
+    let q_raw = p.q.unwrap_or_default();
+    let q = q_raw.trim();
+    if q.len() > 200 {
+        return (StatusCode::BAD_REQUEST, "q too long").into_response();
+    }
+    let limit = p.limit.unwrap_or(50).min(200);
+    let needle = q.to_lowercase();
+
+    let sessions = match s.adapter.list_sessions().await {
+        Ok(v) => v,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    };
+
+    let mut hits: Vec<PromptHit> = Vec::new();
+    for sess in &sessions {
+        let detail = match s.adapter.get_detail(&sess.id).await {
+            Ok(d) => d,
+            Err(_) => continue,
+        };
+        for prompt in &detail.prompts {
+            let hay_snip = prompt.snippet.to_lowercase();
+            let hay_text = prompt.text.to_lowercase();
+            if !needle.is_empty() && !hay_snip.contains(&needle) && !hay_text.contains(&needle) {
+                continue;
+            }
+            hits.push(PromptHit {
+                session_id: sess.id.clone(),
+                agent: sess.agent,
+                cwd: sess.cwd.to_string_lossy().to_string(),
+                repo: sess.repo.clone(),
+                branch: sess.branch.clone(),
+                summary: sess.summary.clone(),
+                prompt_id: prompt.id.clone(),
+                timestamp: prompt.timestamp,
+                snippet: prompt.snippet.clone(),
+            });
+        }
+    }
+    hits.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+    hits.truncate(limit);
+    Json(hits).into_response()
 }

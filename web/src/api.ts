@@ -114,3 +114,23 @@ export function connectWs(onEvent: (ev: any) => void): WebSocket {
   ws.onclose = () => setTimeout(() => connectWs(onEvent), 1000);
   return ws;
 }
+
+export interface PromptHit {
+  session_id: string;
+  agent: string;
+  cwd: string;
+  repo: string | null;
+  branch: string | null;
+  summary: string;
+  prompt_id: string;
+  timestamp: string | null;
+  snippet: string;
+}
+export async function searchPrompts(q: string, limit = 50): Promise<PromptHit[]> {
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  params.set('limit', String(limit));
+  const r = await fetch(`/api/prompts/search?${params}`);
+  if (!r.ok) throw new Error(`prompts search ${r.status}`);
+  return r.json();
+}

@@ -1,0 +1,143 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 580">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap');
+      text { font-family: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', monospace; }
+    </style>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+    </pattern>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#64748b"/>
+    </marker>
+    <marker id="arrow-emerald" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#34d399"/>
+    </marker>
+    <marker id="arrow-cyan" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#22d3ee"/>
+    </marker>
+    <marker id="arrow-dashed" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" opacity="0.5"/>
+    </marker>
+  </defs>
+
+  <rect width="100%" height="100%" fill="#0f172a"/>
+  <rect width="100%" height="100%" fill="url(#grid)"/>
+
+  <text x="40" y="40" fill="white" font-size="18" font-weight="700">Pawscope Architecture</text>
+  <text x="40" y="62" fill="#94a3b8" font-size="11">Read on-disk CLI session state · adapter trait · single-binary server · embedded SPA</text>
+
+  <rect x="40" y="100" width="220" height="400" rx="12" fill="none" stroke="#fbbf24" stroke-width="1" stroke-dasharray="8,4"/>
+  <text x="52" y="118" fill="#fbbf24" font-size="9" font-weight="600">LOCAL FILE SYSTEM</text>
+
+  <rect x="290" y="100" width="580" height="400" rx="12" fill="none" stroke="#fbbf24" stroke-width="1" stroke-dasharray="8,4"/>
+  <text x="302" y="118" fill="#fbbf24" font-size="9" font-weight="600">PAWSCOPE BINARY (SINGLE EXECUTABLE)</text>
+
+  <rect x="304" y="138" width="200" height="350" rx="8" fill="none" stroke="#34d399" stroke-width="1" stroke-dasharray="4,3" opacity="0.6"/>
+  <text x="316" y="154" fill="#34d399" font-size="8" font-weight="600">ADAPTERS · pawscope-core trait</text>
+
+  <rect x="528" y="138" width="328" height="350" rx="8" fill="none" stroke="#22d3ee" stroke-width="1" stroke-dasharray="4,3" opacity="0.6"/>
+  <text x="540" y="154" fill="#22d3ee" font-size="8" font-weight="600">SERVER · pawscope-server (axum)</text>
+
+  <path d="M 240 195 L 320 195" fill="none" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrow-emerald)"/>
+  <path d="M 240 290 L 320 290" fill="none" stroke="#64748b" stroke-width="1.2" stroke-dasharray="4,3" opacity="0.6" marker-end="url(#arrow-dashed)"/>
+  <path d="M 240 385 L 320 385" fill="none" stroke="#64748b" stroke-width="1.2" stroke-dasharray="4,3" opacity="0.6" marker-end="url(#arrow-dashed)"/>
+
+  <path d="M 484 195 C 510 195, 520 200, 540 200" fill="none" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrow-emerald)"/>
+  <path d="M 484 290 L 540 250" fill="none" stroke="#64748b" stroke-width="1.2" stroke-dasharray="4,3" opacity="0.5" marker-end="url(#arrow-dashed)"/>
+  <path d="M 484 385 C 510 385, 520 250, 540 240" fill="none" stroke="#64748b" stroke-width="1.2" stroke-dasharray="4,3" opacity="0.5" marker-end="url(#arrow-dashed)"/>
+
+  <path d="M 856 290 L 940 290" fill="none" stroke="#22d3ee" stroke-width="2" marker-end="url(#arrow-cyan)"/>
+  <path d="M 940 320 L 856 320" fill="none" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="3,3" opacity="0.7" marker-end="url(#arrow-cyan)"/>
+
+  <text x="280" y="188" fill="#34d399" font-size="8" font-weight="500">JSONL + watch</text>
+  <text x="280" y="282" fill="#94a3b8" font-size="8" opacity="0.7">v0.2</text>
+  <text x="280" y="377" fill="#94a3b8" font-size="8" opacity="0.7">v0.3</text>
+
+  <text x="897" y="282" fill="#22d3ee" font-size="8" font-weight="500">WS push</text>
+  <text x="897" y="334" fill="#22d3ee" font-size="8" font-weight="500">REST snap</text>
+
+  <rect x="60" y="170" width="180" height="50" rx="6" fill="#0f172a"/>
+  <rect x="60" y="170" width="180" height="50" rx="6" fill="rgba(30,41,59,0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="150" y="190" fill="white" font-size="11" font-weight="600" text-anchor="middle">~/.copilot/</text>
+  <text x="150" y="206" fill="#94a3b8" font-size="9" text-anchor="middle">session-state/</text>
+  <circle cx="74" cy="184" r="3" fill="#34d399"/>
+
+  <rect x="60" y="265" width="180" height="50" rx="6" fill="#0f172a"/>
+  <rect x="60" y="265" width="180" height="50" rx="6" fill="rgba(30,41,59,0.3)" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4,3" opacity="0.7"/>
+  <text x="150" y="285" fill="#cbd5e1" font-size="11" font-weight="500" text-anchor="middle">~/.claude/</text>
+  <text x="150" y="301" fill="#94a3b8" font-size="9" text-anchor="middle">projects/</text>
+  <circle cx="74" cy="279" r="3" fill="none" stroke="#94a3b8" stroke-width="1"/>
+
+  <rect x="60" y="360" width="180" height="50" rx="6" fill="#0f172a"/>
+  <rect x="60" y="360" width="180" height="50" rx="6" fill="rgba(30,41,59,0.3)" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4,3" opacity="0.7"/>
+  <text x="150" y="380" fill="#cbd5e1" font-size="11" font-weight="500" text-anchor="middle">~/.codex/</text>
+  <text x="150" y="396" fill="#94a3b8" font-size="9" text-anchor="middle">state_*.sqlite</text>
+  <circle cx="74" cy="374" r="3" fill="none" stroke="#94a3b8" stroke-width="1"/>
+
+  <rect x="320" y="170" width="164" height="50" rx="6" fill="#0f172a"/>
+  <rect x="320" y="170" width="164" height="50" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1.5"/>
+  <text x="402" y="190" fill="white" font-size="11" font-weight="600" text-anchor="middle">CopilotAdapter</text>
+  <text x="402" y="206" fill="#94a3b8" font-size="9" text-anchor="middle">JSONL · PID · notify</text>
+
+  <rect x="320" y="265" width="164" height="50" rx="6" fill="#0f172a"/>
+  <rect x="320" y="265" width="164" height="50" rx="6" fill="rgba(6,78,59,0.2)" stroke="#34d399" stroke-width="1" stroke-dasharray="4,3" opacity="0.7"/>
+  <text x="402" y="285" fill="#cbd5e1" font-size="11" font-weight="500" text-anchor="middle">ClaudeAdapter</text>
+  <text x="402" y="301" fill="#94a3b8" font-size="9" text-anchor="middle">v0.2</text>
+
+  <rect x="320" y="360" width="164" height="50" rx="6" fill="#0f172a"/>
+  <rect x="320" y="360" width="164" height="50" rx="6" fill="rgba(6,78,59,0.2)" stroke="#34d399" stroke-width="1" stroke-dasharray="4,3" opacity="0.7"/>
+  <text x="402" y="380" fill="#cbd5e1" font-size="11" font-weight="500" text-anchor="middle">CodexAdapter</text>
+  <text x="402" y="396" fill="#94a3b8" font-size="9" text-anchor="middle">v0.3</text>
+
+  <rect x="540" y="170" width="304" height="60" rx="6" fill="#0f172a"/>
+  <rect x="540" y="170" width="304" height="60" rx="6" fill="rgba(8,51,68,0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+  <text x="692" y="190" fill="white" font-size="11" font-weight="600" text-anchor="middle">AgentRegistry</text>
+  <text x="692" y="206" fill="#94a3b8" font-size="9" text-anchor="middle">fan-in · debounce 200ms · session merge</text>
+  <text x="692" y="220" fill="#94a3b8" font-size="9" text-anchor="middle">broadcast::Sender&lt;AgentEvent&gt;</text>
+
+  <rect x="540" y="250" width="148" height="50" rx="6" fill="#0f172a"/>
+  <rect x="540" y="250" width="148" height="50" rx="6" fill="rgba(8,51,68,0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+  <text x="614" y="270" fill="white" font-size="11" font-weight="600" text-anchor="middle">REST /api/*</text>
+  <text x="614" y="286" fill="#94a3b8" font-size="9" text-anchor="middle">snapshot endpoints</text>
+
+  <rect x="696" y="250" width="148" height="50" rx="6" fill="#0f172a"/>
+  <rect x="696" y="250" width="148" height="50" rx="6" fill="rgba(8,51,68,0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+  <text x="770" y="270" fill="white" font-size="11" font-weight="600" text-anchor="middle">WebSocket /ws</text>
+  <text x="770" y="286" fill="#94a3b8" font-size="9" text-anchor="middle">live event push</text>
+
+  <rect x="540" y="320" width="304" height="50" rx="6" fill="#0f172a"/>
+  <rect x="540" y="320" width="304" height="50" rx="6" fill="rgba(76,29,149,0.35)" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="692" y="340" fill="white" font-size="11" font-weight="600" text-anchor="middle">Embedded SPA · rust-embed</text>
+  <text x="692" y="356" fill="#94a3b8" font-size="9" text-anchor="middle">web/dist/ baked into the binary at build time</text>
+
+  <rect x="540" y="390" width="304" height="50" rx="6" fill="#0f172a"/>
+  <rect x="540" y="390" width="304" height="50" rx="6" fill="rgba(120,53,15,0.3)" stroke="#fbbf24" stroke-width="1.5"/>
+  <text x="692" y="410" fill="white" font-size="11" font-weight="600" text-anchor="middle">CLI · pawscope serve</text>
+  <text x="692" y="426" fill="#94a3b8" font-size="9" text-anchor="middle">--bind 127.0.0.1:7777   --no-open</text>
+
+  <rect x="940" y="260" width="140" height="80" rx="6" fill="#0f172a"/>
+  <rect x="940" y="260" width="140" height="80" rx="6" fill="rgba(76,29,149,0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="1010" y="284" fill="white" font-size="11" font-weight="600" text-anchor="middle">Browser</text>
+  <text x="1010" y="302" fill="#94a3b8" font-size="9" text-anchor="middle">React 19</text>
+  <text x="1010" y="316" fill="#94a3b8" font-size="9" text-anchor="middle">Vite · Tailwind 4</text>
+  <text x="1010" y="330" fill="#94a3b8" font-size="9" text-anchor="middle">localhost:7777</text>
+
+  <rect x="40" y="525" width="1020" height="40" rx="6" fill="rgba(30,41,59,0.5)" stroke="#334155" stroke-width="1"/>
+  <circle cx="60" cy="545" r="4" fill="#34d399"/>
+  <text x="72" y="549" fill="#cbd5e1" font-size="10">v0.1 active</text>
+
+  <circle cx="170" cy="545" r="4" fill="none" stroke="#94a3b8" stroke-width="1"/>
+  <text x="182" y="549" fill="#cbd5e1" font-size="10">v0.2 / v0.3 planned</text>
+
+  <line x1="330" y1="545" x2="360" y2="545" stroke="#34d399" stroke-width="1.5"/>
+  <text x="368" y="549" fill="#cbd5e1" font-size="10">data ingest</text>
+
+  <line x1="455" y1="545" x2="485" y2="545" stroke="#22d3ee" stroke-width="1.5"/>
+  <text x="493" y="549" fill="#cbd5e1" font-size="10">REST + WebSocket</text>
+
+  <line x1="618" y1="545" x2="648" y2="545" stroke="#64748b" stroke-width="1.2" stroke-dasharray="4,3"/>
+  <text x="656" y="549" fill="#cbd5e1" font-size="10">future</text>
+
+  <text x="1050" y="549" fill="#64748b" font-size="9" text-anchor="end">no daemon · 127.0.0.1 only · no telemetry</text>
+</svg>

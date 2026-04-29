@@ -34,6 +34,7 @@ pub fn build_app(adapter: Arc<dyn AgentAdapter>) -> (Router, AppState) {
         .route("/api/activity", get(api::activity))
         .route("/api/activity/grid", get(api::activity_grid))
         .route("/api/realms", get(api::realm_detail))
+        .route("/api/prompts/search", get(api::prompts_search))
         .route("/api/skills", get(skills::list_skills))
         .route("/api/skills/content", get(skills::skill_content))
         .route("/api/skills/usage", get(skills::skill_usage))
