@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useT } from '../i18n';
 
 type Session = {
@@ -185,6 +185,86 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
     );
   };
 
+  // Flat virtualized list — built from same active/byRepo/repoOrder data.
+  type FlatItem =
+    | { type: 'header'; key: string; label: string; count: number; accent?: string; collapsed: boolean }
+    | { type: 'row'; session: Session };
+
+  const flat: FlatItem[] = [];
+  if (active.length > 0) {
+    flat.push({
+      type: 'header', key: 'active', label: 'Active', count: active.length,
+      accent: 'text-emerald-400', collapsed: !!collapsed['active'],
+    });
+    if (!collapsed['active']) {
+      for (const s of active) flat.push({ type: 'row', session: s });
+    }
+  }
+  for (const repo of repoOrder) {
+    const list = byRepo.get(repo)!;
+    const k = `repo:${repo}`;
+    flat.push({ type: 'header', key: k, label: repo, count: list.length, collapsed: !!collapsed[k] });
+    if (!collapsed[k]) {
+      for (const s of list) flat.push({ type: 'row', session: s });
+    }
+  }
+
+  const ROW_BASE = 52;
+  const ROW_META = 68;
+  const HEADER_H = 30;
+  const itemHeight = (it: FlatItem): number => {
+    if (it.type === 'header') return HEADER_H;
+    const lbl = labels?.[it.session.id];
+    const hasMeta = !!it.session.branch || (lbl?.tags?.length ?? 0) > 0;
+    return hasMeta ? ROW_META : ROW_BASE;
+  };
+
+  // Build cumulative offset table once per render.
+  const offsets = useMemo(() => {
+    const arr: number[] = new Array(flat.length + 1);
+    arr[0] = 0;
+    for (let i = 0; i < flat.length; i++) arr[i + 1] = arr[i] + itemHeight(flat[i]);
+    return arr;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flat, labels]);
+  const totalHeight = offsets[flat.length] ?? 0;
+
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewportH, setViewportH] = useState(0);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const onScroll = () => setScrollTop(el.scrollTop);
+    el.addEventListener('scroll', onScroll, { passive: true });
+    setViewportH(el.clientHeight);
+    const ro = new ResizeObserver(() => setViewportH(el.clientHeight));
+    ro.observe(el);
+    return () => {
+      el.removeEventListener('scroll', onScroll);
+      ro.disconnect();
+    };
+  }, []);
+
+  const VIRTUAL_THRESHOLD = 80;
+  const useVirtual = flat.length > VIRTUAL_THRESHOLD;
+
+  let firstIdx = 0;
+  let lastIdx = flat.length;
+  if (useVirtual && viewportH > 0) {
+    const overscan = 6;
+    // Linear scan — for ~1000 items this is fine; binary search is overkill.
+    while (firstIdx < flat.length && offsets[firstIdx + 1] < scrollTop) firstIdx++;
+    lastIdx = firstIdx;
+    while (lastIdx < flat.length && offsets[lastIdx] < scrollTop + viewportH) lastIdx++;
+    firstIdx = Math.max(0, firstIdx - overscan);
+    lastIdx = Math.min(flat.length, lastIdx + overscan);
+  }
+
+  const visible = useVirtual ? flat.slice(firstIdx, lastIdx) : flat;
+  const offsetTop = useVirtual ? offsets[firstIdx] : 0;
+
   return (
     <aside className="flex-1 flex flex-col min-h-0">
       <div className="px-4 pt-4 pb-3 border-b border-slate-800">
@@ -282,13 +362,38 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
           </div>
         )}
       </div>
-      <div className="flex-1 overflow-y-auto py-2">
-        {renderGroup('active', 'Active', active, 'text-emerald-400')}
-        {repoOrder.map(repo =>
-          renderGroup(`repo:${repo}`, repo, byRepo.get(repo)!)
-        )}
-        {total === 0 && (
+      <div ref={scrollRef} className="flex-1 overflow-y-auto py-2">
+        {total === 0 ? (
           <div className="text-xs text-slate-600 text-center py-8">{t('list.empty')}</div>
+        ) : useVirtual ? (
+          <div style={{ height: totalHeight, position: 'relative' }}>
+            <div style={{ transform: `translateY(${offsetTop}px)` }}>
+              {visible.map((it, i) =>
+                it.type === 'header' ? (
+                  <button
+                    key={`h:${it.key}`}
+                    onClick={() => toggle(it.key)}
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] uppercase tracking-wider text-slate-400 hover:text-slate-200 hover:bg-slate-800/30"
+                    style={{ height: HEADER_H }}
+                  >
+                    <span className={`transition-transform ${it.collapsed ? '-rotate-90' : ''}`}>▾</span>
+                    {it.accent && <span className={it.accent}>●</span>}
+                    <span className="font-semibold truncate">{it.label}</span>
+                    <span className="ml-auto text-slate-600">{it.count}</span>
+                  </button>
+                ) : (
+                  <div key={`r:${it.session.id}:${i}`}>{renderRow(it.session)}</div>
+                )
+              )}
+            </div>
+          </div>
+        ) : (
+          <>
+            {renderGroup('active', 'Active', active, 'text-emerald-400')}
+            {repoOrder.map(repo =>
+              renderGroup(`repo:${repo}`, repo, byRepo.get(repo)!)
+            )}
+          </>
         )}
       </div>
     </aside>
