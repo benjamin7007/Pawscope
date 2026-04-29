@@ -75,6 +75,15 @@ export async function fetchSkillUsage(name: string): Promise<SkillUsage> {
   return r.json();
 }
 
+export async function revealSkill(path: string): Promise<void> {
+  const r = await fetch('/api/skills/reveal', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path }),
+  });
+  if (!r.ok) throw new Error(`skill reveal ${r.status}`);
+}
+
 export type SessionEventMsg =
   | { kind: 'session_list_changed' }
   | { kind: 'detail_updated'; session_id: string; detail: unknown }

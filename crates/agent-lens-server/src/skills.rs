@@ -310,6 +310,47 @@ pub async fn skill_content(
     }))
 }
 
+pub async fn skill_reveal(
+    State(_state): State<AppState>,
+    Json(q): Json<ContentQuery>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    // Same allowlist as skill_content: only SKILL.md files under known roots.
+    let req = PathBuf::from(&q.path);
+    let canonical = std::fs::canonicalize(&req).map_err(|_| StatusCode::NOT_FOUND)?;
+    let roots: Vec<PathBuf> = skill_roots()
+        .into_iter()
+        .filter_map(|r| std::fs::canonicalize(&r).ok())
+        .collect();
+    if !roots.iter().any(|r| canonical.starts_with(r)) {
+        return Err(StatusCode::FORBIDDEN);
+    }
+    if canonical.file_name().and_then(|n| n.to_str()) != Some("SKILL.md") {
+        return Err(StatusCode::FORBIDDEN);
+    }
+    // macOS: `open -R` reveals in Finder. Linux: `xdg-open <dir>`. Windows: `explorer /select,`.
+    #[cfg(target_os = "macos")]
+    let result = std::process::Command::new("open")
+        .arg("-R")
+        .arg(&canonical)
+        .status();
+    #[cfg(target_os = "linux")]
+    let result = std::process::Command::new("xdg-open")
+        .arg(canonical.parent().unwrap_or(&canonical))
+        .status();
+    #[cfg(target_os = "windows")]
+    let result = std::process::Command::new("explorer")
+        .arg(format!("/select,{}", canonical.display()))
+        .status();
+    #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
+    let result: Result<std::process::ExitStatus, std::io::Error> =
+        Err(std::io::Error::other("unsupported platform"));
+
+    match result {
+        Ok(_) => Ok(Json(serde_json::json!({"ok": true}))),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

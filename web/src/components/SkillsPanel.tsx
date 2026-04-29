@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { fetchSkills, fetchSkillContent, fetchSkillUsage, type SkillEntry, type SkillContent, type SkillUsage } from '../api';
+import { fetchSkills, fetchSkillContent, fetchSkillUsage, revealSkill, type SkillEntry, type SkillContent, type SkillUsage } from '../api';
 import { useT } from '../i18n';
 import { renderMarkdown } from '../markdown';
 
@@ -26,6 +26,7 @@ export function SkillsPanel({
   const [filter, setFilter] = useState('');
   const [source, setSource] = useState<string>('all');
   const [usedOnly, setUsedOnly] = useState(false);
+  const [sort, setSort] = useState<'invocations' | 'name' | 'source'>('invocations');
   const [openSkill, setOpenSkill] = useState<SkillEntry | null>(null);
   const [openContent, setOpenContent] = useState<SkillContent | null>(null);
   const [openErr, setOpenErr] = useState<string | null>(null);
@@ -73,13 +74,22 @@ export function SkillsPanel({
   const filtered = useMemo(() => {
     if (!skills) return [];
     const q = filter.trim().toLowerCase();
-    return skills.filter(s => {
+    const list = skills.filter(s => {
       if (source !== 'all' && s.source !== source) return false;
       if (usedOnly && s.invocations === 0) return false;
       if (q && !s.name.toLowerCase().includes(q) && !s.description.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [skills, filter, source, usedOnly]);
+    const sorted = [...list];
+    if (sort === 'invocations') {
+      sorted.sort((a, b) => b.invocations - a.invocations || a.name.localeCompare(b.name));
+    } else if (sort === 'name') {
+      sorted.sort((a, b) => a.name.localeCompare(b.name));
+    } else {
+      sorted.sort((a, b) => a.source.localeCompare(b.source) || a.name.localeCompare(b.name));
+    }
+    return sorted;
+  }, [skills, filter, source, usedOnly, sort]);
 
   const usedCount = skills?.filter(s => s.invocations > 0).length ?? 0;
 
@@ -126,6 +136,16 @@ export function SkillsPanel({
               {SOURCE_LABELS[k] ?? k} ({v})
             </option>
           ))}
+        </select>
+        <select
+          value={sort}
+          onChange={e => setSort(e.target.value as typeof sort)}
+          className="bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-sm"
+          title={lang === 'zh' ? '排序' : 'Sort'}
+        >
+          <option value="invocations">{lang === 'zh' ? '按调用量' : 'By invocations'}</option>
+          <option value="name">{lang === 'zh' ? '按名称' : 'By name'}</option>
+          <option value="source">{lang === 'zh' ? '按来源' : 'By source'}</option>
         </select>
         <label className="flex items-center gap-1.5 text-xs text-slate-400 cursor-pointer">
           <input type="checkbox" checked={usedOnly} onChange={e => setUsedOnly(e.target.checked)} />
@@ -281,6 +301,19 @@ function SkillDrawer({
             title={lang === 'zh' ? '复制路径' : 'Copy path'}
           >
             {copied ? (lang === 'zh' ? '已复制' : 'Copied') : (lang === 'zh' ? '复制路径' : 'Copy path')}
+          </button>
+          <button
+            onClick={async () => {
+              try {
+                await revealSkill(skill.path);
+              } catch (e) {
+                console.warn('reveal failed', e);
+              }
+            }}
+            className="text-[10px] px-2 py-0.5 rounded border border-slate-700 text-slate-400 hover:text-slate-100 hover:border-slate-500 transition-colors"
+            title={lang === 'zh' ? '在 Finder/资源管理器中显示' : 'Reveal in Finder/Explorer'}
+          >
+            {lang === 'zh' ? '打开位置' : 'Reveal'}
           </button>
           {content && (
             <span className="text-[10px] text-slate-600 tabular-nums">

@@ -124,7 +124,14 @@ export default function App() {
           autoOpenNonce={pendingSkill?.n ?? 0}
         />
       ) : (
-        <SessionDetail meta={sessions.find(s => s.id === selected)} detail={detail} />
+        <SessionDetail
+          meta={sessions.find(s => s.id === selected)}
+          detail={detail}
+          onOpenSkill={(name: string) => {
+            setPendingSkill(p => ({ name, n: (p?.n ?? 0) + 1 }));
+            setView('skills');
+          }}
+        />
       )}
     </div>
   );
