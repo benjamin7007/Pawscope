@@ -448,6 +448,9 @@ function CostSparkline({ sessions, tokensMap, t }: {
   const area = `${path} L${W},${H} L0,${H} Z`;
   const overCount = pts.filter(p => p[2]).length;
   const budgetY = budget > 0 ? H - (budget / max) * (H - 4) - 2 : null;
+  const avgDaily = total / 7;
+  const proj7d = avgDaily * 7;
+  const overProj = budget > 0 && proj7d > budget * 7;
   return (
     <div className="px-4 py-2 border-b border-slate-800/40">
       <div className="flex items-center justify-between text-[10px] text-slate-500 mb-1">
@@ -488,8 +491,14 @@ function CostSparkline({ sessions, tokensMap, t }: {
           </circle>
         ))}
       </svg>
-      <div className="flex justify-between text-[8px] text-slate-600 tabular-nums mt-0.5">
+      <div className="flex justify-between items-center text-[8px] text-slate-600 tabular-nums mt-0.5">
         <span>{days7[0].label}</span>
+        <span
+          className={overProj ? 'text-rose-400' : 'text-slate-500'}
+          title={t('misc.forecast_tip')}
+        >
+          ≈ {formatUsd(proj7d)} {t('misc.forecast_label')}
+        </span>
         <span>{days7[days7.length - 1].label}</span>
       </div>
     </div>
