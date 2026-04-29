@@ -182,6 +182,7 @@ export default function App() {
           <span className="font-semibold text-slate-100 text-base tracking-tight">Pawscope</span>
           <TodayCostBadge sessions={sessions} tokensMap={tokensMap} t={t} />
         </div>
+        <CostSparkline sessions={sessions} tokensMap={tokensMap} t={t} />
         <nav className="flex border-b border-slate-800">
           <button
             onClick={() => navigate({ view: 'overview' })}
@@ -323,29 +324,126 @@ function TodayCostBadge({ sessions, tokensMap, t }: {
   tokensMap: Record<string, { in: number; out: number }>;
   t: (k: string) => string;
 }) {
+  type Period = 'today' | 'week' | 'month';
+  const [period, setPeriod] = useState<Period>(() => (localStorage.getItem('pawscope.costPeriod') as Period) || 'today');
+  const [open, setOpen] = useState(false);
+  useEffect(() => { localStorage.setItem('pawscope.costPeriod', period); }, [period]);
   const { cost, count } = useMemo(() => {
     const now = new Date();
-    const y = now.getFullYear(), m = now.getMonth(), d = now.getDate();
-    let total = 0;
-    let n = 0;
+    let cutoff: Date;
+    if (period === 'today') {
+      cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    } else if (period === 'week') {
+      const dow = now.getDay() === 0 ? 6 : now.getDay() - 1; // Mon=0
+      cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dow);
+    } else {
+      cutoff = new Date(now.getFullYear(), now.getMonth(), 1);
+    }
+    let total = 0, n = 0;
     for (const s of sessions) {
       if (!s.last_event_at) continue;
       const dt = new Date(s.last_event_at);
-      if (dt.getFullYear() !== y || dt.getMonth() !== m || dt.getDate() !== d) continue;
+      if (dt < cutoff) continue;
       const tk = tokensMap[s.id];
       if (!tk) continue;
       const c = estimateCostUsd(s.model, tk.in, tk.out);
       if (c !== null) { total += c; n += 1; }
     }
     return { cost: total, count: n };
-  }, [sessions, tokensMap]);
-  if (count === 0) return null;
+  }, [sessions, tokensMap, period]);
+  const label = period === 'today' ? t('misc.today_cost') : period === 'week' ? t('misc.week_cost') : t('misc.month_cost');
+  if (count === 0 && period === 'today') return null;
   return (
-    <span
-      className="ml-auto px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-mono text-emerald-300 tabular-nums"
-      title={`${count} sessions today · ${formatUsd(cost)}`}
-    >
-      {t('misc.today_cost')} · {formatUsd(cost)}
-    </span>
+    <div className="ml-auto relative">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-mono text-emerald-300 tabular-nums hover:bg-emerald-500/20 transition-colors flex items-center gap-1"
+        title={`${count} sessions · ${formatUsd(cost)}`}
+      >
+        <span>{label} · {formatUsd(cost)}</span>
+        <span className="text-emerald-400/60 text-[8px]">▾</span>
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 z-20 rounded-md bg-slate-900 border border-slate-700 shadow-lg overflow-hidden text-[11px] min-w-[110px]">
+          {(['today','week','month'] as Period[]).map(p => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => { setPeriod(p); setOpen(false); }}
+              className={`w-full px-3 py-1.5 text-left hover:bg-slate-800 transition-colors ${p === period ? 'text-emerald-300 bg-slate-800/60' : 'text-slate-300'}`}
+            >
+              {p === 'today' ? t('misc.today_cost') : p === 'week' ? t('misc.week_cost') : t('misc.month_cost')}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CostSparkline({ sessions, tokensMap, t }: {
+  sessions: any[];
+  tokensMap: Record<string, { in: number; out: number }>;
+  t: (k: string) => string;
+}) {
+  const days7 = useMemo(() => {
+    const today = new Date();
+    const buckets: { label: string; cost: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
+      buckets.push({ label: `${d.getMonth() + 1}/${d.getDate()}`, cost: 0 });
+    }
+    for (const s of sessions) {
+      if (!s.last_event_at) continue;
+      const dt = new Date(s.last_event_at);
+      const sd = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+      const diff = Math.floor((new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime() - sd.getTime()) / 86400000);
+      if (diff < 0 || diff > 6) continue;
+      const tk = tokensMap[s.id];
+      if (!tk) continue;
+      const c = estimateCostUsd(s.model, tk.in, tk.out);
+      if (c === null) continue;
+      buckets[6 - diff].cost += c;
+    }
+    return buckets;
+  }, [sessions, tokensMap]);
+  const total = days7.reduce((a, b) => a + b.cost, 0);
+  if (total <= 0) return null;
+  const max = Math.max(...days7.map(d => d.cost), 0.0001);
+  const W = 100, H = 28;
+  const pts = days7.map((d, i) => {
+    const x = (i / (days7.length - 1)) * W;
+    const y = H - (d.cost / max) * (H - 4) - 2;
+    return [x, y] as [number, number];
+  });
+  const path = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+  const area = `${path} L${W},${H} L0,${H} Z`;
+  return (
+    <div className="px-4 py-2 border-b border-slate-800/40">
+      <div className="flex items-center justify-between text-[10px] text-slate-500 mb-1">
+        <span className="uppercase tracking-wider">{t('misc.cost7_trend')}</span>
+        <span className="text-emerald-400 font-mono tabular-nums">{formatUsd(total)}</span>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="w-full h-7">
+        <defs>
+          <linearGradient id="costGrad" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="rgba(16,185,129,0.4)" />
+            <stop offset="100%" stopColor="rgba(16,185,129,0)" />
+          </linearGradient>
+        </defs>
+        <path d={area} fill="url(#costGrad)" />
+        <path d={path} stroke="#34d399" strokeWidth="1" fill="none" />
+        {pts.map((p, i) => (
+          <circle key={i} cx={p[0]} cy={p[1]} r="1.2" fill="#34d399">
+            <title>{`${days7[i].label}: ${formatUsd(days7[i].cost)}`}</title>
+          </circle>
+        ))}
+      </svg>
+      <div className="flex justify-between text-[8px] text-slate-600 tabular-nums mt-0.5">
+        <span>{days7[0].label}</span>
+        <span>{days7[days7.length - 1].label}</span>
+      </div>
+    </div>
   );
 }

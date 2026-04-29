@@ -1059,8 +1059,43 @@ pub async fn files_hot(State(s): State<AppState>) -> impl IntoResponse {
                 if stop_ext.contains(after_dot) { continue; }
                 if !after_dot.chars().all(|c| c.is_ascii_alphabetic()) { continue; }
                 if !raw.chars().any(|c| c == '/' || c == '.') { continue; }
-                let normed = raw.trim_matches(|c: char| c == '.' || c == ',' || c == ')' || c == '(').to_string();
+                let mut normed = raw.trim_matches(|c: char| c == '.' || c == ',' || c == ')' || c == '(').to_string();
                 if normed.is_empty() { continue; }
+                // Strip URL schemes and host prefixes: http://example.com/foo.js → foo.js
+                if let Some(rest) = normed.strip_prefix("http://").or_else(|| normed.strip_prefix("https://")) {
+                    normed = rest.to_string();
+                }
+                if let Some(rest) = normed.strip_prefix("//") {
+                    normed = rest.to_string();
+                }
+                if let Some(idx) = normed.find('/') {
+                    let head = &normed[..idx];
+                    if head.contains('.') && head.chars().any(|c| c.is_ascii_alphabetic()) {
+                        let tail = &normed[idx + 1..];
+                        if !tail.is_empty() { normed = tail.to_string(); }
+                    }
+                }
+                // Strip user home prefixes: /Users/<name>/foo.rs → foo.rs, /home/<name>/... → ...
+                for prefix in ["/Users/", "/home/", "/root/"] {
+                    if let Some(rest) = normed.strip_prefix(prefix) {
+                        if let Some(slash) = rest.find('/') {
+                            normed = rest[slash + 1..].to_string();
+                        } else {
+                            // Just /Users/<name> with no further file → skip entirely.
+                            normed = String::new();
+                        }
+                    }
+                }
+                if normed.is_empty() { continue; }
+                // Drop pure hostname leftovers (no slash, no real ext like ".com" / ".io")
+                if !normed.contains('/') {
+                    let ext_after = normed.rsplit('.').next().unwrap_or("");
+                    let host_tlds = ["com", "io", "org", "net", "dev", "ai", "co", "app", "xyz", "me"];
+                    if host_tlds.contains(&ext_after) { continue; }
+                    // Reject "extensions" that start with uppercase — likely proper nouns (e.g. Anbei.Yuan).
+                    if ext_after.chars().next().map(|c| c.is_ascii_uppercase()).unwrap_or(false) { continue; }
+                }
+                if normed.is_empty() || normed.len() < 3 { continue; }
                 let entry = counts.entry(normed.clone()).or_insert((0, std::collections::HashSet::new()));
                 entry.0 += 1;
                 if !seen_in_session.contains(&normed) {
