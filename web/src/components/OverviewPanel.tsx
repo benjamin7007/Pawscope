@@ -31,6 +31,8 @@ type Realm = {
   active: number;
   turns: number;
   tool_calls: number;
+  sessions_this_week: number;
+  sessions_prev_week: number;
   last_event_at: string | null;
   agents: string[];
 };
@@ -50,6 +52,40 @@ type Overview = {
   top_subagents?: Subagent[];
   top_realms?: Realm[];
 };
+
+function TrendBadge({ curr, prev }: { curr: number; prev: number }) {
+  if (curr === 0 && prev === 0) {
+    return <span className="text-[10px] text-slate-700">—</span>;
+  }
+  if (prev === 0 && curr > 0) {
+    return (
+      <span className="text-[10px] text-emerald-400 font-medium" title={`new: +${curr}`}>
+        ▲ new
+      </span>
+    );
+  }
+  if (curr === 0 && prev > 0) {
+    return (
+      <span className="text-[10px] text-rose-400 font-medium" title={`-${prev} (was ${prev})`}>
+        ▼ −{prev}
+      </span>
+    );
+  }
+  const delta = curr - prev;
+  const pct = prev > 0 ? Math.round((delta / prev) * 100) : 0;
+  if (delta === 0) {
+    return <span className="text-[10px] text-slate-500" title="no change">＝</span>;
+  }
+  const up = delta > 0;
+  return (
+    <span
+      className={`text-[10px] font-medium ${up ? 'text-emerald-400' : 'text-rose-400'}`}
+      title={`this 7d: ${curr} · prev 7d: ${prev} (${up ? '+' : ''}${pct}%)`}
+    >
+      {up ? '▲' : '▼'} {up ? '+' : ''}{pct}%
+    </span>
+  );
+}
 
 function HeroStat({ label, value, accent }: { label: string; value: React.ReactNode; accent?: string }) {
   return (
@@ -553,8 +589,11 @@ export function OverviewPanel({
                     </div>
                     <div className="flex items-center gap-4 flex-shrink-0 text-xs tabular-nums">
                       <span className="text-right">
-                        <div className="text-slate-200 font-semibold">{r.sessions}</div>
-                        <div className="text-[10px] text-slate-600">sessions</div>
+                        <div className="text-slate-200 font-semibold flex items-baseline justify-end gap-1.5">
+                          <span>{r.sessions}</span>
+                          <TrendBadge curr={r.sessions_this_week} prev={r.sessions_prev_week} />
+                        </div>
+                        <div className="text-[10px] text-slate-600">sessions · 7d</div>
                       </span>
                       <span className="text-right">
                         <div className="text-amber-300 font-semibold">{r.turns.toLocaleString()}</div>
