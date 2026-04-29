@@ -463,6 +463,81 @@ function fmtTokens(n: number): string {
   return n.toLocaleString();
 }
 
+function DormantBanner({ active, onOpen }: { active: Session[]; onOpen?: (id: string) => void }) {
+  const { t } = useT();
+  const [days, setDays] = useState<number>(() => {
+    const v = parseInt(localStorage.getItem('pawscope.dormantDays') ?? '', 10);
+    return Number.isFinite(v) && v >= 1 ? v : 3;
+  });
+  const [collapsed, setCollapsed] = useState<boolean>(() =>
+    localStorage.getItem('pawscope.dormantCollapsed') === '1'
+  );
+  useEffect(() => { localStorage.setItem('pawscope.dormantDays', String(days)); }, [days]);
+  useEffect(() => { localStorage.setItem('pawscope.dormantCollapsed', collapsed ? '1' : '0'); }, [collapsed]);
+  const now = Date.now();
+  const dormant = useMemo(() => {
+    const ms = days * 24 * 3600 * 1000;
+    return active
+      .map(s => ({ s, age: now - new Date(s.last_event_at).getTime() }))
+      .filter(x => x.age >= ms)
+      .sort((a, b) => b.age - a.age);
+  }, [active, days, now]);
+  if (dormant.length === 0) return null;
+  return (
+    <section className="rounded-lg border border-amber-900/40 bg-gradient-to-r from-amber-950/30 to-slate-900/40">
+      <header className="px-4 py-2.5 flex items-center gap-3">
+        <span className="text-amber-300 text-sm">⏰</span>
+        <h3 className="text-xs uppercase tracking-wider text-amber-200">{t('sec.dormant')}</h3>
+        <span className="text-[11px] text-amber-300/80 tabular-nums">{dormant.length} {t('misc.sessions_short')}</span>
+        <select
+          value={days}
+          onChange={e => setDays(parseInt(e.target.value, 10))}
+          className="ml-auto bg-slate-800 border border-slate-700 rounded text-[11px] px-1.5 py-0.5 text-slate-300"
+          onClick={e => e.stopPropagation()}
+        >
+          {[1, 3, 7, 14, 30].map(n => (
+            <option key={n} value={n}>&gt; {n}d</option>
+          ))}
+        </select>
+        <button
+          onClick={() => setCollapsed(c => !c)}
+          className="text-[11px] text-slate-400 hover:text-slate-200"
+        >
+          {collapsed ? t('misc.show') : t('misc.hide')}
+        </button>
+      </header>
+      {!collapsed && (
+        <div className="px-3 pb-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          {dormant.slice(0, 12).map(({ s, age }) => {
+            const ageDays = Math.floor(age / (24 * 3600 * 1000));
+            return (
+              <button
+                key={s.id}
+                onClick={() => onOpen?.(s.id)}
+                className="text-left rounded bg-slate-900/50 border border-slate-800 hover:border-amber-700/50 px-2.5 py-2 group"
+              >
+                <div className="flex items-baseline gap-2 mb-0.5">
+                  <span className={`text-[10px] uppercase tracking-wider ${
+                    s.agent === 'copilot' ? 'text-cyan-400' :
+                    s.agent === 'claude' ? 'text-amber-400' : 'text-emerald-400'
+                  }`}>{s.agent}</span>
+                  <span className="text-[10px] text-amber-300/80 tabular-nums ml-auto">{ageDays}d idle</span>
+                </div>
+                <div className="text-xs text-slate-200 truncate group-hover:text-slate-50">
+                  {s.summary || s.repo || s.id.slice(0, 12)}
+                </div>
+              </button>
+            );
+          })}
+          {dormant.length > 12 && (
+            <div className="text-[11px] text-slate-500 self-center pl-2">+{dormant.length - 12} {t('misc.more')}</div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function WordCloud({ entries, onPick }: {
   entries: { word: string; count: number; sessions: number }[];
   onPick: (w: string) => void;
@@ -825,6 +900,7 @@ export function OverviewPanel({
 
       <div className="p-6 space-y-6">
         <LiveTicker sessions={active} onOpen={onOpenSession} />
+        <DormantBanner active={active} onOpen={onOpenSession} />
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <HeroStat label={t('stat.sessions')} value={data.total_sessions} />
           <HeroStat
