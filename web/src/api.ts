@@ -126,10 +126,24 @@ export interface PromptHit {
   timestamp: string | null;
   snippet: string;
 }
-export async function searchPrompts(q: string, limit = 50): Promise<PromptHit[]> {
+export interface PromptSearchFilters {
+  agent?: string;
+  repo?: string;
+  since?: string;
+  until?: string;
+}
+export async function searchPrompts(
+  q: string,
+  limit = 50,
+  filters: PromptSearchFilters = {},
+): Promise<PromptHit[]> {
   const params = new URLSearchParams();
   if (q) params.set('q', q);
   params.set('limit', String(limit));
+  if (filters.agent) params.set('agent', filters.agent);
+  if (filters.repo) params.set('repo', filters.repo);
+  if (filters.since) params.set('since', filters.since);
+  if (filters.until) params.set('until', filters.until);
   const r = await fetch(`/api/prompts/search?${params}`);
   if (!r.ok) throw new Error(`prompts search ${r.status}`);
   return r.json();

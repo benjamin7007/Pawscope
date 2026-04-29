@@ -15,11 +15,21 @@ const dict: Record<string, { en: string; zh: string }> = {
 
   // Prompts search
   'prompts.title': { en: 'Search prompts', zh: '搜索用户提示' },
-  'prompts.placeholder': { en: 'Type to search across all sessions…', zh: '输入关键字，跨所有会话搜索…' },
+  'prompts.placeholder': { en: 'Type to search across all sessions…', zh: '输入关键字,跨所有会话搜索…' },
   'prompts.empty': { en: 'No matches.', zh: '没有匹配结果。' },
   'prompts.loading': { en: 'Searching…', zh: '搜索中…' },
   'prompts.results': { en: 'results', zh: '条结果' },
-  'prompts.recent': { en: 'Recent prompts (no filter)', zh: '最近的用户提示（无过滤）' },
+  'prompts.recent': { en: 'Recent prompts (no filter)', zh: '最近的用户提示(无过滤)' },
+  'prompts.filters': { en: 'Filters', zh: '过滤器' },
+  'prompts.filter.agent': { en: 'Agent', zh: 'Agent' },
+  'prompts.filter.agent.all': { en: 'All', zh: '全部' },
+  'prompts.filter.repo': { en: 'Repo contains', zh: '仓库包含' },
+  'prompts.filter.range': { en: 'Range', zh: '时间' },
+  'prompts.filter.range.all': { en: 'All time', zh: '全部时间' },
+  'prompts.filter.range.24h': { en: 'Last 24h', zh: '近 24 小时' },
+  'prompts.filter.range.7d': { en: 'Last 7d', zh: '近 7 天' },
+  'prompts.filter.range.30d': { en: 'Last 30d', zh: '近 30 天' },
+  'prompts.filter.clear': { en: 'Clear', zh: '清除' },
 
   // Tool timeline
   'sec.tool_timeline': { en: 'Tool call timeline', zh: '工具调用时间轴' },

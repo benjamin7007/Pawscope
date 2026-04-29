@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { searchPrompts, type PromptHit } from '../api';
+import { searchPrompts, type PromptHit, type PromptSearchFilters } from '../api';
 import { useT } from '../i18n';
 
 const AGENT_BADGE: Record<string, string> = {
@@ -7,6 +7,8 @@ const AGENT_BADGE: Record<string, string> = {
   claude: 'bg-violet-500/15 text-violet-300 border-violet-500/30',
   codex: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
 };
+
+const RANGE_HOURS: Record<string, number> = { '24h': 24, '7d': 24 * 7, '30d': 24 * 30 };
 
 function relTime(ts: string | null): string {
   if (!ts) return '';
@@ -45,15 +47,29 @@ interface Props {
 export function PromptsPanel({ onOpenSession }: Props) {
   const { t } = useT();
   const [q, setQ] = useState('');
+  const [agent, setAgent] = useState<string>('');
+  const [repo, setRepo] = useState<string>('');
+  const [range, setRange] = useState<string>('');
   const [hits, setHits] = useState<PromptHit[]>([]);
   const [loading, setLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const filters: PromptSearchFilters = useMemo(() => {
+    const f: PromptSearchFilters = {};
+    if (agent) f.agent = agent;
+    if (repo.trim()) f.repo = repo.trim();
+    if (range && RANGE_HOURS[range]) {
+      const since = new Date(Date.now() - RANGE_HOURS[range] * 3600_000);
+      f.since = since.toISOString();
+    }
+    return f;
+  }, [agent, repo, range]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       setLoading(true);
-      searchPrompts(q.trim(), 100)
+      searchPrompts(q.trim(), 100, filters)
         .then(setHits)
         .catch(() => setHits([]))
         .finally(() => setLoading(false));
@@ -61,13 +77,18 @@ export function PromptsPanel({ onOpenSession }: Props) {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [q]);
+  }, [q, filters]);
+
+  const filterActive = !!(agent || repo.trim() || range);
 
   const header = useMemo(() => {
     if (loading) return t('prompts.loading');
-    if (q.trim()) return `${hits.length} ${t('prompts.results')}`;
+    if (q.trim() || filterActive) return `${hits.length} ${t('prompts.results')}`;
     return t('prompts.recent');
-  }, [loading, hits.length, q, t]);
+  }, [loading, hits.length, q, filterActive, t]);
+
+  const selectClass =
+    'bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-emerald-500/60';
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-slate-950">
@@ -95,7 +116,49 @@ export function PromptsPanel({ onOpenSession }: Props) {
             className="w-full bg-slate-900 border border-slate-700 rounded-md pl-9 pr-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/30"
           />
         </div>
-        <div className="mt-2 text-[11px] uppercase tracking-wider text-slate-500">{header}</div>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-1.5 text-[11px] text-slate-400">
+            <span className="uppercase tracking-wider">{t('prompts.filter.agent')}</span>
+            <select className={selectClass} value={agent} onChange={(e) => setAgent(e.target.value)}>
+              <option value="">{t('prompts.filter.agent.all')}</option>
+              <option value="copilot">copilot</option>
+              <option value="claude">claude</option>
+              <option value="codex">codex</option>
+            </select>
+          </label>
+          <label className="flex items-center gap-1.5 text-[11px] text-slate-400">
+            <span className="uppercase tracking-wider">{t('prompts.filter.repo')}</span>
+            <input
+              type="text"
+              value={repo}
+              onChange={(e) => setRepo(e.target.value)}
+              placeholder="owner/name"
+              className={`${selectClass} w-44`}
+            />
+          </label>
+          <label className="flex items-center gap-1.5 text-[11px] text-slate-400">
+            <span className="uppercase tracking-wider">{t('prompts.filter.range')}</span>
+            <select className={selectClass} value={range} onChange={(e) => setRange(e.target.value)}>
+              <option value="">{t('prompts.filter.range.all')}</option>
+              <option value="24h">{t('prompts.filter.range.24h')}</option>
+              <option value="7d">{t('prompts.filter.range.7d')}</option>
+              <option value="30d">{t('prompts.filter.range.30d')}</option>
+            </select>
+          </label>
+          {filterActive && (
+            <button
+              onClick={() => {
+                setAgent('');
+                setRepo('');
+                setRange('');
+              }}
+              className="text-[11px] text-slate-400 hover:text-slate-200 underline underline-offset-2"
+            >
+              {t('prompts.filter.clear')}
+            </button>
+          )}
+          <span className="ml-auto text-[11px] uppercase tracking-wider text-slate-500">{header}</span>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -120,9 +183,7 @@ export function PromptsPanel({ onOpenSession }: Props) {
                   {h.repo && (
                     <span className="text-[11px] text-slate-400 truncate max-w-xs">{h.repo}</span>
                   )}
-                  {h.branch && (
-                    <span className="text-[11px] text-slate-500">· {h.branch}</span>
-                  )}
+                  {h.branch && <span className="text-[11px] text-slate-500">· {h.branch}</span>}
                   <span className="ml-auto text-[11px] text-slate-500 font-mono">
                     {relTime(h.timestamp)}
                   </span>
