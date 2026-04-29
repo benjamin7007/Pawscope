@@ -157,32 +157,32 @@ impl AgentAdapter for CodexAdapter {
     }
 
     async fn get_detail(&self, session_id: &str) -> Result<SessionDetail> {
-        // Codex rollouts live outside the SQLite DB; until rollout parsing is
-        // wired up, return a default detail so the UI still renders metadata.
-        // We surface tokens_used and first_user_message as a prompt summary.
         let conn = self.conn.clone();
         let id = session_id.to_string();
         let detail = tokio::task::spawn_blocking(move || -> Result<SessionDetail> {
-            let guard = conn.lock().unwrap();
-            let mut stmt = guard
-                .prepare(
-                    "SELECT first_user_message, tokens_used, created_at
-                       FROM threads WHERE id = ?1",
-                )
-                .map_err(|e| CoreError::Other(e.to_string()))?;
-            let mut rows = stmt
-                .query([&id])
-                .map_err(|e| CoreError::Other(e.to_string()))?;
-            let Some(row) = rows.next().map_err(|e| CoreError::Other(e.to_string()))? else {
-                return Err(CoreError::NotFound(id));
+            let (fum, created, rollout_path) = {
+                let guard = conn.lock().unwrap();
+                let mut stmt = guard
+                    .prepare(
+                        "SELECT first_user_message, created_at, rollout_path
+                           FROM threads WHERE id = ?1",
+                    )
+                    .map_err(|e| CoreError::Other(e.to_string()))?;
+                let mut rows = stmt
+                    .query([&id])
+                    .map_err(|e| CoreError::Other(e.to_string()))?;
+                let Some(row) = rows.next().map_err(|e| CoreError::Other(e.to_string()))? else {
+                    return Err(CoreError::NotFound(id));
+                };
+                let fum: String = row.get(0).unwrap_or_default();
+                let created: i64 = row.get(1).unwrap_or(0);
+                let rollout_path: String = row.get(2).unwrap_or_default();
+                (fum, created, rollout_path)
             };
-            let fum: String = row.get(0).unwrap_or_default();
-            let _tokens: i64 = row.get(1).unwrap_or(0);
-            let created: i64 = row.get(2).unwrap_or(0);
+
             let mut detail = SessionDetail::default();
             if !fum.trim().is_empty() {
                 let snippet: String = fum.chars().take(120).collect();
-                detail.user_messages = 1;
                 detail.prompts.push(agent_lens_core::PromptSummary {
                     id: "first".into(),
                     timestamp: Utc.timestamp_opt(created, 0).single(),
@@ -190,11 +190,58 @@ impl AgentAdapter for CodexAdapter {
                     text: fum,
                 });
             }
+
+            let mut parsed = false;
+            if !rollout_path.is_empty() {
+                let path = PathBuf::from(&rollout_path);
+                if let Ok(file) = std::fs::File::open(&path) {
+                    parse_rollout_into_detail(file, &mut detail);
+                    parsed = true;
+                }
+            }
+            // Fallback: when rollout file unavailable, surface the first user
+            // message as a single user_messages count so the UI shows non-zero
+            // activity instead of an empty session.
+            if !parsed && detail.user_messages == 0 && !detail.prompts.is_empty() {
+                detail.user_messages = 1;
+            }
             Ok(detail)
         })
         .await
         .map_err(|e| CoreError::Other(e.to_string()))??;
         Ok(detail)
+    }
+
+    async fn session_activity_hourly(&self, session_id: &str, hours: u32) -> Result<Vec<u64>> {
+        let conn = self.conn.clone();
+        let id = session_id.to_string();
+        let hours_usize = hours as usize;
+        let buckets = tokio::task::spawn_blocking(move || -> Result<Vec<u64>> {
+            let rollout_path: String = {
+                let guard = conn.lock().unwrap();
+                let mut stmt = guard
+                    .prepare("SELECT rollout_path FROM threads WHERE id = ?1")
+                    .map_err(|e| CoreError::Other(e.to_string()))?;
+                let mut rows = stmt
+                    .query([&id])
+                    .map_err(|e| CoreError::Other(e.to_string()))?;
+                match rows.next().map_err(|e| CoreError::Other(e.to_string()))? {
+                    Some(r) => r.get::<_, String>(0).unwrap_or_default(),
+                    None => return Ok(Vec::new()),
+                }
+            };
+            if rollout_path.is_empty() {
+                return Ok(Vec::new());
+            }
+            let file = match std::fs::File::open(&rollout_path) {
+                Ok(f) => f,
+                Err(_) => return Ok(Vec::new()),
+            };
+            Ok(parse_rollout_activity(file, hours_usize))
+        })
+        .await
+        .map_err(|e| CoreError::Other(e.to_string()))??;
+        Ok(buckets)
     }
 
     async fn watch(&self, _tx: mpsc::Sender<SessionEvent>) -> Result<()> {
@@ -217,6 +264,114 @@ impl AgentAdapter for CodexAdapter {
         });
         Ok(())
     }
+}
+
+fn parse_rollout_into_detail(file: std::fs::File, detail: &mut SessionDetail) {
+    use std::io::{BufRead, BufReader};
+    let reader = BufReader::new(file);
+    for line in reader.lines().map_while(std::result::Result::ok) {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let v: serde_json::Value = match serde_json::from_str(line) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        let kind = v.get("type").and_then(|t| t.as_str()).unwrap_or("");
+        let payload = v.get("payload");
+        match kind {
+            "response_item" => {
+                let Some(p) = payload else { continue };
+                let inner = p.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                match inner {
+                    "message" => {
+                        let role = p.get("role").and_then(|r| r.as_str()).unwrap_or("");
+                        match role {
+                            "user" => detail.user_messages += 1,
+                            "assistant" => {
+                                detail.assistant_messages += 1;
+                                detail.turns += 1;
+                            }
+                            _ => {}
+                        }
+                    }
+                    "function_call" => {
+                        let name = p.get("name").and_then(|n| n.as_str()).unwrap_or("function");
+                        *detail.tools_used.entry(name.to_string()).or_default() += 1;
+                    }
+                    "custom_tool_call" => {
+                        let name = p
+                            .get("name")
+                            .and_then(|n| n.as_str())
+                            .unwrap_or("custom_tool");
+                        *detail.tools_used.entry(name.to_string()).or_default() += 1;
+                    }
+                    "local_shell_call" => {
+                        *detail.tools_used.entry("shell".to_string()).or_default() += 1;
+                    }
+                    _ => {}
+                }
+            }
+            "compacted" => {
+                // mid-session compaction; ignore but don't error.
+            }
+            _ => {}
+        }
+    }
+}
+
+fn parse_rollout_activity(file: std::fs::File, hours: usize) -> Vec<u64> {
+    use std::io::{BufRead, BufReader};
+    if hours == 0 {
+        return Vec::new();
+    }
+    let mut buckets = vec![0u64; hours];
+    let now = Utc::now();
+    let reader = BufReader::new(file);
+    for line in reader.lines().map_while(std::result::Result::ok) {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let v: serde_json::Value = match serde_json::from_str(line) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        // Only count assistant messages as turns (matches Claude semantics).
+        let kind = v.get("type").and_then(|t| t.as_str()).unwrap_or("");
+        if kind != "response_item" {
+            continue;
+        }
+        let payload = match v.get("payload") {
+            Some(p) => p,
+            None => continue,
+        };
+        if payload.get("type").and_then(|t| t.as_str()) != Some("message")
+            || payload.get("role").and_then(|r| r.as_str()) != Some("assistant")
+        {
+            continue;
+        }
+        let ts_str = match v.get("timestamp").and_then(|t| t.as_str()) {
+            Some(s) => s,
+            None => continue,
+        };
+        let ts = match DateTime::parse_from_rfc3339(ts_str) {
+            Ok(t) => t.with_timezone(&Utc),
+            Err(_) => continue,
+        };
+        let hours_ago = (now - ts).num_hours();
+        if hours_ago < 0 {
+            continue;
+        }
+        let hours_ago = hours_ago as usize;
+        if hours_ago >= hours {
+            continue;
+        }
+        let idx = hours - 1 - hours_ago;
+        buckets[idx] += 1;
+    }
+    buckets
 }
 
 #[cfg(test)]
@@ -311,5 +466,99 @@ mod tests {
         );
         assert_eq!(parse_repo_from_origin(None), None);
         assert_eq!(parse_repo_from_origin(Some("")), None);
+    }
+
+    fn write_rollout(dir: &Path, name: &str, lines: &[&str]) -> PathBuf {
+        let p = dir.join(name);
+        std::fs::write(&p, lines.join("\n")).unwrap();
+        p
+    }
+
+    #[tokio::test]
+    async fn detail_parses_rollout_messages_and_tools() {
+        let dir = tempfile::tempdir().unwrap();
+        let now = Utc::now();
+        let ts = |secs: i64| (now - chrono::Duration::seconds(secs)).to_rfc3339();
+        let rollout = write_rollout(
+            dir.path(),
+            "rollout-thread-2.jsonl",
+            &[
+                &format!(
+                    r#"{{"timestamp":"{}","type":"session_meta","payload":{{"meta":{{}}}}}}"#,
+                    ts(60)
+                ),
+                &format!(
+                    r#"{{"timestamp":"{}","type":"response_item","payload":{{"type":"message","role":"user","content":[]}}}}"#,
+                    ts(50)
+                ),
+                &format!(
+                    r#"{{"timestamp":"{}","type":"response_item","payload":{{"type":"function_call","name":"shell","arguments":"","call_id":"c1"}}}}"#,
+                    ts(40)
+                ),
+                &format!(
+                    r#"{{"timestamp":"{}","type":"response_item","payload":{{"type":"local_shell_call","status":"completed","action":{{}}}}}}"#,
+                    ts(30)
+                ),
+                &format!(
+                    r#"{{"timestamp":"{}","type":"response_item","payload":{{"type":"custom_tool_call","name":"web_search","input":"","call_id":"c2"}}}}"#,
+                    ts(20)
+                ),
+                &format!(
+                    r#"{{"timestamp":"{}","type":"response_item","payload":{{"type":"message","role":"assistant","content":[]}}}}"#,
+                    ts(10)
+                ),
+            ],
+        );
+
+        let db = dir.path().join("state_5.sqlite");
+        let conn = Connection::open(&db).unwrap();
+        conn.execute_batch(
+            "CREATE TABLE threads (
+                id TEXT PRIMARY KEY,
+                rollout_path TEXT NOT NULL DEFAULT '',
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                cwd TEXT NOT NULL,
+                title TEXT NOT NULL DEFAULT '',
+                archived INTEGER NOT NULL DEFAULT 0,
+                git_branch TEXT,
+                git_origin_url TEXT,
+                first_user_message TEXT NOT NULL DEFAULT '',
+                model TEXT
+            );",
+        )
+        .unwrap();
+        let now_secs = now.timestamp();
+        conn.execute(
+            "INSERT INTO threads (id, rollout_path, created_at, updated_at, cwd, first_user_message)
+             VALUES ('thread-2', ?1, ?2, ?2, '/x', 'hi')",
+            rusqlite::params![rollout.to_string_lossy(), now_secs],
+        )
+        .unwrap();
+        drop(conn);
+
+        let a = CodexAdapter::with_db(db).unwrap();
+        let d = a.get_detail("thread-2").await.unwrap();
+        assert_eq!(d.user_messages, 1);
+        assert_eq!(d.assistant_messages, 1);
+        assert_eq!(d.turns, 1);
+        assert_eq!(d.tools_used.get("shell").copied(), Some(2));
+        assert_eq!(d.tools_used.get("web_search").copied(), Some(1));
+
+        let buckets = a.session_activity_hourly("thread-2", 24).await.unwrap();
+        // The single assistant message lands in the most-recent hour bucket.
+        assert_eq!(buckets.len(), 24);
+        assert_eq!(buckets[23], 1);
+        assert_eq!(buckets[..23].iter().sum::<u64>(), 0);
+    }
+
+    #[tokio::test]
+    async fn detail_handles_missing_rollout_file_gracefully() {
+        let (_dir, db) = build_db();
+        let a = CodexAdapter::with_db(db).unwrap();
+        let d = a.get_detail("thread-1").await.unwrap();
+        // rollout_path is empty so we fall back to first-user-message stub.
+        assert_eq!(d.user_messages, 1);
+        assert_eq!(d.assistant_messages, 0);
     }
 }
