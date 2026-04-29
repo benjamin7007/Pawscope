@@ -5,7 +5,10 @@ use tokio::sync::broadcast;
 
 pub mod api;
 pub mod assets;
+pub mod multi;
 pub mod ws;
+
+pub use multi::MultiAdapter;
 
 #[derive(Clone)]
 pub struct AppState {

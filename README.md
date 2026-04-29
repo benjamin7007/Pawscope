@@ -72,7 +72,7 @@ Flags:
 | Version | Scope                                                                |
 |---------|----------------------------------------------------------------------|
 | **v0.1 (MVP-1)** | Copilot CLI sessions, real-time updates, embedded UI         |
-| v0.2     | Claude Code adapter (`~/.claude/projects/`)                         |
+| **v0.2** | Claude Code adapter (`~/.claude/projects/`), multi-adapter fan-out, overview & activity heatmaps |
 | v0.3     | Codex adapter, session search & filters                             |
 | v0.4     | Skill marketplace + one-click install across CLIs                   |
 
