@@ -255,13 +255,136 @@ type ReplayEvent = {
   full: string;
 };
 
+function downloadFile(filename: string, content: string, mime: string) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+}
+
+function srtTime(ms: number): string {
+  if (ms < 0) ms = 0;
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  const cs = Math.floor(ms % 1000);
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')},${String(cs).padStart(3, '0')}`;
+}
+
+function exportSrt(events: ReplayEvent[]): string {
+  if (events.length === 0) return '';
+  const t0 = new Date(events[0].timestamp).getTime();
+  const lines: string[] = [];
+  events.forEach((ev, i) => {
+    const start = new Date(ev.timestamp).getTime() - t0;
+    const next = events[i + 1] ? new Date(events[i + 1].timestamp).getTime() - t0 : start + 4000;
+    const end = Math.max(start + 1500, next - 200);
+    const tag = ev.kind === 'prompt' ? '💬' : '🔧';
+    const body = (ev.full || ev.label).replace(/\r?\n/g, ' ').slice(0, 240);
+    lines.push(`${i + 1}`);
+    lines.push(`${srtTime(start)} --> ${srtTime(end)}`);
+    lines.push(`${tag} ${body}`);
+    lines.push('');
+  });
+  return lines.join('\n');
+}
+
+function exportMarkdown(events: ReplayEvent[], sessionId: string): string {
+  if (events.length === 0) return '';
+  const t0 = new Date(events[0].timestamp).getTime();
+  const lines: string[] = [
+    `# Session replay — ${sessionId}`,
+    '',
+    `_Generated ${new Date().toISOString()} · ${events.length} events_`,
+    '',
+    '---',
+    '',
+  ];
+  events.forEach((ev, i) => {
+    const elapsed = new Date(ev.timestamp).getTime() - t0;
+    const tag = ev.kind === 'prompt' ? '💬 **Prompt**' : '🔧 `tool`';
+    lines.push(`## #${i + 1} · +${(elapsed / 1000).toFixed(1)}s · ${tag}`);
+    lines.push('');
+    lines.push(`_${new Date(ev.timestamp).toLocaleString()}_`);
+    lines.push('');
+    if (ev.kind === 'prompt') {
+      lines.push('> ' + (ev.full || ev.label).replace(/\n/g, '\n> '));
+    } else {
+      lines.push('`' + ev.label + '`');
+    }
+    lines.push('');
+  });
+  return lines.join('\n');
+}
+
+function exportJson(events: ReplayEvent[], sessionId: string): string {
+  if (events.length === 0) return '';
+  const t0 = new Date(events[0].timestamp).getTime();
+  return JSON.stringify(
+    {
+      session_id: sessionId,
+      generated_at: new Date().toISOString(),
+      total_events: events.length,
+      events: events.map((ev, i) => ({
+        idx: i,
+        kind: ev.kind,
+        timestamp: ev.timestamp,
+        elapsed_ms: new Date(ev.timestamp).getTime() - t0,
+        label: ev.label,
+        full: ev.full,
+      })),
+    },
+    null,
+    2,
+  );
+}
+
+function ExportMenu({ events, sessionId, t }: { events: ReplayEvent[]; sessionId: string; t: (k: string) => string }) {
+  const [open, setOpen] = useState(false);
+  const baseName = `replay-${(sessionId || 'session').slice(0, 12)}`;
+  const items: { label: string; ext: string; mime: string; build: () => string }[] = [
+    { label: '📺 SRT subtitles', ext: 'srt', mime: 'application/x-subrip', build: () => exportSrt(events) },
+    { label: '📝 Markdown screenplay', ext: 'md', mime: 'text/markdown', build: () => exportMarkdown(events, sessionId) },
+    { label: '🔢 JSON', ext: 'json', mime: 'application/json', build: () => exportJson(events, sessionId) },
+  ];
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs"
+        title={t('misc.export')}
+      >⤓ {t('misc.export')}</button>
+      {open && (
+        <div className="absolute right-0 mt-1 z-10 w-56 rounded border border-slate-700 bg-slate-900 shadow-lg overflow-hidden">
+          {items.map(it => (
+            <button
+              key={it.ext}
+              onClick={() => {
+                downloadFile(`${baseName}.${it.ext}`, it.build(), it.mime);
+                setOpen(false);
+              }}
+              className="block w-full text-left px-3 py-2 text-xs text-slate-200 hover:bg-slate-800"
+            >{it.label}</button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ReplaySection({
   prompts,
   tools,
+  sessionId,
   t,
 }: {
   prompts: ReplayEvent[];
   tools: ReplayEvent[];
+  sessionId: string;
   t: (k: string) => string;
 }) {
   const events = useMemo(() => {
@@ -343,6 +466,7 @@ function ReplaySection({
         className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs"
         title={fullscreen ? 'Exit fullscreen (Esc)' : 'Fullscreen'}
       >{fullscreen ? '⤓' : '⛶'}</button>
+      <ExportMenu events={events} sessionId={sessionId} t={t} />
     </div>
   );
 
@@ -765,6 +889,7 @@ export function SessionDetail({ meta, detail, onOpenSkill, label, onSetLabel, on
               label: c.name,
               full: c.name,
             }))}
+            sessionId={meta?.id ?? ''}
             t={t}
           />
 
