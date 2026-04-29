@@ -25,7 +25,18 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.cmd {
         Cmd::Serve { bind, no_open } => {
-            let adapter = Arc::new(agent_lens_copilot::CopilotAdapter::new()?);
+            let mut adapters: Vec<Arc<dyn agent_lens_core::AgentAdapter>> = Vec::new();
+            match agent_lens_copilot::CopilotAdapter::new() {
+                Ok(a) => adapters.push(Arc::new(a)),
+                Err(e) => tracing::warn!("copilot adapter disabled: {e}"),
+            }
+            match agent_lens_claude::ClaudeAdapter::new() {
+                Ok(a) => adapters.push(Arc::new(a)),
+                Err(e) => tracing::warn!("claude adapter disabled: {e}"),
+            }
+            tracing::info!("active adapters: {}", adapters.len());
+            let adapter: Arc<dyn agent_lens_core::AgentAdapter> =
+                Arc::new(agent_lens_server::MultiAdapter::new(adapters));
             let (router, state) = agent_lens_server::build_app(adapter);
             agent_lens_server::spawn_watcher(state);
             let listener = tokio::net::TcpListener::bind(&bind).await?;
