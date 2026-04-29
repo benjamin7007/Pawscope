@@ -162,6 +162,7 @@ export interface PromptHit {
   prompt_id: string;
   timestamp: string | null;
   snippet: string;
+  text: string;
 }
 export interface PromptSearchFilters {
   agent?: string;
