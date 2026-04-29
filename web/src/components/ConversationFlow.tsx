@@ -235,7 +235,12 @@ function InteractionBlock({
             </div>
           )}
           {interaction.turns.map((turn, i) => (
-            <TurnBlock key={turn.turn_id} turn={turn} idx={i} />
+            <div
+              key={turn.turn_id}
+              style={{ contentVisibility: 'auto', containIntrinsicSize: '120px 200px' }}
+            >
+              <TurnBlock turn={turn} idx={i} />
+            </div>
           ))}
         </div>
       )}
@@ -340,13 +345,19 @@ export function ConversationFlow({ sessionId }: Props) {
 
       <div className="space-y-2">
         {log.interactions.map((it, i) => (
-          <InteractionBlock
+          <div
             key={it.interaction_id}
-            interaction={it}
-            index={i}
-            // Open the latest 3 by default
-            defaultOpen={i >= log.interactions.length - 3}
-          />
+            // Native virtualization: browser skips render/layout/paint of off-screen
+            // cards. contain-intrinsic-size gives a placeholder height so the scrollbar
+            // is stable. Auto means: while off-screen, treat as having intrinsic size.
+            style={{ contentVisibility: 'auto', containIntrinsicSize: '300px 800px' }}
+          >
+            <InteractionBlock
+              interaction={it}
+              index={i}
+              defaultOpen={i >= log.interactions.length - 3}
+            />
+          </div>
         ))}
       </div>
     </div>
