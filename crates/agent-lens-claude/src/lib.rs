@@ -111,11 +111,12 @@ impl ClaudeAdapter {
                         .and_then(|s| s.to_str())
                         .unwrap_or("")
                         .to_string();
-                    let (turns, tool_calls) = count_subagent(&p);
+                    let (turns, tool_calls, tools) = count_subagent(&p);
                     st.detail.subagents.push(agent_lens_core::SubagentSummary {
                         id: stem,
                         turns,
                         tool_calls,
+                        tools,
                     });
                 }
             }
@@ -129,13 +130,14 @@ impl ClaudeAdapter {
     }
 }
 
-fn count_subagent(path: &Path) -> (u32, u32) {
+fn count_subagent(path: &Path) -> (u32, u32, std::collections::HashMap<String, u32>) {
     use std::io::{BufRead, BufReader};
     let Ok(file) = std::fs::File::open(path) else {
-        return (0, 0);
+        return (0, 0, std::collections::HashMap::new());
     };
     let mut turns = 0u32;
-    let mut tools = 0u32;
+    let mut tool_calls = 0u32;
+    let mut tools: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
     for line in BufReader::new(file)
         .lines()
         .map_while(std::result::Result::ok)
@@ -152,13 +154,16 @@ fn count_subagent(path: &Path) -> (u32, u32) {
             {
                 for it in arr {
                     if it.get("type").and_then(|t| t.as_str()) == Some("tool_use") {
-                        tools += 1;
+                        tool_calls += 1;
+                        if let Some(name) = it.get("name").and_then(|n| n.as_str()) {
+                            *tools.entry(name.to_string()).or_insert(0) += 1;
+                        }
                     }
                 }
             }
         }
     }
-    (turns, tools)
+    (turns, tool_calls, tools)
 }
 
 fn parse_incremental(path: &Path, st: &mut ParseState) {

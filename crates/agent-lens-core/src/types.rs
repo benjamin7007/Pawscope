@@ -39,6 +39,8 @@ pub struct SubagentSummary {
     pub id: String,
     pub turns: u32,
     pub tool_calls: u32,
+    #[serde(default)]
+    pub tools: HashMap<String, u32>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
