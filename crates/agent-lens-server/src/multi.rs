@@ -41,6 +41,17 @@ impl AgentAdapter for MultiAdapter {
             .unwrap_or_else(|| agent_lens_core::CoreError::NotFound(session_id.to_string())))
     }
 
+    async fn session_activity_hourly(&self, session_id: &str, hours: u32) -> Result<Vec<u64>> {
+        for a in &self.adapters {
+            if let Ok(v) = a.session_activity_hourly(session_id, hours).await {
+                if !v.is_empty() {
+                    return Ok(v);
+                }
+            }
+        }
+        Ok(Vec::new())
+    }
+
     async fn watch(&self, tx: mpsc::Sender<SessionEvent>) -> Result<()> {
         let mut handles = Vec::new();
         for a in &self.adapters {

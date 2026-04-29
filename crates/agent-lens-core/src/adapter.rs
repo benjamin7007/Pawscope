@@ -37,6 +37,15 @@ pub trait AgentAdapter: Send + Sync + 'static {
         Ok(Vec::new())
     }
 
+    /// Per-session hourly activity bucket (oldest → newest).
+    ///
+    /// Returns a `hours`-length vector for a single session. Adapters without
+    /// per-event timestamps return an empty vector (callers should fall back
+    /// to coarser metrics).
+    async fn session_activity_hourly(&self, _session_id: &str, _hours: u32) -> Result<Vec<u64>> {
+        Ok(Vec::new())
+    }
+
     /// 7×24 grid of hourly event counts in local time, indexed by `[days_ago][hour_of_day]`.
     /// `days_ago` 0 = today; rows ordered today → 6 days ago. Hours are server-local.
     /// Default returns an empty grid for adapters that don't track timestamps.

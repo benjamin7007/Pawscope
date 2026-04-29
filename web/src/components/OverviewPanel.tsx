@@ -33,6 +33,8 @@ type Realm = {
   tool_calls: number;
   sessions_this_week: number;
   sessions_prev_week: number;
+  turns_this_week: number;
+  turns_prev_week: number;
   last_event_at: string | null;
   agents: string[];
 };
@@ -589,15 +591,15 @@ export function OverviewPanel({
                     </div>
                     <div className="flex items-center gap-4 flex-shrink-0 text-xs tabular-nums">
                       <span className="text-right">
-                        <div className="text-slate-200 font-semibold flex items-baseline justify-end gap-1.5">
-                          <span>{r.sessions}</span>
-                          <TrendBadge curr={r.sessions_this_week} prev={r.sessions_prev_week} />
-                        </div>
-                        <div className="text-[10px] text-slate-600">sessions · 7d</div>
+                        <div className="text-slate-200 font-semibold">{r.sessions}</div>
+                        <div className="text-[10px] text-slate-600">sessions</div>
                       </span>
                       <span className="text-right">
-                        <div className="text-amber-300 font-semibold">{r.turns.toLocaleString()}</div>
-                        <div className="text-[10px] text-slate-600">turns</div>
+                        <div className="text-amber-300 font-semibold flex items-baseline justify-end gap-1.5">
+                          <span>{r.turns.toLocaleString()}</span>
+                          <TrendBadge curr={r.turns_this_week} prev={r.turns_prev_week} />
+                        </div>
+                        <div className="text-[10px] text-slate-600">turns · 7d</div>
                       </span>
                       <span className="text-right">
                         <div className="text-violet-300 font-semibold">{r.tool_calls.toLocaleString()}</div>
