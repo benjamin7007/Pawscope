@@ -1,7 +1,13 @@
 # Pawscope 🐾
 
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+[![Rust](https://img.shields.io/badge/rust-1.87+-orange?logo=rust&logoColor=white)](https://www.rust-lang.org)
+[![Status](https://img.shields.io/badge/status-active-success.svg)](https://github.com/benjamin7007/Pawscope)
+
 > **A local web dashboard for inspecting the runtime state of CLI agent sessions.**
 > Stop wondering what your agent is actually doing across 5 terminal windows.
+
+![Pawscope overview](./docs/screenshot.png)
 
 ```
 ┌─ Pawscope ──────────────────────────────────────────────────┐
