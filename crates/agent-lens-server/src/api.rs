@@ -65,15 +65,21 @@ pub async fn overview(State(s): State<AppState>) -> impl IntoResponse {
     let mut total_assistant_msgs: u64 = 0;
     let mut tools_used: HashMap<String, u64> = HashMap::new();
     let mut skills_invoked: HashMap<String, u64> = HashMap::new();
+    let mut subagents: Vec<serde_json::Value> = Vec::new();
+    let mut subagent_count: u64 = 0;
+    let mut subagent_active: u64 = 0;
 
     let mut handles = Vec::with_capacity(sessions.len());
     for sess in &sessions {
         let adapter = s.adapter.clone();
         let id = sess.id.clone();
-        handles.push(tokio::spawn(async move { adapter.get_detail(&id).await }));
+        handles.push(tokio::spawn(async move {
+            let detail = adapter.get_detail(&id).await;
+            (id, detail)
+        }));
     }
     for h in handles {
-        if let Ok(Ok(d)) = h.await {
+        if let Ok((sid, Ok(d))) = h.await {
             total_turns += d.turns as u64;
             total_user_msgs += d.user_messages as u64;
             total_assistant_msgs += d.assistant_messages as u64;
@@ -83,8 +89,32 @@ pub async fn overview(State(s): State<AppState>) -> impl IntoResponse {
             for k in d.skills_invoked {
                 *skills_invoked.entry(k).or_default() += 1;
             }
+            for sa in d.subagents {
+                subagent_count += 1;
+                if sa.active {
+                    subagent_active += 1;
+                }
+                subagents.push(serde_json::json!({
+                    "session_id": sid,
+                    "id": sa.id,
+                    "turns": sa.turns,
+                    "tool_calls": sa.tool_calls,
+                    "agent_type": sa.agent_type,
+                    "description": sa.description,
+                    "started_at": sa.started_at,
+                    "ended_at": sa.ended_at,
+                    "active": sa.active,
+                }));
+            }
         }
     }
+
+    subagents.sort_by(|a, b| {
+        let ta = a.get("turns").and_then(|x| x.as_u64()).unwrap_or(0);
+        let tb = b.get("turns").and_then(|x| x.as_u64()).unwrap_or(0);
+        tb.cmp(&ta)
+    });
+    let top_subagents: Vec<_> = subagents.into_iter().take(10).collect();
 
     Json(serde_json::json!({
         "total_sessions": total,
@@ -96,6 +126,9 @@ pub async fn overview(State(s): State<AppState>) -> impl IntoResponse {
         "total_assistant_messages": total_assistant_msgs,
         "tools_used": tools_used,
         "skills_invoked": skills_invoked,
+        "subagent_count": subagent_count,
+        "subagent_active": subagent_active,
+        "top_subagents": top_subagents,
     }))
     .into_response()
 }
