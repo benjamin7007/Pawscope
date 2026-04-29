@@ -839,11 +839,13 @@ function DangerousTools({ data, t, onOpenSession }: {
   );
 }
 
-function HotFiles({ files, t, onClick }: {
-  files: { path: string; mentions: number; sessions: number }[];
+function HotFiles({ files, t, onClick, onOpenSession }: {
+  files: { path: string; mentions: number; sessions: number; samples?: { session_id: string; snippet: string }[] }[];
   t: (k: string) => string;
   onClick?: (path: string) => void;
+  onOpenSession?: (sid: string) => void;
 }) {
+  const [expanded, setExpanded] = useState<string | null>(null);
   if (files.length === 0) {
     return <div className="px-4 py-6 text-xs text-slate-600 text-center">{t('misc.no_hot_files')}</div>;
   }
@@ -852,20 +854,46 @@ function HotFiles({ files, t, onClick }: {
     <ul className="divide-y divide-slate-800/60 max-h-72 overflow-auto">
       {files.slice(0, 20).map(f => {
         const pct = (f.sessions / max) * 100;
+        const isOpen = expanded === f.path;
+        const hasSamples = (f.samples?.length ?? 0) > 0;
         return (
           <li key={f.path}>
-            <button
-              type="button"
-              onClick={() => onClick?.(f.path)}
-              className="w-full px-4 py-1.5 flex items-center gap-2 text-xs hover:bg-slate-800/40 transition-colors text-left"
-              title={`${t('misc.search_for')} ${f.path}`}
-            >
-              <span className="font-mono text-slate-300 truncate flex-1">{f.path}</span>
+            <div className="w-full px-4 py-1.5 flex items-center gap-2 text-xs hover:bg-slate-800/40 transition-colors">
+              <button
+                type="button"
+                onClick={() => onClick?.(f.path)}
+                className="font-mono text-slate-300 truncate flex-1 text-left hover:text-cyan-300"
+                title={`${t('misc.search_for')} ${f.path}`}
+              >{f.path}</button>
               <div className="w-16 h-1 bg-slate-800 rounded-full overflow-hidden">
                 <div className="h-full bg-gradient-to-r from-violet-500/70 to-violet-400" style={{ width: `${pct}%` }} />
               </div>
               <span className="text-slate-400 tabular-nums w-12 text-right">{f.sessions}s · {f.mentions}</span>
-            </button>
+              {hasSamples && (
+                <button
+                  type="button"
+                  onClick={() => setExpanded(isOpen ? null : f.path)}
+                  className="text-slate-500 hover:text-slate-200 px-1"
+                  title={t('misc.show_samples')}
+                >{isOpen ? '▾' : '▸'}</button>
+              )}
+            </div>
+            {isOpen && hasSamples && (
+              <div className="px-4 pb-2 pt-0.5 space-y-1 bg-slate-900/40">
+                {f.samples!.map((sm, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => onOpenSession?.(sm.session_id)}
+                    className="block w-full text-left text-[11px] text-slate-400 hover:text-cyan-300 italic leading-snug"
+                    title={sm.session_id}
+                  >
+                    <span className="text-slate-600 not-italic mr-1.5 font-mono">{sm.session_id.slice(0, 8)}</span>
+                    "{sm.snippet}"
+                  </button>
+                ))}
+              </div>
+            )}
           </li>
         );
       })}
@@ -1048,7 +1076,7 @@ export function OverviewPanel({
     entries: { name: string; severity: string; count: number; sessions: number; session_ids: string[] }[];
     total_calls: number; sessions_affected: number;
   } | null>(null);
-  const [hotFiles, setHotFiles] = useState<{ path: string; mentions: number; sessions: number }[]>([]);
+  const [hotFiles, setHotFiles] = useState<{ path: string; mentions: number; sessions: number; samples?: { session_id: string; snippet: string }[] }[]>([]);
   const [, forceTick] = useState(0);
   const [err, setErr] = useState<string | null>(null);
 
@@ -1350,7 +1378,7 @@ export function OverviewPanel({
                 <h3 className="text-xs uppercase tracking-wider text-slate-400">🔥 {t('sec.hot_files')}</h3>
                 <span className="text-[11px] text-slate-500">{hotFiles.length} {t('misc.files')}</span>
               </header>
-              <HotFiles files={hotFiles} t={t} onClick={(p) => onOpenSearch?.(p)} />
+              <HotFiles files={hotFiles} t={t} onClick={(p) => onOpenSearch?.(p)} onOpenSession={onOpenSession} />
             </div>
           )}
         </section>
