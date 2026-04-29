@@ -1,4 +1,13 @@
+<div align="center">
+
+<img src="./docs/screenshots/01-overview.png" alt="Pawscope 总览面板"/>
+
 # Pawscope 🐾
+
+**本地命令行 Agent 会话的实时观察面板。**
+
+不用再在五个终端窗口之间切来切去猜 `copilot` / `claude` / `codex` 在干什么。
+一个面板，只读，无后台守护进程，默认仅本机访问。
 
 [English](./README.md) · [简体中文](./README.zh-CN.md)
 
@@ -7,43 +16,104 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.87+-orange?logo=rust&logoColor=white)](https://www.rust-lang.org)
 
-> 本地 Web 仪表盘,用来观察 CLI Agent 会话的运行状态。
-> 不用再为开了 5 个终端窗口、不知道每个 Agent 在做什么而抓狂。
+</div>
 
-![Pawscope 概览](./docs/screenshot.png)
+---
+
+## 它做什么
+
+Pawscope 直接读取本地 CLI Agent 已经写到磁盘上的状态
+（`~/.copilot/session-state/`、`~/.claude/projects/`、`~/.codex/state_*.sqlite`），
+渲染成一个实时刷新的统一面板：
+
+- **看进度** —— 所有正在跑的会话、所有对话，集中在一个页面。
+- **看花费** —— 每轮 token 用量、按模型估算的 USD、每日预算追踪。
+- **看动作** —— 调过哪些 Tool、加载了哪些 Skill、提到了哪些文件、问了哪些 Prompt。
+- **看异常** —— 高频文件、危险工具、僵尸会话、活跃时段、成本离群点。
+
+无遥测、无云端、无登录。启动二进制 → 扫描家目录 → 打开浏览器，就这些。
+
+---
+
+## 亮点功能
 
 <table>
 <tr>
-<td width="50%"><img src="./docs/screenshot-skills.png" alt="技能页:分类环形图 + 分组列表"/></td>
-<td width="50%"><img src="./docs/screenshot-session.png" alt="会话详情:轮次 / 消息统计 + 工具直方图"/></td>
+<td width="33%" valign="top">
+
+### 🔍 对话流可视化
+跨 Agent 的统一时间线 —— 用户提问 → Assistant 回答 → 工具调用 → 子 Agent 线程，按颜色和时间戳分层展示。Claude / Copilot / Codex 三种 CLI 都支持。
+
+</td>
+<td width="33%" valign="top">
+
+### 💰 Token 与成本追踪
+每条 Assistant 消息上方都带 token chip（↓in / ↑out / cache / $），会话顶部还有按模型分组的总成本。覆盖 Opus 3.x–4.7、Sonnet 3.5–4.6、Haiku、GPT-5、GPT-5-Codex、GPT-4.1、GPT-4o。
+
+</td>
+<td width="33%" valign="top">
+
+### 🛠 Skills 探测
+自动发现 `~/.claude/skills/`、`~/.copilot/skills/` 以及项目内 `.github/skills/`、`.agents/skills/`。带分类环形图、使用次数、项目内容预览，附 240+ 条目分类法。
+
+</td>
 </tr>
 <tr>
-<td align="center"><sub><b>技能</b> — 本地技能按分类分组,带使用量环形图</sub></td>
-<td align="center"><sub><b>会话详情</b> — 轮次、收发消息、工具排名直方图</sub></td>
+<td width="33%" valign="top">
+
+### 🔀 Prompt 聚类
+开关式相似 Prompt 聚类（基于 token 重叠 Jaccard ≥ 0.45）。一眼看出重复请求、跨会话浮现共同模式。
+
+</td>
+<td width="33%" valign="top">
+
+### ⚖️ 会话对比
+在侧边栏 Shift+点击两个会话 → 即刻 diff：基础统计、Top Tool、Top Skill、工具重叠（共享 / 仅左 / 仅右）、Prompt 重叠分析。
+
+</td>
+<td width="33%" valign="top">
+
+### 📥 日报 / 周报导出
+一键导出最近 24 小时或 7 天的 Markdown 摘要 —— 活跃度、花费、高频文件、危险工具调用、Top Tools/Skills、活跃时段。
+
+</td>
 </tr>
 </table>
 
 ---
 
-## 为什么需要它
+## 截图巡览
 
-当你同时开着多个 `copilot`、`claude`、`codex` 会话散落在不同终端窗口时,没办法一眼看到:
+<table>
+<tr>
+<td width="50%"><a href="./docs/screenshots/02-session.png"><img src="./docs/screenshots/02-session.png" alt="Session detail"/></a></td>
+<td width="50%"><a href="./docs/screenshots/03-flow.png"><img src="./docs/screenshots/03-flow.png" alt="Conversation flow"/></a></td>
+</tr>
+<tr>
+<td align="center"><sub><b>会话详情</b> —— 轮次、消息、工具直方图、token 预算</sub></td>
+<td align="center"><sub><b>对话流</b> —— 完整的提问 / 回答 / 工具调用时间线</sub></td>
+</tr>
+<tr>
+<td width="50%"><a href="./docs/screenshots/04-skills.png"><img src="./docs/screenshots/04-skills.png" alt="Skills"/></a></td>
+<td width="50%"><a href="./docs/screenshots/05-prompts.png"><img src="./docs/screenshots/05-prompts.png" alt="Prompts"/></a></td>
+</tr>
+<tr>
+<td align="center"><sub><b>Skills 页</b> —— 本地 Skill 按分类聚合 + 使用频率环形图</sub></td>
+<td align="center"><sub><b>Prompts 页</b> —— 跨会话全文搜索，可选聚类视图</sub></td>
+</tr>
+</table>
 
-- 加载了哪些技能
-- 跑过哪些工具
-- 对话进行到第几轮
-- 哪些会话还活着
+> 所有截图均使用 `scripts/gen-demo-home.py` 生成的合成数据集 —— 仓库里不会出现任何真实会话信息。
 
-Pawscope 直接读取每个 CLI 自己已经写到磁盘上的状态(如 `~/.copilot/session-state/`),
-在一个面板里实时刷新呈现。**只读、无守护进程、默认仅本地。**
+---
 
 ## 安装
 
-### 预编译二进制(推荐)
+### 预编译二进制（推荐）
 
-到 [Releases](https://github.com/benjamin7007/Pawscope/releases/latest) 下载对应平台:
+从 [Releases](https://github.com/benjamin7007/Pawscope/releases/latest) 抓最新版：
 
-| 平台 | 资源包 |
+| 平台 | 资源 |
 |---|---|
 | macOS · Apple Silicon | `pawscope-aarch64-apple-darwin.tar.gz` |
 | macOS · Intel | `pawscope-x86_64-apple-darwin.tar.gz` |
@@ -59,60 +129,86 @@ tar -xzf pawscope.tar.gz
 ./pawscope-aarch64-apple-darwin/pawscope serve
 ```
 
-每个压缩包都附带同名 `.sha256` 校验文件。
+每个压缩包都附带对应的 `.sha256` 校验文件。
 
 ### 从源码构建
 
 ```bash
 git clone https://github.com/benjamin7007/Pawscope.git
 cd Pawscope
-cargo install --path .          # 或:cargo build --release
+cargo install --path .          # 或：cargo build --release
 ```
+
+需要 Rust 1.87+。前端 bundle 会在 build 阶段自动构建并嵌入。
+
+---
 
 ## 快速开始
 
 ```bash
-pawscope serve                  # 自动在浏览器打开 http://127.0.0.1:7777
+pawscope serve                  # 自动打开 http://127.0.0.1:7777
 ```
 
-| 参数         | 默认值               | 说明                          |
-|--------------|----------------------|-------------------------------|
-| `--bind`     | `127.0.0.1:7777`     | 默认仅监听本地                |
-| `--no-open`  | 关                   | 不自动打开浏览器              |
+| 参数         | 默认值              | 说明                              |
+|--------------|---------------------|-----------------------------------|
+| `--bind`     | `127.0.0.1:7777`    | 默认仅本机访问                    |
+| `--no-open`  | 关闭                | 不要自动打开浏览器                |
+
+> **小贴士：** Cmd/Ctrl+K 唤出命令面板。在侧边栏 Shift+点击两个会话即可对比。Overview 顶栏的 📥 按钮可导出 Markdown 摘要。
+
+---
 
 ## 架构
 
-![Pawscope 架构图](./docs/architecture.png)
+![Pawscope 架构](./docs/architecture.png)
 
-- **Adapter trait** — `pawscope-core` 中的 `AgentAdapter` 让 V2(Claude Code)、V3(Codex)接入变成纯增量:实现 trait + 注册即可。
-- **单一二进制** — `pawscope-server`(基于 axum)在编译期通过 `rust-embed` 把 React 19 SPA 打进二进制,运行时无需单独部署静态文件。
-- **无守护进程** — `pawscope serve` 就是一个普通 CLI 进程,关掉终端就结束。
-- **仅本地** — 默认绑定 `127.0.0.1`,无鉴权 token、无遥测。
+- **Adapter Trait** —— `pawscope-core` 中的 `AgentAdapter` 让接入新 CLI 变成纯增量工作：实现 trait → 注册 Adapter。Claude / Copilot / Codex 是内置三件套。
+- **单一二进制** —— `pawscope-server`（axum）通过 `rust-embed` 在 build 阶段把 React 19 SPA 一并嵌入，运行时无需单独的静态文件目录。
+- **无守护进程** —— `pawscope serve` 就是一个普通 CLI 进程，关掉终端即结束。
+- **仅限本机** —— 默认绑定 `127.0.0.1`。无鉴权、无遥测、无外部调用。
+
+---
 
 ## 路线图
 
-| 版本 | 范围 |
-|---|---|
-| v0.1(已发布) | Copilot CLI 会话 · 实时更新 · 内嵌 UI |
-| v0.2(已发布) | Claude Code 适配器 · 多适配器汇聚 · 活动热力图 |
-| v0.3(已发布) | Codex CLI 适配器(`~/.codex/state_*.sqlite`) |
-| **v0.4**(已发布) | 技能覆盖 · Prompts 搜索 · 工具调用趋势钻取 · 收藏标签 · 性能缓存 · UI 打磨(骨架屏/Toast/进度条/可拖拽侧栏/虚拟滚动) |
-| v0.5 | 跨 CLI 的技能市场 + 一键安装 · 会话对比 · 键盘快捷键 |
+| 版本 | 主题 | 状态 |
+|---|---|---|
+| v0.1 | Copilot CLI 会话 · 实时刷新 · 内嵌 UI | ✅ |
+| v0.2 | Claude Code Adapter · 多 Adapter 聚合 · 活跃度热图 | ✅ |
+| v0.3 | Codex CLI Adapter（`~/.codex/state_*.sqlite`） | ✅ |
+| v0.4 | Skills 覆盖率 · Prompt 搜索 · 工具调用下钻 · 收藏+标签 · UI 打磨 | ✅ |
+| v0.5 | 成本估算 · 模型价目表 · 成本分析 · 6 项 Power Features（含 Replay） | ✅ |
+| v0.6 | 对话流可视化 · 跨 Agent 统一时间线 | ✅ |
+| v0.7 | Skills 分类法（244 条）· 项目内 Skill 发现 | ✅ |
+| v0.8 | 每轮 Token 追踪 · 会话级汇总 · 按模型估价 | ✅ |
+| v0.9 | 摘要导出 · Prompt 聚类 · 会话并排对比 | ✅ |
+| **v1.0** | **API 冻结 · 文档完善 · 公开发布** | 🚧 |
+
+---
 
 ## 项目结构
 
 ```text
 crates/
-  pawscope-core/      # AgentAdapter trait、共享类型、错误定义
-  pawscope-copilot/   # V1 后端:Copilot CLI session-state 读取
-  pawscope-claude/    # V2 后端(规划中)
-  pawscope-codex/     # V3 后端(规划中)
+  pawscope-core/      # AgentAdapter trait、共享类型、价目表
+  pawscope-copilot/   # Copilot CLI session-state 读取器
+  pawscope-claude/    # Claude Code 会话读取器
+  pawscope-codex/     # Codex CLI sqlite + rollout 读取器
   pawscope-server/    # axum REST + WebSocket + 内嵌 SPA
 src/main.rs           # CLI 入口
-web/                  # React 19 + Vite + Tailwind 4 仪表盘
-e2e/                  # Playwright 烟雾测试
+web/                  # React 19 + Vite + Tailwind 4 前端
+e2e/                  # Playwright 烟囱测试 + 截图脚本
+tests/                # 跨 Adapter 集成测试
 ```
 
-## 协议
+---
+
+## 隐私
+
+所有逻辑都跑在你本机。Pawscope 只读 `~/.copilot/`、`~/.claude/`、`~/.codex/` 等本地目录，没有遥测端点、没有更新检查，server 默认绑定 loopback。如果你打算改绑外部地址，请自行评估风险。
+
+---
+
+## 许可
 
 [MIT](./LICENSE) © 2026 Pawscope contributors

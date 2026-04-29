@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/pawscope-core", "crates/pawscope-copilot", "crates/pawscope-claude", "crates/pawscope-codex", "crates/pawscope-server"]
 
 [workspace.package]
-version = "0.7.0"
+version = "1.0.0"
 edition = "2024"
 rust-version = "1.87"
 license = "MIT"
