@@ -1429,6 +1429,7 @@ dependencies = [
  "async-trait",
  "axum",
  "chrono",
+ "dirs",
  "futures",
  "mime_guess",
  "pawscope-core",

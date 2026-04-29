@@ -669,3 +669,28 @@ pub async fn tools_bucket(
 
     Json(hits).into_response()
 }
+
+pub async fn list_labels(State(s): State<AppState>) -> impl IntoResponse {
+    Json(s.labels.snapshot().await).into_response()
+}
+
+pub async fn set_label(
+    Path(id): Path<String>,
+    State(s): State<AppState>,
+    Json(label): Json<crate::labels::Label>,
+) -> impl IntoResponse {
+    let normalized = crate::labels::Label {
+        starred: label.starred,
+        tags: label
+            .tags
+            .into_iter()
+            .map(|t| t.trim().to_string())
+            .filter(|t| !t.is_empty() && t.len() <= 32)
+            .take(16)
+            .collect(),
+    };
+    match s.labels.set(&id, normalized.clone()).await {
+        Ok(()) => Json(normalized).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
