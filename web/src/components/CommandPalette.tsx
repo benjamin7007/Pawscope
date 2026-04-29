@@ -16,9 +16,10 @@ interface Props {
   sessions: Session[];
   onOpenSession: (id: string) => void;
   onOpenSkill: (name: string) => void;
+  initialQuery?: string;
 }
 
-export function CommandPalette({ open, onClose, sessions, onOpenSession, onOpenSkill }: Props) {
+export function CommandPalette({ open, onClose, sessions, onOpenSession, onOpenSkill, initialQuery }: Props) {
   const { t, lang } = useT();
   const [q, setQ] = useState('');
   const [prompts, setPrompts] = useState<PromptHit[]>([]);
@@ -30,11 +31,11 @@ export function CommandPalette({ open, onClose, sessions, onOpenSession, onOpenS
   // Reset on open
   useEffect(() => {
     if (open) {
-      setQ('');
+      setQ(initialQuery ?? '');
       setActive(0);
       setTimeout(() => inputRef.current?.focus(), 10);
     }
-  }, [open]);
+  }, [open, initialQuery]);
 
   // Fetch skills once
   useEffect(() => {

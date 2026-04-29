@@ -463,6 +463,37 @@ function fmtTokens(n: number): string {
   return n.toLocaleString();
 }
 
+function WordCloud({ entries, onPick }: {
+  entries: { word: string; count: number; sessions: number }[];
+  onPick: (w: string) => void;
+}) {
+  const max = entries[0]?.count ?? 1;
+  const min = entries[entries.length - 1]?.count ?? 1;
+  const span = Math.max(1, max - min);
+  const sized = entries.map(e => {
+    const t = (e.count - min) / span;
+    const fontSize = 11 + t * 18;
+    const opacity = 0.55 + t * 0.45;
+    return { ...e, fontSize, opacity };
+  });
+  const palette = ['text-cyan-300', 'text-emerald-300', 'text-amber-300', 'text-violet-300', 'text-sky-300', 'text-rose-300'];
+  return (
+    <div className="px-4 py-4 flex flex-wrap gap-x-4 gap-y-2 items-center justify-center">
+      {sized.map((e, i) => (
+        <button
+          key={e.word}
+          onClick={() => onPick(e.word)}
+          className={`${palette[i % palette.length]} hover:underline transition-opacity font-medium`}
+          style={{ fontSize: `${e.fontSize}px`, opacity: e.opacity, lineHeight: 1.2 }}
+          title={`${e.count} occurrences · ${e.sessions} sessions`}
+        >
+          {e.word}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function TokenUsageSection({
   tokensIn,
   tokensOut,
@@ -593,11 +624,13 @@ export function OverviewPanel({
   onOpenRealm,
   onOpenSkill,
   onOpenCategory,
+  onOpenSearch,
 }: {
   onOpenSession?: (id: string) => void;
   onOpenRealm?: (name: string) => void;
   onOpenSkill?: (name: string) => void;
   onOpenCategory?: (name: string) => void;
+  onOpenSearch?: (q: string) => void;
 } = {}) {
   const { t, lang, fmt } = useT();
   const [data, setData] = useState<Overview | null>(null);
@@ -607,6 +640,7 @@ export function OverviewPanel({
   const [allSessions, setAllSessions] = useState<Session[]>([]);
   const [tokensMap, setTokensMap] = useState<Record<string, { in: number; out: number }>>({});
   const [allSkills, setAllSkills] = useState<SkillEntry[] | null>(null);
+  const [wordcloud, setWordcloud] = useState<{ word: string; count: number; sessions: number }[]>([]);
   const [, forceTick] = useState(0);
   const [err, setErr] = useState<string | null>(null);
 
@@ -637,6 +671,10 @@ export function OverviewPanel({
       fetch('/api/sessions/tokens')
         .then(r => r.ok ? r.json() : {})
         .then(d => { if (!cancelled) setTokensMap(d); })
+        .catch(() => {});
+      fetch('/api/prompts/wordcloud?top=80')
+        .then(r => r.ok ? r.json() : [])
+        .then(d => { if (!cancelled) setWordcloud(Array.isArray(d) ? d : []); })
         .catch(() => {});
     };
     load();
@@ -809,6 +847,16 @@ export function OverviewPanel({
             fmt={fmt}
             onPick={onOpenCategory}
           />
+        )}
+
+        {wordcloud.length > 0 && (
+          <section className="rounded-lg bg-slate-900/40 border border-slate-800">
+            <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
+              <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.prompt_cloud')}</h3>
+              <span className="text-[11px] text-slate-500">{wordcloud.length} {t('misc.terms')}</span>
+            </header>
+            <WordCloud entries={wordcloud} onPick={(w) => onOpenSearch?.(w)} />
+          </section>
         )}
 
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">

@@ -591,6 +591,159 @@ pub async fn prompts_search(
 }
 
 #[derive(Debug, Deserialize)]
+pub struct WordcloudQuery {
+    #[serde(default)]
+    pub top: Option<usize>,
+    #[serde(default)]
+    pub agent: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct WordcloudEntry {
+    word: String,
+    count: u64,
+    sessions: u64,
+}
+
+fn is_cjk(c: char) -> bool {
+    matches!(c as u32,
+        0x4E00..=0x9FFF | 0x3400..=0x4DBF | 0x20000..=0x2A6DF |
+        0x3040..=0x309F | 0x30A0..=0x30FF | 0xAC00..=0xD7AF)
+}
+
+fn stopwords_en() -> &'static std::collections::HashSet<&'static str> {
+    use std::sync::OnceLock;
+    static SW: OnceLock<std::collections::HashSet<&'static str>> = OnceLock::new();
+    SW.get_or_init(|| {
+        [
+            "the","a","an","and","or","but","if","then","else","for","to","of","in","on","at","by",
+            "is","are","was","were","be","been","being","do","does","did","done","have","has","had",
+            "this","that","these","those","it","its","as","with","from","about","into","over","up",
+            "you","your","my","me","we","us","our","they","them","their","i","he","she","his","her",
+            "can","could","should","would","may","might","will","shall","just","not","no","yes",
+            "what","which","who","when","where","why","how","there","here","than","also","very",
+            "want","need","make","made","get","got","use","used","using","help","please","thanks",
+            "all","any","some","one","two","three","more","most","much","many","few","other",
+            "let","like","etc","via","per","each","both","only","own","same","such","too","off",
+            "out","over","under","again","further","once","cant","dont","wont","im","ive","its",
+        ].into_iter().collect()
+    })
+}
+
+fn stopwords_cjk() -> &'static std::collections::HashSet<&'static str> {
+    use std::sync::OnceLock;
+    static SW: OnceLock<std::collections::HashSet<&'static str>> = OnceLock::new();
+    SW.get_or_init(|| {
+        [
+            "的","了","和","是","我","你","他","她","它","们","在","有","就","都","也","还","要",
+            "一个","什么","怎么","可以","这个","那个","如何","为什么","或者","但是","因为","所以",
+            "需要","使用","帮我","请帮","一下","现在","已经","没有","我们","他们","这里","那里",
+            "可能","应该","不是","就是","然后","然而","并且","或是","以及","之后","之前","直接",
+            "麻烦","谢谢","好的","不要","出来","起来","上去","下去","进去","出去","进来",
+        ].into_iter().collect()
+    })
+}
+
+fn tokenize(text: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut buf = String::new();
+    for ch in text.chars() {
+        if is_cjk(ch) {
+            if !buf.is_empty() {
+                for w in buf.split(|c: char| !c.is_alphanumeric()) {
+                    let w = w.trim().to_lowercase();
+                    if w.len() >= 3 && !w.chars().all(|c| c.is_ascii_digit())
+                        && !stopwords_en().contains(w.as_str()) {
+                        out.push(w);
+                    }
+                }
+                buf.clear();
+            }
+            // CJK bigrams: emit char-pair as a token.
+            // We need lookback; collect chars first.
+        }
+        if is_cjk(ch) {
+            // handled below via separate pass
+        }
+        if !is_cjk(ch) {
+            buf.push(ch);
+        }
+    }
+    if !buf.is_empty() {
+        for w in buf.split(|c: char| !c.is_alphanumeric()) {
+            let w = w.trim().to_lowercase();
+            if w.len() >= 3 && !w.chars().all(|c| c.is_ascii_digit())
+                && !stopwords_en().contains(w.as_str()) {
+                out.push(w);
+            }
+        }
+    }
+    // CJK bigrams: scan original text for runs of CJK chars, emit overlapping 2-grams.
+    let chars: Vec<char> = text.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        if is_cjk(chars[i]) {
+            let start = i;
+            while i < chars.len() && is_cjk(chars[i]) { i += 1; }
+            let run = &chars[start..i];
+            if run.len() >= 2 {
+                for w in run.windows(2) {
+                    let s: String = w.iter().collect();
+                    if !stopwords_cjk().contains(s.as_str()) {
+                        out.push(s);
+                    }
+                }
+            }
+        } else {
+            i += 1;
+        }
+    }
+    out
+}
+
+pub async fn prompts_wordcloud(
+    Query(p): Query<WordcloudQuery>,
+    State(s): State<AppState>,
+) -> impl IntoResponse {
+    let top = p.top.unwrap_or(80).clamp(10, 300);
+    let agent_filter = p.agent.as_deref().map(str::to_lowercase);
+    let mut sessions = match s.adapter.list_sessions().await {
+        Ok(v) => v,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    };
+    sessions.retain(|sess| {
+        if let Some(af) = &agent_filter {
+            let ak = serde_json::to_value(sess.agent)
+                .ok().and_then(|v| v.as_str().map(str::to_string)).unwrap_or_default();
+            return &ak == af;
+        }
+        true
+    });
+    let pairs = s.detail_cache.fan_out(&s.adapter, &sessions).await;
+    let mut counts: HashMap<String, (u64, std::collections::HashSet<String>)> = HashMap::new();
+    for (sess, detail) in pairs {
+        for prompt in &detail.prompts {
+            let toks = tokenize(&prompt.text);
+            let mut seen_in_prompt = std::collections::HashSet::new();
+            for t in toks {
+                if seen_in_prompt.insert(t.clone()) {
+                    let entry = counts.entry(t).or_insert_with(|| (0, std::collections::HashSet::new()));
+                    entry.0 += 1;
+                    entry.1.insert(sess.id.clone());
+                }
+            }
+        }
+    }
+    let mut entries: Vec<WordcloudEntry> = counts.into_iter()
+        .filter(|(_, (c, _))| *c >= 2)
+        .map(|(word, (count, sids))| WordcloudEntry { word, count, sessions: sids.len() as u64 })
+        .collect();
+    entries.sort_by(|a, b| b.count.cmp(&a.count).then(b.sessions.cmp(&a.sessions)));
+    entries.truncate(top);
+    Json(entries).into_response()
+}
+
+#[derive(Debug, Deserialize)]
 pub struct ToolTrendQuery {
     #[serde(default)]
     pub hours: Option<u32>,

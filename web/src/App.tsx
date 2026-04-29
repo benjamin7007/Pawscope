@@ -38,6 +38,7 @@ export default function App() {
   const [labels, setLabels] = useState<LabelMap>({});
   const [history, setHistory] = useState<ViewSnapshot[]>([]);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [paletteQuery, setPaletteQuery] = useState<string | undefined>(undefined);
   const [tokensMap, setTokensMap] = useState<Record<string, { in: number; out: number }>>({});
   const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
     const v = parseInt(localStorage.getItem('pawscope.sidebarWidth') ?? '', 10);
@@ -261,6 +262,7 @@ export default function App() {
                 setPendingCategory(p => ({ name, n: (p?.n ?? 0) + 1 }));
                 navigate({ view: 'skills' });
               }}
+              onOpenSearch={(q: string) => { setPaletteQuery(q); setPaletteOpen(true); }}
             />
           ) : view === 'realm' && realmPage ? (
             <RealmPanel
@@ -297,8 +299,9 @@ export default function App() {
       </main>
       <CommandPalette
         open={paletteOpen}
-        onClose={() => setPaletteOpen(false)}
+        onClose={() => { setPaletteOpen(false); setPaletteQuery(undefined); }}
         sessions={sessions}
+        initialQuery={paletteQuery}
         onOpenSession={(id) => selectSession(id)}
         onOpenSkill={(name) => {
           setPendingSkill(p => ({ name, n: (p?.n ?? 0) + 1 }));
