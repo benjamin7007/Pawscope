@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useT } from '../i18n';
 
 type Meta = {
   id: string;
@@ -148,6 +149,7 @@ function PromptRow({
 }
 
 export function SessionDetail({ meta, detail }: Props) {
+  const { t } = useT();
   const tools = useMemo(() => {
     if (!detail?.tools_used) return [];
     return Object.entries(detail.tools_used).sort((a, b) => b[1] - a[1]);
@@ -160,7 +162,7 @@ export function SessionDetail({ meta, detail }: Props) {
       <main className="flex-1 grid place-items-center text-slate-600">
         <div className="text-center">
           <div className="text-5xl mb-3 opacity-30">⌖</div>
-          <div className="text-sm">Select a session from the left</div>
+          <div className="text-sm">{t('detail.select_left')}</div>
         </div>
       </main>
     );
@@ -201,32 +203,32 @@ export function SessionDetail({ meta, detail }: Props) {
 
         <dl className="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-2 mt-5 text-xs">
           <div>
-            <dt className="text-slate-500">Repo</dt>
+            <dt className="text-slate-500">{t('detail.repo')}</dt>
             <dd className="text-slate-200 truncate">{meta.repo || '—'}</dd>
           </div>
           <div>
-            <dt className="text-slate-500">Branch</dt>
+            <dt className="text-slate-500">{t('detail.branch')}</dt>
             <dd className="text-slate-200 truncate">⎇ {meta.branch || '—'}</dd>
           </div>
           <div>
-            <dt className="text-slate-500">Model</dt>
+            <dt className="text-slate-500">{t('detail.model')}</dt>
             <dd className="text-slate-200 truncate">{meta.model || '—'}</dd>
           </div>
           <div>
-            <dt className="text-slate-500">Last event</dt>
+            <dt className="text-slate-500">{t('detail.last_event')}</dt>
             <dd className="text-slate-200" title={formatAbs(meta.last_event_at)}>
               {timeAgo(meta.last_event_at)}
             </dd>
           </div>
           <div className="col-span-2 lg:col-span-4">
-            <dt className="text-slate-500">CWD</dt>
+            <dt className="text-slate-500">{t('detail.cwd')}</dt>
             <dd className="text-slate-300 font-mono text-[11px] truncate">{meta.cwd || '—'}</dd>
           </div>
         </dl>
       </header>
 
       {!detail ? (
-        <div className="p-8 text-sm text-slate-500">Loading detail…</div>
+        <div className="p-8 text-sm text-slate-500">{t('detail.loading')}</div>
       ) : (
         <div className="p-6 space-y-6">
           <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -238,11 +240,11 @@ export function SessionDetail({ meta, detail }: Props) {
 
           <section className="rounded-lg bg-slate-900/40 border border-slate-800">
             <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
-              <h3 className="text-xs uppercase tracking-wider text-slate-400">Tools used</h3>
+              <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.tools_used')}</h3>
               <span className="text-[11px] text-slate-500">{toolsTotal} total</span>
             </header>
             {tools.length === 0 ? (
-              <div className="px-4 py-6 text-xs text-slate-600 text-center">No tool calls recorded.</div>
+              <div className="px-4 py-6 text-xs text-slate-600 text-center">{t('detail.no_tools')}</div>
             ) : (
               <ul className="divide-y divide-slate-800/60">
                 {tools.map(([name, count]) => {
@@ -266,12 +268,12 @@ export function SessionDetail({ meta, detail }: Props) {
 
           <section className="rounded-lg bg-slate-900/40 border border-slate-800">
             <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
-              <h3 className="text-xs uppercase tracking-wider text-slate-400">Skills invoked</h3>
+              <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.skills_invoked')}</h3>
               <span className="text-[11px] text-slate-500">{detail.skills_invoked.length}</span>
             </header>
             <div className="p-4">
               {detail.skills_invoked.length === 0 ? (
-                <div className="text-xs text-slate-600 text-center py-2">No skills invoked.</div>
+                <div className="text-xs text-slate-600 text-center py-2">{t('detail.no_skills')}</div>
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {detail.skills_invoked.map(s => (
@@ -290,7 +292,7 @@ export function SessionDetail({ meta, detail }: Props) {
           {detail.subagents && detail.subagents.length > 0 && (
             <section className="rounded-lg bg-slate-900/40 border border-slate-800">
               <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
-                <h3 className="text-xs uppercase tracking-wider text-slate-400">Subagents</h3>
+                <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('detail.subagents')}</h3>
                 <span className="text-[11px] text-slate-500">{detail.subagents.length}</span>
               </header>
               <ul className="divide-y divide-slate-800/60">
@@ -369,7 +371,7 @@ export function SessionDetail({ meta, detail }: Props) {
           {detail.prompts && detail.prompts.length > 0 && (
             <section className="rounded-lg bg-slate-900/40 border border-slate-800">
               <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
-                <h3 className="text-xs uppercase tracking-wider text-slate-400">Prompts</h3>
+                <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.prompts')}</h3>
                 <span className="text-[11px] text-slate-500">{detail.prompts.length}</span>
               </header>
               <ol className="divide-y divide-slate-800/60">

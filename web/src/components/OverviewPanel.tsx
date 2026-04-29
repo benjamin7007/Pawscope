@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { fetchOverview, fetchActivity, fetchActivityGrid, fetchSessions, subscribeEvents } from '../api';
+import { useT } from '../i18n';
 
 type Session = {
   id: string;
@@ -349,6 +350,7 @@ function ActivityHeatmap({ buckets }: { buckets: number[] }) {
 }
 
 function LiveTicker({ sessions, onOpen }: { sessions: Session[]; onOpen?: (id: string) => void }) {
+  const { t } = useT();
   if (sessions.length === 0) return null;
   return (
     <section className="rounded-lg bg-slate-900/40 border border-slate-800 overflow-hidden">
@@ -357,7 +359,7 @@ function LiveTicker({ sessions, onOpen }: { sessions: Session[]; onOpen?: (id: s
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
           <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
         </span>
-        <h3 className="text-xs uppercase tracking-wider text-emerald-300 font-semibold">LIVE</h3>
+        <h3 className="text-xs uppercase tracking-wider text-emerald-300 font-semibold">{t('sec.live_ticker')}</h3>
         <span className="text-[11px] text-slate-500">{sessions.length} active now</span>
       </header>
       <div className="px-4 py-3 flex gap-3 overflow-x-auto">
@@ -420,6 +422,7 @@ export function OverviewPanel({
   onOpenSession?: (id: string) => void;
   onOpenRealm?: (name: string) => void;
 } = {}) {
+  const { t } = useT();
   const [data, setData] = useState<Overview | null>(null);
   const [activity, setActivity] = useState<number[] | null>(null);
   const [grid, setGrid] = useState<number[][] | null>(null);
@@ -469,7 +472,7 @@ export function OverviewPanel({
   }, []);
 
   if (err) return <main className="flex-1 p-8 text-rose-400 text-sm">Failed: {err}</main>;
-  if (!data) return <main className="flex-1 p-8 text-slate-500 text-sm">Aggregating across all sessions…</main>;
+  if (!data) return <main className="flex-1 p-8 text-slate-500 text-sm">{t('overview.aggregating')}</main>;
 
   const tools = Object.entries(data.tools_used).sort((a, b) => b[1] - a[1]);
   const skills = Object.entries(data.skills_invoked).sort((a, b) => b[1] - a[1]);
@@ -483,22 +486,21 @@ export function OverviewPanel({
   return (
     <main className="flex-1 overflow-y-auto">
       <header className="px-8 pt-6 pb-5 border-b border-slate-800 bg-slate-900/30">
-        <div className="text-[11px] uppercase tracking-wider text-slate-500 mb-1">Overview</div>
-        <h1 className="text-2xl font-semibold text-slate-100">All sessions</h1>
-        <p className="text-xs text-slate-500 mt-1">Aggregated across every detected session. Refreshes every 15s.</p>
+        <div className="text-[11px] uppercase tracking-wider text-slate-500 mb-1">{t('overview.kicker')}</div>
+        <h1 className="text-2xl font-semibold text-slate-100">{t('overview.title')}</h1>
       </header>
 
       <div className="p-6 space-y-6">
         <LiveTicker sessions={active} onOpen={onOpenSession} />
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <HeroStat label="Sessions" value={data.total_sessions} />
+          <HeroStat label={t('stat.sessions')} value={data.total_sessions} />
           <HeroStat
-            label="Active"
+            label={t('stat.active')}
             value={data.active_sessions}
             accent={data.active_sessions > 0 ? 'text-emerald-300' : 'text-slate-100'}
           />
-          <HeroStat label="Turns" value={data.total_turns.toLocaleString()} />
-          <HeroStat label="Tool calls" value={totalTools.toLocaleString()} />
+          <HeroStat label={t('stat.turns')} value={data.total_turns.toLocaleString()} />
+          <HeroStat label={t('stat.tool_calls')} value={totalTools.toLocaleString()} />
         </section>
 
         {activity && <ActivityHeatmap buckets={activity} />}
@@ -507,14 +509,14 @@ export function OverviewPanel({
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="rounded-lg bg-slate-900/40 border border-slate-800">
             <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
-              <h3 className="text-xs uppercase tracking-wider text-slate-400">Top tools</h3>
+              <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.top_tools')}</h3>
               <span className="text-[11px] text-slate-500">{tools.length} unique</span>
             </header>
             <BarList entries={tools.slice(0, 12)} max={toolsMax} color="bg-gradient-to-r from-emerald-500/70 to-emerald-400" />
           </div>
           <div className="rounded-lg bg-slate-900/40 border border-slate-800">
             <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
-              <h3 className="text-xs uppercase tracking-wider text-slate-400">Top skills</h3>
+              <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.top_skills')}</h3>
               <span className="text-[11px] text-slate-500">{skills.length} unique</span>
             </header>
             <BarList entries={skills.slice(0, 12)} max={skillsMax} color="bg-gradient-to-r from-sky-500/70 to-sky-400" />
@@ -524,7 +526,7 @@ export function OverviewPanel({
         {data.top_subagents && data.top_subagents.length > 0 && (
           <section className="rounded-lg bg-slate-900/40 border border-slate-800">
             <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
-              <h3 className="text-xs uppercase tracking-wider text-slate-400">Top subagents</h3>
+              <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.top_subagents')}</h3>
               <span className="text-[11px] text-slate-500">
                 {data.subagent_count ?? 0} total{data.subagent_active ? ` · ${data.subagent_active} active` : ''}
               </span>
@@ -565,7 +567,7 @@ export function OverviewPanel({
           <section className="rounded-lg bg-gradient-to-br from-amber-950/30 via-slate-900/40 to-slate-900/40 border border-amber-900/30">
             <header className="px-4 py-2.5 border-b border-amber-900/30 flex items-baseline justify-between">
               <h3 className="text-xs uppercase tracking-wider text-amber-300 font-semibold">
-                <span className="mr-1.5">👑</span> 君主谱 · Top realms
+                <span className="mr-1.5">👑</span> {t('sec.top_realms')}
               </h3>
               <span className="text-[11px] text-slate-500">{data.top_realms.length} ranked by turns</span>
             </header>
@@ -654,13 +656,13 @@ export function OverviewPanel({
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="rounded-lg bg-slate-900/40 border border-slate-800">
             <header className="px-4 py-2.5 border-b border-slate-800">
-              <h3 className="text-xs uppercase tracking-wider text-slate-400">Top repos</h3>
+              <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.top_repos')}</h3>
             </header>
             <BarList entries={repos.slice(0, 10)} max={reposMax} color="bg-gradient-to-r from-violet-500/70 to-violet-400" />
           </div>
           <div className="rounded-lg bg-slate-900/40 border border-slate-800">
             <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
-              <h3 className="text-xs uppercase tracking-wider text-slate-400">Agents</h3>
+              <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.agents')}</h3>
               <span className="text-[11px] text-slate-500">{agents.length} types</span>
             </header>
             <AgentDonut entries={agents} />

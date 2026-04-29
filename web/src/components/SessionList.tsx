@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useT } from '../i18n';
 
 type Session = {
   id: string;
@@ -46,6 +47,7 @@ function sessionRealmKey(s: Session): string {
 type SortMode = 'recent' | 'oldest' | 'repo';
 
 export function SessionList({ items, onSelect, selected, realmFilter, onClearRealmFilter }: Props) {
+  const { t } = useT();
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [agentFilter, setAgentFilter] = useState<string>('all');
@@ -158,12 +160,12 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
     <aside className="flex-1 flex flex-col min-h-0">
       <div className="px-4 pt-4 pb-3 border-b border-slate-800">
         <div className="flex items-baseline justify-between mb-2">
-          <h2 className="text-sm font-semibold text-slate-200">Sessions</h2>
+          <h2 className="text-sm font-semibold text-slate-200">{t('list.title')}</h2>
           <span className="text-[10px] text-slate-500">{total} total</span>
         </div>
         {realmFilter && (
           <div className="mb-2 flex items-center gap-1.5 px-2 py-1 rounded bg-amber-500/10 border border-amber-500/30">
-            <span className="text-[10px] uppercase tracking-wider text-amber-300">Realm</span>
+            <span className="text-[10px] uppercase tracking-wider text-amber-300">{t('list.realm')}</span>
             <span className="font-mono text-[11px] text-amber-100 truncate flex-1" title={realmFilter}>
               {realmFilter}
             </span>
@@ -179,7 +181,7 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
         <input
           value={query}
           onChange={e => setQuery(e.target.value)}
-          placeholder="Search id, repo, summary…"
+          placeholder={t('list.search_ph')}
           className="w-full px-2.5 py-1.5 text-xs bg-slate-900 border border-slate-800 rounded text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-slate-600"
         />
         <div className="flex items-center gap-1.5 mt-2">
@@ -189,7 +191,7 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
             title="Filter by agent"
             className="flex-1 min-w-0 px-2 py-1 text-[11px] bg-slate-900 border border-slate-800 rounded text-slate-300 focus:outline-none focus:border-slate-600"
           >
-            <option value="all">All agents</option>
+            <option value="all">{t('list.all_agents')}</option>
             {agents.map(a => (
               <option key={a} value={a}>{a}</option>
             ))}
@@ -200,9 +202,9 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
             title="Sort"
             className="flex-1 min-w-0 px-2 py-1 text-[11px] bg-slate-900 border border-slate-800 rounded text-slate-300 focus:outline-none focus:border-slate-600"
           >
-            <option value="recent">Recent</option>
-            <option value="oldest">Oldest</option>
-            <option value="repo">Repo A→Z</option>
+            <option value="recent">{t('list.sort_recent')}</option>
+            <option value="oldest">{t('list.sort_oldest')}</option>
+            <option value="repo">{t('list.sort_repo')}</option>
           </select>
           <button
             onClick={() => setActiveOnly(v => !v)}
@@ -223,7 +225,7 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
           renderGroup(`repo:${repo}`, repo, byRepo.get(repo)!)
         )}
         {total === 0 && (
-          <div className="text-xs text-slate-600 text-center py-8">No sessions match.</div>
+          <div className="text-xs text-slate-600 text-center py-8">{t('list.empty')}</div>
         )}
       </div>
     </aside>
