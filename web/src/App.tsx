@@ -21,6 +21,7 @@ export default function App() {
   const [realmFilter, setRealmFilter] = useState<string | null>(null);
   const [realmPage, setRealmPage] = useState<string | null>(null);
   const [pendingSkill, setPendingSkill] = useState<{ name: string; n: number } | null>(null);
+  const [pendingCategory, setPendingCategory] = useState<{ name: string; n: number } | null>(null);
 
   useEffect(() => {
     fetchSessions().then(setSessions);
@@ -109,6 +110,10 @@ export default function App() {
             setPendingSkill(p => ({ name, n: (p?.n ?? 0) + 1 }));
             setView('skills');
           }}
+          onOpenCategory={(name: string) => {
+            setPendingCategory(p => ({ name, n: (p?.n ?? 0) + 1 }));
+            setView('skills');
+          }}
         />
       ) : view === 'realm' && realmPage ? (
         <RealmPanel
@@ -124,6 +129,8 @@ export default function App() {
           onOpenSession={setSelected}
           autoOpen={pendingSkill?.name ?? null}
           autoOpenNonce={pendingSkill?.n ?? 0}
+          autoCategory={pendingCategory?.name ?? null}
+          autoCategoryNonce={pendingCategory?.n ?? 0}
         />
       ) : (
         <SessionDetail

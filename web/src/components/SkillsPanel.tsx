@@ -20,7 +20,15 @@ export function SkillsPanel({
   onOpenSession,
   autoOpen,
   autoOpenNonce,
-}: { onOpenSession?: (id: string) => void; autoOpen?: string | null; autoOpenNonce?: number } = {}) {
+  autoCategory,
+  autoCategoryNonce,
+}: {
+  onOpenSession?: (id: string) => void;
+  autoOpen?: string | null;
+  autoOpenNonce?: number;
+  autoCategory?: string | null;
+  autoCategoryNonce?: number;
+} = {}) {
   const [skills, setSkills] = useState<SkillEntry[] | null>(null);
   const [bySource, setBySource] = useState<Record<string, number>>({});
   const [err, setErr] = useState<string | null>(null);
@@ -88,6 +96,15 @@ export function SkillsPanel({
     if (hit) setOpenSkill(hit);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- nonce drives re-runs for repeat clicks
   }, [autoOpen, autoOpenNonce, skills]);
+
+  useEffect(() => {
+    if (!autoCategory) return;
+    setCategory(autoCategory);
+    setFilter('');
+    setSource('all');
+    // Auto-expand the picked category if it was collapsed.
+    setCollapsed(c => ({ ...c, [autoCategory]: false }));
+  }, [autoCategory, autoCategoryNonce]);
 
   const filtered = useMemo(() => {
     if (!skills) return [];

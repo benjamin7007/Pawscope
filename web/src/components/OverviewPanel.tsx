@@ -446,10 +446,12 @@ export function OverviewPanel({
   onOpenSession,
   onOpenRealm,
   onOpenSkill,
+  onOpenCategory,
 }: {
   onOpenSession?: (id: string) => void;
   onOpenRealm?: (name: string) => void;
   onOpenSkill?: (name: string) => void;
+  onOpenCategory?: (name: string) => void;
 } = {}) {
   const { t, lang, fmt } = useT();
   const [data, setData] = useState<Overview | null>(null);
@@ -565,6 +567,7 @@ export function OverviewPanel({
             total={categoryTotal}
             lang={lang}
             fmt={fmt}
+            onPick={onOpenCategory}
           />
         )}
 
@@ -751,11 +754,13 @@ function CategoryDonut({
   total,
   lang,
   fmt,
+  onPick,
 }: {
   stats: { name: string; invocations: number; count: number; used: number }[];
   total: number;
   lang: string;
   fmt: (n: number) => string;
+  onPick?: (name: string) => void;
 }) {
   const R = 56;
   const W = 18;
@@ -798,6 +803,8 @@ function CategoryDonut({
               strokeDasharray={s.dasharray}
               strokeDashoffset={s.dashoffset}
               transform="rotate(-90)"
+              style={onPick ? { cursor: 'pointer' } : undefined}
+              onClick={onPick ? () => onPick(s.name) : undefined}
             >
               <title>{`${s.name}: ${fmt(s.invocations)} (${s.pct.toFixed(1)}%)`}</title>
             </circle>
@@ -810,22 +817,39 @@ function CategoryDonut({
           </text>
         </svg>
         <ul className="flex-1 min-w-[260px] grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-[12px]">
-          {slices.map(s => (
-            <li key={s.name} className="flex items-baseline gap-2 min-w-0">
-              <span
-                className="w-2 h-2 rounded-sm flex-shrink-0"
-                style={{ background: s.color }}
-                aria-hidden
-              />
-              <span className="text-slate-200 truncate" title={s.name}>{s.name}</span>
-              <span className="ml-auto tabular-nums text-slate-400 flex-shrink-0">
-                {fmt(s.invocations)}
-              </span>
-              <span className="tabular-nums text-slate-600 flex-shrink-0 w-12 text-right">
-                {s.pct.toFixed(1)}%
-              </span>
-            </li>
-          ))}
+          {slices.map(s => {
+            const row = (
+              <>
+                <span
+                  className="w-2 h-2 rounded-sm flex-shrink-0"
+                  style={{ background: s.color }}
+                  aria-hidden
+                />
+                <span className="text-slate-200 truncate" title={s.name}>{s.name}</span>
+                <span className="ml-auto tabular-nums text-slate-400 flex-shrink-0">
+                  {fmt(s.invocations)}
+                </span>
+                <span className="tabular-nums text-slate-600 flex-shrink-0 w-12 text-right">
+                  {s.pct.toFixed(1)}%
+                </span>
+              </>
+            );
+            return (
+              <li key={s.name}>
+                {onPick ? (
+                  <button
+                    type="button"
+                    onClick={() => onPick(s.name)}
+                    className="w-full flex items-baseline gap-2 min-w-0 text-left hover:bg-slate-800/40 rounded px-1 -mx-1 py-0.5 cursor-pointer"
+                  >
+                    {row}
+                  </button>
+                ) : (
+                  <div className="flex items-baseline gap-2 min-w-0">{row}</div>
+                )}
+              </li>
+            );
+          })}
         </ul>
       </div>
     </section>
