@@ -1,6 +1,10 @@
 use crate::AppState;
-use axum::{Json, extract::State};
-use serde::Serialize;
+use axum::{
+    Json,
+    extract::{Query, State},
+    http::StatusCode,
+};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -168,6 +172,66 @@ fn parse_skill_md(path: &Path, source: &str) -> Option<SkillEntry> {
         path: path.display().to_string(),
         invocations: 0,
     })
+}
+
+fn skill_roots() -> Vec<PathBuf> {
+    let home = std::env::var("HOME").unwrap_or_default();
+    vec![
+        PathBuf::from(format!("{home}/.copilot/installed-plugins")),
+        PathBuf::from(format!("{home}/.claude/skills")),
+        PathBuf::from(format!("{home}/.agents/skills")),
+    ]
+}
+
+#[derive(Deserialize)]
+pub struct ContentQuery {
+    pub path: String,
+}
+
+#[derive(Serialize)]
+pub struct SkillContent {
+    pub path: String,
+    pub content: String,
+    pub bytes: usize,
+}
+
+pub async fn skill_content(
+    State(_state): State<AppState>,
+    Query(q): Query<ContentQuery>,
+) -> Result<Json<SkillContent>, StatusCode> {
+    // Resolve and validate that the requested path lies under one of the
+    // known skill root directories — never serve arbitrary files.
+    let req = PathBuf::from(&q.path);
+    let canonical = std::fs::canonicalize(&req).map_err(|_| StatusCode::NOT_FOUND)?;
+    let roots: Vec<PathBuf> = skill_roots()
+        .into_iter()
+        .filter_map(|r| std::fs::canonicalize(&r).ok())
+        .collect();
+    if !roots.iter().any(|r| canonical.starts_with(r)) {
+        return Err(StatusCode::FORBIDDEN);
+    }
+    if canonical.file_name().and_then(|n| n.to_str()) != Some("SKILL.md") {
+        return Err(StatusCode::FORBIDDEN);
+    }
+    let content = std::fs::read_to_string(&canonical).map_err(|_| StatusCode::NOT_FOUND)?;
+    let bytes = content.len();
+    // Cap response size to avoid pathological skills.
+    let truncated = if bytes > 64 * 1024 {
+        let mut idx = 64 * 1024;
+        while !content.is_char_boundary(idx) && idx > 0 {
+            idx -= 1;
+        }
+        let mut s = content[..idx].to_string();
+        s.push_str("\n\n…(truncated)");
+        s
+    } else {
+        content
+    };
+    Ok(Json(SkillContent {
+        path: canonical.display().to_string(),
+        content: truncated,
+        bytes,
+    }))
 }
 
 #[cfg(test)]
