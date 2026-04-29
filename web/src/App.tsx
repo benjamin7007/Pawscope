@@ -11,11 +11,18 @@ import { PromptsPanel } from './components/PromptsPanel';
 import { SidebarResizer } from './components/SidebarResizer';
 import { ProgressBar } from './components/ProgressBar';
 import { ToastContainer } from './components/ToastContainer';
+import { Breadcrumbs } from './components/Breadcrumbs';
 import { LangToggle } from './components/LangToggle';
 import { ThemeToggle } from './components/ThemeToggle';
 import { useT } from './i18n';
 
 type View = 'overview' | 'session' | 'realm' | 'skills' | 'prompts';
+
+interface ViewSnapshot {
+  view: View;
+  selected: string | null;
+  realmPage: string | null;
+}
 
 export default function App() {
   const { t } = useT();
@@ -28,6 +35,7 @@ export default function App() {
   const [pendingSkill, setPendingSkill] = useState<{ name: string; n: number } | null>(null);
   const [pendingCategory, setPendingCategory] = useState<{ name: string; n: number } | null>(null);
   const [labels, setLabels] = useState<LabelMap>({});
+  const [history, setHistory] = useState<ViewSnapshot[]>([]);
   const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
     const v = parseInt(localStorage.getItem('pawscope.sidebarWidth') ?? '', 10);
     return Number.isFinite(v) && v >= 280 && v <= 720 ? v : 384;
@@ -65,14 +73,56 @@ export default function App() {
     return () => ws.close();
   }, [selected]);
 
+  // Fetch detail when `selected` changes (route to session view is handled by navigate()).
   useEffect(() => {
-    if (selected) {
-      fetchDetail(selected).then(setDetail);
-      setView('session');
-    }
+    if (selected) fetchDetail(selected).then(setDetail);
   }, [selected]);
 
+  const navigate = (next: { view?: View; selected?: string | null; realmPage?: string | null }) => {
+    const snap: ViewSnapshot = { view, selected, realmPage };
+    const target: ViewSnapshot = {
+      view: next.view ?? view,
+      selected: next.selected !== undefined ? next.selected : selected,
+      realmPage: next.realmPage !== undefined ? next.realmPage : realmPage,
+    };
+    // Skip if no change
+    if (target.view === snap.view && target.selected === snap.selected && target.realmPage === snap.realmPage) {
+      return;
+    }
+    setHistory((h) => [...h, snap]);
+    setView(target.view);
+    if (next.selected !== undefined) setSelected(target.selected);
+    if (next.realmPage !== undefined) setRealmPage(target.realmPage);
+  };
+
+  const goBack = () => {
+    setHistory((h) => {
+      if (h.length === 0) return h;
+      const last = h[h.length - 1];
+      setView(last.view);
+      setSelected(last.selected);
+      setRealmPage(last.realmPage);
+      return h.slice(0, -1);
+    });
+  };
+
+  const selectSession = (id: string | null) => navigate({ selected: id, view: id ? 'session' : view });
+
   const activeCount = sessions.filter(s => s.status === 'active').length;
+
+  // Build breadcrumbs from current state.
+  const crumbs: { label: string; onClick?: () => void }[] = [
+    { label: t('crumbs.overview'), onClick: () => navigate({ view: 'overview' }) },
+  ];
+  if (view === 'session') {
+    crumbs.push({ label: `${t('crumbs.session')}${selected ? ` · ${selected.slice(0, 8)}` : ''}` });
+  } else if (view === 'realm' && realmPage) {
+    crumbs.push({ label: `${t('crumbs.realm')}: ${realmPage}` });
+  } else if (view === 'skills') {
+    crumbs.push({ label: t('crumbs.skills') });
+  } else if (view === 'prompts') {
+    crumbs.push({ label: t('crumbs.prompts') });
+  }
 
   return (
     <div className="flex h-screen">
@@ -96,7 +146,7 @@ export default function App() {
         </div>
         <nav className="flex border-b border-slate-800">
           <button
-            onClick={() => setView('overview')}
+            onClick={() => navigate({ view: 'overview' })}
             className={`flex-1 px-2 py-2.5 text-xs font-medium whitespace-nowrap transition-colors ${
               view === 'overview'
                 ? 'bg-slate-800/80 text-slate-100 border-b-2 border-emerald-400'
@@ -106,7 +156,7 @@ export default function App() {
             {t('nav.overview')}
           </button>
           <button
-            onClick={() => setView('session')}
+            onClick={() => navigate({ view: 'session' })}
             className={`flex-1 px-2 py-2.5 text-xs font-medium whitespace-nowrap transition-colors ${
               view === 'session'
                 ? 'bg-slate-800/80 text-slate-100 border-b-2 border-emerald-400'
@@ -121,7 +171,7 @@ export default function App() {
             )}
           </button>
           <button
-            onClick={() => setView('skills')}
+            onClick={() => navigate({ view: 'skills' })}
             className={`flex-1 px-2 py-2.5 text-xs font-medium whitespace-nowrap transition-colors ${
               view === 'skills'
                 ? 'bg-slate-800/80 text-slate-100 border-b-2 border-emerald-400'
@@ -131,7 +181,7 @@ export default function App() {
             {t('nav.skills')}
           </button>
           <button
-            onClick={() => setView('prompts')}
+            onClick={() => navigate({ view: 'prompts' })}
             className={`flex-1 px-2 py-2.5 text-xs font-medium whitespace-nowrap transition-colors ${
               view === 'prompts'
                 ? 'bg-slate-800/80 text-slate-100 border-b-2 border-emerald-400'
@@ -147,7 +197,7 @@ export default function App() {
         </nav>
         <SessionList
           items={sessions}
-          onSelect={setSelected}
+          onSelect={selectSession}
           selected={selected}
           realmFilter={realmFilter}
           onClearRealmFilter={() => setRealmFilter(null)}
@@ -156,53 +206,52 @@ export default function App() {
         />
       </div>
       <SidebarResizer onResize={setSidebarWidth} />
-      {view === 'overview' ? (
-        <OverviewPanel
-          onOpenSession={setSelected}
-          onOpenRealm={(name: string) => {
-            setRealmPage(name);
-            setView('realm');
-          }}
-          onOpenSkill={(name: string) => {
-            setPendingSkill(p => ({ name, n: (p?.n ?? 0) + 1 }));
-            setView('skills');
-          }}
-          onOpenCategory={(name: string) => {
-            setPendingCategory(p => ({ name, n: (p?.n ?? 0) + 1 }));
-            setView('skills');
-          }}
-        />
-      ) : view === 'realm' && realmPage ? (
-        <RealmPanel
-          name={realmPage}
-          onOpenSession={setSelected}
-          onBack={() => {
-            setRealmPage(null);
-            setView('overview');
-          }}
-        />
-      ) : view === 'skills' ? (
-        <SkillsPanel
-          onOpenSession={setSelected}
-          autoOpen={pendingSkill?.name ?? null}
-          autoOpenNonce={pendingSkill?.n ?? 0}
-          autoCategory={pendingCategory?.name ?? null}
-          autoCategoryNonce={pendingCategory?.n ?? 0}
-        />
-      ) : view === 'prompts' ? (
-        <PromptsPanel onOpenSession={setSelected} />
-      ) : (
-        <SessionDetail
-          meta={sessions.find(s => s.id === selected)}
-          detail={detail}
-          onOpenSkill={(name: string) => {
-            setPendingSkill(p => ({ name, n: (p?.n ?? 0) + 1 }));
-            setView('skills');
-          }}
-          label={selected ? labels[selected] : undefined}
-          onSetLabel={selected ? (lbl) => updateLabel(selected, lbl) : undefined}
-        />
-      )}
+      <main className="flex-1 flex flex-col min-w-0">
+        <Breadcrumbs crumbs={crumbs} canBack={history.length > 0} onBack={goBack} />
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          {view === 'overview' ? (
+            <OverviewPanel
+              onOpenSession={selectSession}
+              onOpenRealm={(name: string) => navigate({ realmPage: name, view: 'realm' })}
+              onOpenSkill={(name: string) => {
+                setPendingSkill(p => ({ name, n: (p?.n ?? 0) + 1 }));
+                navigate({ view: 'skills' });
+              }}
+              onOpenCategory={(name: string) => {
+                setPendingCategory(p => ({ name, n: (p?.n ?? 0) + 1 }));
+                navigate({ view: 'skills' });
+              }}
+            />
+          ) : view === 'realm' && realmPage ? (
+            <RealmPanel
+              name={realmPage}
+              onOpenSession={selectSession}
+              onBack={goBack}
+            />
+          ) : view === 'skills' ? (
+            <SkillsPanel
+              onOpenSession={selectSession}
+              autoOpen={pendingSkill?.name ?? null}
+              autoOpenNonce={pendingSkill?.n ?? 0}
+              autoCategory={pendingCategory?.name ?? null}
+              autoCategoryNonce={pendingCategory?.n ?? 0}
+            />
+          ) : view === 'prompts' ? (
+            <PromptsPanel onOpenSession={selectSession} />
+          ) : (
+            <SessionDetail
+              meta={sessions.find(s => s.id === selected)}
+              detail={detail}
+              onOpenSkill={(name: string) => {
+                setPendingSkill(p => ({ name, n: (p?.n ?? 0) + 1 }));
+                navigate({ view: 'skills' });
+              }}
+              label={selected ? labels[selected] : undefined}
+              onSetLabel={selected ? (lbl) => updateLabel(selected, lbl) : undefined}
+            />
+          )}
+        </div>
+      </main>
     </div>
   );
 }

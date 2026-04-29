@@ -13,6 +13,15 @@ const dict: Record<string, { en: string; zh: string }> = {
   'nav.skills': { en: '🛠 Skills', zh: '🛠 技能' },
   'nav.prompts': { en: '⌕ Prompts', zh: '⌕ 提示' },
 
+  // Breadcrumbs
+  'crumbs.back': { en: 'Back', zh: '后退' },
+  'crumbs.no_back': { en: 'No history', zh: '无历史' },
+  'crumbs.overview': { en: 'Overview', zh: '总览' },
+  'crumbs.session': { en: 'Session', zh: '会话' },
+  'crumbs.skills': { en: 'Skills', zh: '技能' },
+  'crumbs.prompts': { en: 'Prompts', zh: '提示' },
+  'crumbs.realm': { en: 'Realm', zh: '领地' },
+
   // Prompts search
   'prompts.title': { en: 'Search prompts', zh: '搜索用户提示' },
   'prompts.placeholder': { en: 'Type to search across all sessions…', zh: '输入关键字,跨所有会话搜索…' },
