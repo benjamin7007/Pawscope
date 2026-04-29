@@ -1,6 +1,76 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useT } from '../i18n';
 import { connectWs } from '../api';
+
+// Common secret patterns (high-signal, low false-positive). Matches are
+// wrapped with a rose-tinted span so users notice before copying or sharing.
+// Keep this list conservative — over-matching erodes trust in the highlight.
+const SECRET_PATTERNS: { name: string; re: RegExp }[] = [
+  { name: 'openai', re: /\bsk-[A-Za-z0-9-_]{16,}\b/g },
+  { name: 'github', re: /\b(ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{30,}\b/g },
+  { name: 'aws-akid', re: /\bAKIA[0-9A-Z]{16}\b/g },
+  { name: 'jwt', re: /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/g },
+  { name: 'bearer', re: /\bBearer\s+[A-Za-z0-9._-]{20,}\b/gi },
+  { name: 'apikey-kv', re: /\b(?:api[_-]?key|secret|token|password)\s*[:=]\s*["']?[A-Za-z0-9._\-+/]{12,}["']?/gi },
+];
+
+function highlightSecrets(text: string): React.ReactNode {
+  if (!text) return text;
+  type Hit = { start: number; end: number };
+  const hits: Hit[] = [];
+  for (const { re } of SECRET_PATTERNS) {
+    re.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(text)) !== null) {
+      hits.push({ start: m.index, end: m.index + m[0].length });
+      if (m.index === re.lastIndex) re.lastIndex++;
+    }
+  }
+  if (hits.length === 0) return text;
+  hits.sort((a, b) => a.start - b.start);
+  // Merge overlaps
+  const merged: Hit[] = [];
+  for (const h of hits) {
+    const last = merged[merged.length - 1];
+    if (last && h.start <= last.end) last.end = Math.max(last.end, h.end);
+    else merged.push({ ...h });
+  }
+  const parts: React.ReactNode[] = [];
+  let cursor = 0;
+  merged.forEach((h, i) => {
+    if (cursor < h.start) parts.push(text.slice(cursor, h.start));
+    parts.push(
+      <span key={i} className="bg-rose-500/25 text-rose-200 px-0.5 rounded" title="possible secret">
+        {text.slice(h.start, h.end)}
+      </span>,
+    );
+    cursor = h.end;
+  });
+  if (cursor < text.length) parts.push(text.slice(cursor));
+  return parts;
+}
+
+function CopyBtn({ text, label }: { text: string; label?: string }) {
+  const [done, setDone] = useState(false);
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        navigator.clipboard?.writeText(text).then(
+          () => {
+            setDone(true);
+            window.setTimeout(() => setDone(false), 1200);
+          },
+          () => {},
+        );
+      }}
+      className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
+      title="copy"
+    >
+      {done ? '✓' : (label ?? '⧉')}
+    </button>
+  );
+}
 
 // --- Types mirroring pawscope-core ConversationLog ---
 export type TurnItem =
@@ -74,10 +144,13 @@ function ItemBlock({ item, depth }: { item: TurnItem; depth: number }) {
   const { t } = useT();
   if (item.kind === 'assistant_message') {
     return (
-      <div className="py-1.5 pl-3 border-l-2 border-cyan-500/30">
+      <div className="py-1.5 pl-3 border-l-2 border-cyan-500/30 group">
         <div className="flex items-baseline gap-2">
           <span className="text-cyan-300 text-[11px]">🤖</span>
           <span className="text-[10px] text-slate-500 font-mono">{timeOnly(item.at)}</span>
+          <span className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+            <CopyBtn text={item.content} />
+          </span>
         </div>
         <div className="mt-1 text-[12px] text-slate-200 whitespace-pre-wrap break-words">
           {item.content}
@@ -175,14 +248,21 @@ function InteractionBlock({
   interaction,
   index,
   defaultOpen,
+  highlight,
 }: {
   interaction: Interaction;
   index: number;
   defaultOpen: boolean;
+  highlight: boolean;
 }) {
   const { t } = useT();
   const [open, setOpen] = useState(defaultOpen);
   const [showTransformed, setShowTransformed] = useState(false);
+  // Re-open if deep-link target arrives later (initial defaultOpen was already
+  // applied; also respond when user navigates to #i=N after first render).
+  useEffect(() => {
+    if (highlight) setOpen(true);
+  }, [highlight]);
   const isHuman = interaction.kind === 'human';
   const raw = interaction.user_message_raw || '';
   const transformed = interaction.user_message_transformed || '';
@@ -192,13 +272,31 @@ function InteractionBlock({
   const display = isTruncated ? shown.slice(0, 800) + '…' : shown;
 
   return (
-    <article className="border border-slate-800 rounded-md bg-slate-900/40">
+    <article
+      id={`i-${index}`}
+      className={`border rounded-md transition-colors ${
+        highlight
+          ? 'border-cyan-500/60 bg-cyan-500/5 ring-1 ring-cyan-500/30'
+          : 'border-slate-800 bg-slate-900/40'
+      }`}
+    >
       <header
         className="flex items-baseline gap-2 px-3 py-2 cursor-pointer hover:bg-slate-800/40 select-none"
         onClick={() => setOpen((v) => !v)}
       >
         <span className="text-slate-500 text-xs">{open ? '▼' : '▶'}</span>
-        <span className="text-[11px] text-slate-500 font-mono">#{index}</span>
+        <a
+          href={`#i=${index}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            // Update hash without forcing the browser to scroll-jump.
+            history.replaceState(null, '', `#i=${index}`);
+          }}
+          className="text-[11px] text-slate-500 font-mono hover:text-cyan-300"
+          title={t('flow.copy_link')}
+        >
+          #{index}
+        </a>
         <span className="text-[11px] text-slate-500 font-mono">{timeOnly(interaction.started_at)}</span>
         <span
           className={`text-[10px] px-1.5 py-0.5 rounded ${
@@ -229,9 +327,10 @@ function InteractionBlock({
                     {showTransformed ? t('flow.show_raw') : t('flow.show_transformed')}
                   </button>
                 )}
+                <span className="ml-auto"><CopyBtn text={shown} /></span>
               </div>
               <pre className="text-[12px] bg-slate-950/60 border border-slate-800 rounded p-2 overflow-x-auto whitespace-pre-wrap break-words text-slate-200 max-h-64 overflow-y-auto">
-                {display}
+                {highlightSecrets(display)}
               </pre>
             </div>
           )}
@@ -259,11 +358,39 @@ export function ConversationFlow({ sessionId }: Props) {
   const [loading, setLoading] = useState(false);
   const [systemOpen, setSystemOpen] = useState(false);
   const [live, setLive] = useState(false);
+  const [highlightIdx, setHighlightIdx] = useState<number | null>(null);
   const cancelRef = useRef(false);
   const lastVersionRef = useRef(0);
   const refetchTimerRef = useRef<number | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  // Was the user near the bottom *before* this render? Captured during render
+  // so the post-render effect can decide whether to autoscroll.
+  const wasNearBottomRef = useRef(true);
+
+  // Read deep-link `#i=N` on mount and whenever hash changes.
+  const readHash = useCallback(() => {
+    const h = window.location.hash || '';
+    const m = h.match(/i=(\d+)/);
+    if (m) {
+      const n = parseInt(m[1], 10);
+      if (Number.isFinite(n)) setHighlightIdx(n);
+    } else {
+      setHighlightIdx(null);
+    }
+  }, []);
+  useEffect(() => {
+    readHash();
+    window.addEventListener('hashchange', readHash);
+    return () => window.removeEventListener('hashchange', readHash);
+  }, [readHash]);
 
   const fetchLog = (initial: boolean) => {
+    // Capture scroll position relative to the page bottom *before* state mutates.
+    const sc = (containerRef.current?.closest('main') as HTMLElement | null) ?? document.scrollingElement;
+    if (sc) {
+      const distFromBottom = sc.scrollHeight - sc.scrollTop - sc.clientHeight;
+      wasNearBottomRef.current = distFromBottom < 120;
+    }
     if (initial) {
       setLoading(true);
       setError(null);
@@ -325,6 +452,23 @@ export function ConversationFlow({ sessionId }: Props) {
     [log],
   );
 
+  // Auto-scroll to bottom after live updates, but only if the user was near the
+  // bottom before this update — preserves their scroll position when reading
+  // older interactions.
+  useEffect(() => {
+    if (!log) return;
+    if (highlightIdx != null) {
+      // Deep-link wins over autoscroll. Scroll to the targeted card.
+      const el = document.getElementById(`i-${highlightIdx}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    if (wasNearBottomRef.current) {
+      const sc = (containerRef.current?.closest('main') as HTMLElement | null) ?? document.scrollingElement;
+      if (sc) sc.scrollTo({ top: sc.scrollHeight, behavior: 'smooth' });
+    }
+  }, [log, highlightIdx]);
+
   if (loading) {
     return <div className="px-6 py-8 text-sm text-slate-500">{t('detail.loading')}</div>;
   }
@@ -340,7 +484,7 @@ export function ConversationFlow({ sessionId }: Props) {
   }
 
   return (
-    <div className="px-6 py-4 space-y-3">
+    <div ref={containerRef} className="px-6 py-4 space-y-3">
       <div className="text-[11px] text-slate-500 font-mono flex items-center gap-3">
         <span>v{log.version}</span>
         {live && (
@@ -374,9 +518,12 @@ export function ConversationFlow({ sessionId }: Props) {
           <div className="px-3 pb-3 space-y-2">
             {log.system_prompts.map((p, i) => (
               <div key={i}>
-                <div className="text-[10px] text-slate-500 font-mono">{timeOnly(p.at)}</div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-slate-500 font-mono">{timeOnly(p.at)}</span>
+                  <span className="ml-auto"><CopyBtn text={p.content} /></span>
+                </div>
                 <pre className="text-[11px] bg-slate-950/60 border border-slate-800 rounded p-2 overflow-x-auto whitespace-pre-wrap break-words text-slate-300 max-h-96 overflow-y-auto">
-                  {p.content}
+                  {highlightSecrets(p.content)}
                 </pre>
               </div>
             ))}
@@ -396,7 +543,8 @@ export function ConversationFlow({ sessionId }: Props) {
             <InteractionBlock
               interaction={it}
               index={i}
-              defaultOpen={i >= log.interactions.length - 3}
+              defaultOpen={i >= log.interactions.length - 3 || i === highlightIdx}
+              highlight={i === highlightIdx}
             />
           </div>
         ))}
