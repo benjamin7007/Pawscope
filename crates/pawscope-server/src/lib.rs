@@ -8,6 +8,7 @@ use tokio::sync::broadcast;
 
 pub mod api;
 pub mod assets;
+pub mod cache;
 pub mod multi;
 pub mod skills;
 pub mod sse;
@@ -19,6 +20,7 @@ pub use multi::MultiAdapter;
 pub struct AppState {
     pub adapter: Arc<dyn AgentAdapter>,
     pub events: broadcast::Sender<pawscope_core::SessionEvent>,
+    pub detail_cache: cache::DetailCache,
 }
 
 pub fn build_app(adapter: Arc<dyn AgentAdapter>) -> (Router, AppState) {
@@ -26,6 +28,7 @@ pub fn build_app(adapter: Arc<dyn AgentAdapter>) -> (Router, AppState) {
     let state = AppState {
         adapter,
         events: tx,
+        detail_cache: cache::DetailCache::new(),
     };
     let router = Router::new()
         .route("/api/sessions", get(api::list_sessions))
@@ -51,12 +54,20 @@ pub fn build_app(adapter: Arc<dyn AgentAdapter>) -> (Router, AppState) {
 pub fn spawn_watcher(state: AppState) {
     let adapter = state.adapter.clone();
     let tx = state.events.clone();
+    let cache = state.detail_cache.clone();
     tokio::spawn(async move {
         let (m_tx, mut m_rx) = tokio::sync::mpsc::channel(256);
         tokio::spawn(async move {
             let _ = adapter.watch(m_tx).await;
         });
         while let Some(ev) = m_rx.recv().await {
+            match &ev {
+                pawscope_core::SessionEvent::DetailUpdated { session_id, .. }
+                | pawscope_core::SessionEvent::Closed { session_id } => {
+                    cache.invalidate(session_id).await;
+                }
+                pawscope_core::SessionEvent::SessionListChanged => {}
+            }
             let _ = tx.send(ev);
         }
     });

@@ -438,32 +438,33 @@ pub async fn prompts_search(
         .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
         .map(|dt| dt.with_timezone(&chrono::Utc));
 
-    let sessions = match s.adapter.list_sessions().await {
+    let mut sessions = match s.adapter.list_sessions().await {
         Ok(v) => v,
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     };
-
-    let mut hits: Vec<PromptHit> = Vec::new();
-    for sess in &sessions {
+    // Pre-filter at session level (agent / repo) to skip detail fetch.
+    sessions.retain(|sess| {
         if let Some(af) = &agent_filter {
             let ak = serde_json::to_value(sess.agent)
                 .ok()
                 .and_then(|v| v.as_str().map(str::to_string))
                 .unwrap_or_default();
             if &ak != af {
-                continue;
+                return false;
             }
         }
         if let Some(rf) = &repo_filter {
             let r = sess.repo.as_deref().unwrap_or("").to_lowercase();
             if !r.contains(rf) {
-                continue;
+                return false;
             }
         }
-        let detail = match s.adapter.get_detail(&sess.id).await {
-            Ok(d) => d,
-            Err(_) => continue,
-        };
+        true
+    });
+
+    let pairs = s.detail_cache.fan_out(&s.adapter, &sessions).await;
+    let mut hits: Vec<PromptHit> = Vec::new();
+    for (sess, detail) in pairs {
         for prompt in &detail.prompts {
             if let Some(t) = prompt.timestamp {
                 if let Some(s) = since {
@@ -529,13 +530,10 @@ pub async fn tools_trend(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     };
 
+    let pairs = s.detail_cache.fan_out(&s.adapter, &sessions).await;
     let mut per_tool: HashMap<String, Vec<u64>> = HashMap::new();
     let mut totals: HashMap<String, u64> = HashMap::new();
-    for sess in &sessions {
-        let detail = match s.adapter.get_detail(&sess.id).await {
-            Ok(d) => d,
-            Err(_) => continue,
-        };
+    for (_, detail) in &pairs {
         for tc in &detail.tool_calls {
             if tc.timestamp < window_start || tc.timestamp > now {
                 continue;
@@ -640,12 +638,9 @@ pub async fn tools_bucket(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     };
 
+    let pairs = s.detail_cache.fan_out(&s.adapter, &sessions).await;
     let mut hits: Vec<BucketHit> = Vec::new();
-    for sess in &sessions {
-        let detail = match s.adapter.get_detail(&sess.id).await {
-            Ok(d) => d,
-            Err(_) => continue,
-        };
+    for (sess, detail) in pairs {
         let mut count: u64 = 0;
         for tc in &detail.tool_calls {
             if tc.timestamp < since || tc.timestamp >= until {
