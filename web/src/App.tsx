@@ -40,6 +40,7 @@ export default function App() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [paletteQuery, setPaletteQuery] = useState<string | undefined>(undefined);
   const [tokensMap, setTokensMap] = useState<Record<string, { in: number; out: number }>>({});
+  const [pulseMap, setPulseMap] = useState<Record<string, { bins: number[]; events: number }>>({});
   const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
     const v = parseInt(localStorage.getItem('pawscope.sidebarWidth') ?? '', 10);
     return Number.isFinite(v) && v >= 280 && v <= 720 ? v : 384;
@@ -65,6 +66,7 @@ export default function App() {
   useEffect(() => {
     fetchSessions().then(setSessions);
     fetch('/api/sessions/tokens').then(r => r.ok ? r.json() : {}).then(setTokensMap).catch(() => {});
+    fetch('/api/sessions/pulse').then(r => r.ok ? r.json() : {}).then(setPulseMap).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -244,6 +246,7 @@ export default function App() {
           labels={labels}
           onToggleStar={toggleStar}
           tokensMap={tokensMap}
+          pulseMap={pulseMap}
         />
       </div>
       <SidebarResizer onResize={setSidebarWidth} />
