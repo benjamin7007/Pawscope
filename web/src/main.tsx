@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import './styles.css';
 import { installProgress } from './progress';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 installProgress();
 
@@ -24,4 +25,4 @@ try {
   if (stored === 'light') document.documentElement.classList.add('theme-light');
 } catch {}
 
-createRoot(document.getElementById('root')!).render(<StrictMode><App/></StrictMode>);
+createRoot(document.getElementById('root')!).render(<StrictMode><ErrorBoundary scope="App"><App/></ErrorBoundary></StrictMode>);
