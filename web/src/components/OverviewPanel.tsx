@@ -56,6 +56,88 @@ function BarList({ entries, max, color }: { entries: [string, number][]; max: nu
   );
 }
 
+const AGENT_COLORS: Record<string, string> = {
+  copilot: '#34d399',
+  claude: '#a78bfa',
+  codex: '#f59e0b',
+};
+
+function AgentDonut({ entries }: { entries: [string, number][] }) {
+  const total = entries.reduce((a, [, v]) => a + v, 0);
+  if (total === 0) {
+    return <div className="text-xs text-slate-600 py-6 text-center">No agents.</div>;
+  }
+  const radius = 60;
+  const stroke = 18;
+  const cx = 80;
+  const cy = 80;
+  const circ = 2 * Math.PI * radius;
+  let offset = 0;
+  const segments = entries.map(([name, v]) => {
+    const frac = v / total;
+    const length = circ * frac;
+    const seg = {
+      name,
+      v,
+      frac,
+      color: AGENT_COLORS[name] ?? '#64748b',
+      dasharray: `${length} ${circ - length}`,
+      dashoffset: -offset,
+    };
+    offset += length;
+    return seg;
+  });
+  const top = entries[0];
+
+  return (
+    <div className="flex items-center gap-5 px-4 py-4">
+      <svg width="160" height="160" viewBox="0 0 160 160" className="flex-shrink-0">
+        <circle cx={cx} cy={cy} r={radius} fill="none" stroke="rgb(30 41 59 / 0.7)" strokeWidth={stroke} />
+        {segments.map(s => (
+          <circle
+            key={s.name}
+            cx={cx}
+            cy={cy}
+            r={radius}
+            fill="none"
+            stroke={s.color}
+            strokeWidth={stroke}
+            strokeDasharray={s.dasharray}
+            strokeDashoffset={s.dashoffset}
+            transform={`rotate(-90 ${cx} ${cy})`}
+            style={{ transition: 'stroke-dasharray 0.3s, stroke-dashoffset 0.3s' }}
+          >
+            <title>{`${s.name}: ${s.v} (${(s.frac * 100).toFixed(0)}%)`}</title>
+          </circle>
+        ))}
+        <text x={cx} y={cy - 4} textAnchor="middle" className="fill-slate-100 font-semibold" fontSize="22">
+          {total}
+        </text>
+        <text x={cx} y={cy + 14} textAnchor="middle" className="fill-slate-500" fontSize="10">
+          sessions
+        </text>
+      </svg>
+      <ul className="space-y-1.5 text-sm flex-1 min-w-0">
+        {segments.map(s => (
+          <li key={s.name} className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: s.color }} />
+            <span className="text-slate-200 capitalize">{s.name}</span>
+            <span className="text-slate-500 text-xs ml-auto tabular-nums">
+              {s.v}
+              <span className="text-slate-600"> · {(s.frac * 100).toFixed(0)}%</span>
+            </span>
+          </li>
+        ))}
+        {top && (
+          <li className="text-[10px] text-slate-600 pt-1 border-t border-slate-800/60 mt-2">
+            top: {top[0]}
+          </li>
+        )}
+      </ul>
+    </div>
+  );
+}
+
 function WeekGrid({ grid }: { grid: number[][] }) {
   const flat = grid.flat();
   const total = flat.reduce((a, b) => a + b, 0);
@@ -298,16 +380,11 @@ export function OverviewPanel() {
             <BarList entries={repos.slice(0, 10)} max={reposMax} color="bg-gradient-to-r from-violet-500/70 to-violet-400" />
           </div>
           <div className="rounded-lg bg-slate-900/40 border border-slate-800">
-            <header className="px-4 py-2.5 border-b border-slate-800">
+            <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
               <h3 className="text-xs uppercase tracking-wider text-slate-400">Agents</h3>
+              <span className="text-[11px] text-slate-500">{agents.length} types</span>
             </header>
-            <div className="p-4 flex flex-wrap gap-2">
-              {agents.map(([k, v]) => (
-                <span key={k} className="px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs text-slate-200">
-                  {k} <span className="text-slate-500 ml-1">×{v}</span>
-                </span>
-              ))}
-            </div>
+            <AgentDonut entries={agents} />
           </div>
         </section>
 
