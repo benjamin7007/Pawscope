@@ -195,6 +195,82 @@ pub struct SkillContent {
     pub bytes: usize,
 }
 
+#[derive(Serialize)]
+pub struct SkillSession {
+    pub id: String,
+    pub agent: String,
+    pub summary: String,
+    pub repo: Option<String>,
+    pub last_event_at: chrono::DateTime<chrono::Utc>,
+    pub invocations: u32,
+}
+
+#[derive(Serialize)]
+pub struct SkillUsage {
+    pub name: String,
+    pub total_invocations: u32,
+    pub session_count: usize,
+    pub daily30: [u32; 30],
+    pub sessions: Vec<SkillSession>,
+}
+
+#[derive(Deserialize)]
+pub struct UsageQuery {
+    pub name: String,
+}
+
+pub async fn skill_usage(
+    State(state): State<AppState>,
+    Query(q): Query<UsageQuery>,
+) -> Result<Json<SkillUsage>, StatusCode> {
+    let metas = state
+        .adapter
+        .list_sessions()
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let now = chrono::Utc::now();
+    let mut daily = [0u32; 30];
+    let mut sessions: Vec<SkillSession> = Vec::new();
+    let mut total = 0u32;
+
+    for m in &metas {
+        let Ok(d) = state.adapter.get_detail(&m.id).await else {
+            continue;
+        };
+        let count = d.skills_invoked.iter().filter(|n| **n == q.name).count() as u32;
+        if count == 0 {
+            continue;
+        }
+        total += count;
+
+        let days_ago = (now.date_naive() - m.last_event_at.date_naive()).num_days();
+        if (0..30).contains(&days_ago) {
+            let idx = (29 - days_ago) as usize;
+            daily[idx] = daily[idx].saturating_add(count);
+        }
+
+        sessions.push(SkillSession {
+            id: m.id.clone(),
+            agent: format!("{:?}", m.agent).to_lowercase(),
+            summary: m.summary.clone(),
+            repo: m.repo.clone(),
+            last_event_at: m.last_event_at,
+            invocations: count,
+        });
+    }
+    sessions.sort_by(|a, b| b.last_event_at.cmp(&a.last_event_at));
+    let session_count = sessions.len();
+
+    Ok(Json(SkillUsage {
+        name: q.name,
+        total_invocations: total,
+        session_count,
+        daily30: daily,
+        sessions,
+    }))
+}
+
 pub async fn skill_content(
     State(_state): State<AppState>,
     Query(q): Query<ContentQuery>,

@@ -78,7 +78,7 @@ export function renderMarkdown(md: string): string {
     if (line.startsWith('```')) {
       if (inCode) {
         out.push(
-          `<pre class="my-3 p-3 rounded bg-slate-900/80 border border-slate-800 overflow-x-auto text-[12px] text-slate-200"><code data-lang="${esc(codeLang)}">${esc(codeBuf.join('\n'))}</code></pre>`,
+          `<pre class="my-3 p-3 rounded bg-slate-900/80 border border-slate-800 overflow-x-auto text-[12px] text-slate-200"><code data-lang="${esc(codeLang)}">${highlightCode(codeBuf.join('\n'), codeLang)}</code></pre>`,
         );
         codeBuf = [];
         codeLang = '';
@@ -160,8 +160,44 @@ export function renderMarkdown(md: string): string {
   flushList();
   if (inCode) {
     out.push(
-      `<pre class="my-3 p-3 rounded bg-slate-900/80 border border-slate-800 overflow-x-auto text-[12px] text-slate-200"><code>${esc(codeBuf.join('\n'))}</code></pre>`,
+      `<pre class="my-3 p-3 rounded bg-slate-900/80 border border-slate-800 overflow-x-auto text-[12px] text-slate-200"><code>${highlightCode(codeBuf.join('\n'), codeLang)}</code></pre>`,
     );
   }
   return out.join('\n');
+}
+
+const KEYWORDS: Record<string, string[]> = {
+  bash: ['if', 'then', 'fi', 'else', 'elif', 'for', 'while', 'do', 'done', 'in', 'function', 'return', 'export', 'local'],
+  sh: ['if', 'then', 'fi', 'else', 'elif', 'for', 'while', 'do', 'done', 'in', 'function', 'return', 'export', 'local'],
+  json: ['true', 'false', 'null'],
+  ts: ['const', 'let', 'var', 'function', 'class', 'extends', 'implements', 'interface', 'type', 'enum', 'import', 'from', 'export', 'default', 'return', 'if', 'else', 'for', 'while', 'do', 'switch', 'case', 'break', 'continue', 'new', 'this', 'async', 'await', 'try', 'catch', 'finally', 'throw'],
+  typescript: ['const', 'let', 'var', 'function', 'class', 'extends', 'implements', 'interface', 'type', 'enum', 'import', 'from', 'export', 'default', 'return', 'if', 'else', 'for', 'while', 'do', 'switch', 'case', 'break', 'continue', 'new', 'this', 'async', 'await', 'try', 'catch', 'finally', 'throw'],
+  js: ['const', 'let', 'var', 'function', 'class', 'extends', 'import', 'from', 'export', 'default', 'return', 'if', 'else', 'for', 'while', 'do', 'switch', 'case', 'break', 'continue', 'new', 'this', 'async', 'await', 'try', 'catch', 'finally', 'throw'],
+  python: ['def', 'class', 'if', 'elif', 'else', 'for', 'while', 'in', 'not', 'and', 'or', 'is', 'import', 'from', 'as', 'return', 'yield', 'lambda', 'with', 'try', 'except', 'finally', 'raise', 'pass', 'True', 'False', 'None'],
+  py: ['def', 'class', 'if', 'elif', 'else', 'for', 'while', 'in', 'not', 'and', 'or', 'is', 'import', 'from', 'as', 'return', 'yield', 'lambda', 'with', 'try', 'except', 'finally', 'raise', 'pass', 'True', 'False', 'None'],
+  rust: ['fn', 'let', 'mut', 'pub', 'struct', 'enum', 'trait', 'impl', 'use', 'mod', 'const', 'static', 'if', 'else', 'for', 'while', 'loop', 'match', 'return', 'self', 'Self', 'where', 'as', 'in', 'ref', 'move', 'async', 'await', 'crate'],
+  rs: ['fn', 'let', 'mut', 'pub', 'struct', 'enum', 'trait', 'impl', 'use', 'mod', 'const', 'static', 'if', 'else', 'for', 'while', 'loop', 'match', 'return', 'self', 'Self', 'where', 'as', 'in', 'ref', 'move', 'async', 'await', 'crate'],
+};
+
+function highlightCode(src: string, lang: string): string {
+  // Escape first; then apply replacements to the escaped form.
+  let s = esc(src);
+  // Strings: "..." and '...'
+  s = s.replace(/(&quot;[^&\n]*?&quot;|&#39;[^&\n]*?&#39;)/g, '<span class="text-emerald-300">$1</span>');
+  // Line comments: # for shell/python, // for c-like
+  if (['bash', 'sh', 'python', 'py', 'yaml', 'yml', 'toml'].includes(lang)) {
+    s = s.replace(/(^|\s)(#[^\n]*)/g, '$1<span class="text-slate-500 italic">$2</span>');
+  }
+  if (['ts', 'typescript', 'js', 'rust', 'rs', 'go', 'java', 'c', 'cpp'].includes(lang)) {
+    s = s.replace(/(^|[^:])(\/\/[^\n]*)/g, '$1<span class="text-slate-500 italic">$2</span>');
+  }
+  // Numbers
+  s = s.replace(/\b(\d+(?:\.\d+)?)\b/g, '<span class="text-amber-300">$1</span>');
+  // Keywords
+  const kws = KEYWORDS[lang];
+  if (kws && kws.length) {
+    const re = new RegExp(`\\b(${kws.join('|')})\\b`, 'g');
+    s = s.replace(re, '<span class="text-violet-300 font-medium">$1</span>');
+  }
+  return s;
 }

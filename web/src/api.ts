@@ -54,6 +54,27 @@ export async function fetchSkillContent(path: string): Promise<SkillContent> {
   return r.json();
 }
 
+export interface SkillUsageSession {
+  id: string;
+  agent: string;
+  summary: string;
+  repo: string | null;
+  last_event_at: string;
+  invocations: number;
+}
+export interface SkillUsage {
+  name: string;
+  total_invocations: number;
+  session_count: number;
+  daily30: number[];
+  sessions: SkillUsageSession[];
+}
+export async function fetchSkillUsage(name: string): Promise<SkillUsage> {
+  const r = await fetch(`/api/skills/usage?name=${encodeURIComponent(name)}`);
+  if (!r.ok) throw new Error(`skill usage fetch ${r.status}`);
+  return r.json();
+}
+
 export type SessionEventMsg =
   | { kind: 'session_list_changed' }
   | { kind: 'detail_updated'; session_id: string; detail: unknown }
