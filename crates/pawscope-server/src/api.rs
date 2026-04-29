@@ -125,13 +125,21 @@ pub async fn overview(State(s): State<AppState>) -> impl IntoResponse {
 
     // Map session_id → agent label so we can break tokens down per agent.
     let mut sess_agent_key: HashMap<String, String> = HashMap::new();
+    let mut sess_last_event: HashMap<String, chrono::DateTime<chrono::Utc>> = HashMap::new();
     for sess in &sessions {
         let agent_key = serde_json::to_value(sess.agent)
             .ok()
             .and_then(|v| v.as_str().map(|x| x.to_string()))
             .unwrap_or_else(|| format!("{:?}", sess.agent).to_lowercase());
         sess_agent_key.insert(sess.id.clone(), agent_key);
+        sess_last_event.insert(sess.id.clone(), sess.last_event_at);
     }
+
+    // Daily token buckets for the last 7 days, keyed by session.last_event_at.
+    // Index 0 = 6 days ago; index 6 = today (in local Utc).
+    let mut tokens_daily7_in: [u64; 7] = [0; 7];
+    let mut tokens_daily7_out: [u64; 7] = [0; 7];
+    let today_utc = chrono::Utc::now().date_naive();
 
     let mut handles = Vec::with_capacity(sessions.len());
     for sess in &sessions {
@@ -154,6 +162,17 @@ pub async fn overview(State(s): State<AppState>) -> impl IntoResponse {
                 let entry = tokens_by_agent.entry(agent_key.clone()).or_insert((0, 0));
                 entry.0 += d.tokens_in;
                 entry.1 += d.tokens_out;
+            }
+            // Bucket session token totals into the 7-day window by last_event_at.
+            if d.tokens_in > 0 || d.tokens_out > 0 {
+                if let Some(t) = sess_last_event.get(&sid) {
+                    let days_ago = (today_utc - t.date_naive()).num_days();
+                    if (0..7).contains(&days_ago) {
+                        let idx = (6 - days_ago) as usize;
+                        tokens_daily7_in[idx] += d.tokens_in;
+                        tokens_daily7_out[idx] += d.tokens_out;
+                    }
+                }
             }
             let session_tools: u64 = d.tools_used.values().map(|&v| v as u64).sum();
             if let Some(key) = sess_realm_key.get(&sid) {
@@ -257,6 +276,8 @@ pub async fn overview(State(s): State<AppState>) -> impl IntoResponse {
         "total_tokens_in": total_tokens_in,
         "total_tokens_out": total_tokens_out,
         "tokens_by_agent": tokens_by_agent_json,
+        "tokens_daily7_in": tokens_daily7_in,
+        "tokens_daily7_out": tokens_daily7_out,
         "tools_used": tools_used,
         "skills_invoked": skills_invoked,
         "subagent_count": subagent_count,

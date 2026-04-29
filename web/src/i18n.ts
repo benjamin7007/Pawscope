@@ -67,6 +67,7 @@ const dict: Record<string, { en: string; zh: string }> = {
   'sec.top_tools': { en: 'Top tools', zh: '工具排行' },
   'sec.top_skills': { en: 'Top skills', zh: '技能排行' },
   'sec.token_usage': { en: 'Token usage', zh: 'Token 用量' },
+  'sec.token_trend7': { en: '7-day trend', zh: '7 天趋势' },
   'misc.token_in_arrow': { en: 'in', zh: '输入' },
   'misc.token_out_arrow': { en: 'out', zh: '输出' },
   'sec.top_subagents': { en: 'Top subagents', zh: '子代理排行' },
