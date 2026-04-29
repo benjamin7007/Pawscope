@@ -292,6 +292,14 @@ fn parse_incremental(path: &Path, st: &mut ParseState) {
                             st.model = Some(model.to_string());
                         }
                     }
+                    if let Some(usage) = msg.get("usage") {
+                        st.detail.tokens_in +=
+                            usage.get("input_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
+                        st.detail.tokens_out += usage
+                            .get("output_tokens")
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or(0);
+                    }
                     if let Some(arr) = msg.get("content").and_then(|c| c.as_array()) {
                         for it in arr {
                             if it.get("type").and_then(|t| t.as_str()) == Some("tool_use") {
@@ -522,5 +530,22 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let a = ClaudeAdapter::with_root(tmp.path().to_path_buf());
         assert!(a.list_sessions().await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn sums_usage_across_assistant_messages() {
+        let tmp = TempDir::new().unwrap();
+        let f = tmp.path().join("-Users-foo-proj").join("tok-1.jsonl");
+        write(
+            &f,
+            r#"{"type":"user","message":{"role":"user","content":"hi"},"timestamp":"2026-04-29T10:00:00Z","cwd":"/Users/foo/proj"}
+{"type":"assistant","timestamp":"2026-04-29T10:00:01Z","message":{"model":"claude-sonnet-4-6","usage":{"input_tokens":100,"output_tokens":50},"content":[{"type":"text","text":"ok"}]}}
+{"type":"assistant","timestamp":"2026-04-29T10:00:02Z","message":{"model":"claude-sonnet-4-6","usage":{"input_tokens":150,"output_tokens":80},"content":[{"type":"text","text":"more"}]}}
+"#,
+        );
+        let a = ClaudeAdapter::with_root(tmp.path().to_path_buf());
+        let d = a.get_detail("tok-1").await.unwrap();
+        assert_eq!(d.tokens_in, 250);
+        assert_eq!(d.tokens_out, 130);
     }
 }
