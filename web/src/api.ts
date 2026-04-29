@@ -25,6 +25,24 @@ export async function fetchRealm(name: string) {
   return r.json();
 }
 
+export interface SkillEntry {
+  name: string;
+  description: string;
+  source: string;
+  path: string;
+  invocations: number;
+}
+export interface SkillsResponse {
+  skills: SkillEntry[];
+  total: number;
+  by_source: Record<string, number>;
+}
+export async function fetchSkills(): Promise<SkillsResponse> {
+  const r = await fetch('/api/skills');
+  if (!r.ok) throw new Error(`skills fetch ${r.status}`);
+  return r.json();
+}
+
 export type SessionEventMsg =
   | { kind: 'session_list_changed' }
   | { kind: 'detail_updated'; session_id: string; detail: unknown }

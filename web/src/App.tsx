@@ -5,10 +5,11 @@ import { SessionList } from './components/SessionList';
 import { SessionDetail } from './components/SessionDetail';
 import { OverviewPanel } from './components/OverviewPanel';
 import { RealmPanel } from './components/RealmPanel';
+import { SkillsPanel } from './components/SkillsPanel';
 import { LangToggle } from './components/LangToggle';
 import { useT } from './i18n';
 
-type View = 'overview' | 'session' | 'realm';
+type View = 'overview' | 'session' | 'realm' | 'skills';
 
 export default function App() {
   const { t } = useT();
@@ -72,6 +73,16 @@ export default function App() {
               </span>
             )}
           </button>
+          <button
+            onClick={() => setView('skills')}
+            className={`flex-1 px-3 py-2.5 text-xs font-medium transition-colors ${
+              view === 'skills'
+                ? 'bg-slate-800/80 text-slate-100 border-b-2 border-emerald-400'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
+            }`}
+          >
+            {t('nav.skills')}
+          </button>
           <div className="px-2 flex items-center border-l border-slate-800">
             <LangToggle />
           </div>
@@ -101,6 +112,8 @@ export default function App() {
             setView('overview');
           }}
         />
+      ) : view === 'skills' ? (
+        <SkillsPanel />
       ) : (
         <SessionDetail meta={sessions.find(s => s.id === selected)} detail={detail} />
       )}
