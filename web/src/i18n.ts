@@ -88,6 +88,16 @@ const dict: Record<string, { en: string; zh: string }> = {
   'misc.now': { en: 'now', zh: '此刻' },
   'misc.turns_suffix': { en: 'turns', zh: '回合' },
   'misc.tools_suffix': { en: 'tools', zh: '工具' },
+  'misc.unique': { en: 'unique', zh: '种' },
+  'misc.total': { en: 'total', zh: '总计' },
+  'misc.inbound': { en: '↑ inbound', zh: '↑ 收到' },
+  'misc.outbound': { en: '↓ outbound', zh: '↓ 发出' },
+  'misc.no_summary': { en: '(no summary)', zh: '(尚无摘要)' },
+  'status.active': { en: 'active', zh: '活跃' },
+  'status.idle': { en: 'idle', zh: '空闲' },
+  'status.archived': { en: 'archived', zh: '已归档' },
+  'status.crashed': { en: 'crashed', zh: '异常退出' },
+  'status.closed': { en: 'closed', zh: '已结束' },
 
   // Lang
   'lang.toggle': { en: '中文', zh: 'EN' },
