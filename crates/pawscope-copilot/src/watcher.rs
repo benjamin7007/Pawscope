@@ -60,13 +60,21 @@ pub async fn run(
                 let _ = tx.send(SessionEvent::SessionListChanged).await;
                 for id in dirty.drain() {
                     let path = root.join(&id).join("events.jsonl");
-                    let detail = {
+                    let (detail, conv_version, conv_changed) = {
                         let mut g = states.write().unwrap();
                         let st = g.entry(id.clone()).or_default();
+                        let prev_version = st.conversation.version;
                         let _ = events::parse_incremental(&path, st);
-                        st.detail.clone()
+                        let new_version = st.conversation.version;
+                        (st.detail.clone(), new_version, new_version != prev_version)
                     };
-                    let _ = tx.send(SessionEvent::DetailUpdated { session_id: id, detail }).await;
+                    let _ = tx.send(SessionEvent::DetailUpdated { session_id: id.clone(), detail }).await;
+                    if conv_changed {
+                        let _ = tx.send(SessionEvent::ConversationUpdated {
+                            session_id: id,
+                            version: conv_version,
+                        }).await;
+                    }
                 }
             }
         }

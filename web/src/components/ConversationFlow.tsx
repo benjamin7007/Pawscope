@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useT } from '../i18n';
+import { connectWs } from '../api';
 
 // --- Types mirroring pawscope-core ConversationLog ---
 export type TurnItem =
@@ -257,13 +258,16 @@ export function ConversationFlow({ sessionId }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [systemOpen, setSystemOpen] = useState(false);
+  const [live, setLive] = useState(false);
   const cancelRef = useRef(false);
+  const lastVersionRef = useRef(0);
+  const refetchTimerRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    cancelRef.current = false;
-    setLog(null);
-    setError(null);
-    setLoading(true);
+  const fetchLog = (initial: boolean) => {
+    if (initial) {
+      setLoading(true);
+      setError(null);
+    }
     fetch(`/api/sessions/${encodeURIComponent(sessionId)}/conversation`)
       .then((r) => {
         if (!r.ok) throw new Error(`${r.status}`);
@@ -271,18 +275,49 @@ export function ConversationFlow({ sessionId }: Props) {
       })
       .then((d: ConversationLog | null) => {
         if (cancelRef.current) return;
+        if (d) lastVersionRef.current = d.version;
         setLog(d);
+        if (initial) setLoading(false);
       })
       .catch((e) => {
         if (cancelRef.current) return;
-        setError(String(e));
-      })
-      .finally(() => {
-        if (!cancelRef.current) setLoading(false);
+        if (initial) {
+          setError(String(e));
+          setLoading(false);
+        }
       });
+  };
+
+  useEffect(() => {
+    cancelRef.current = false;
+    setLog(null);
+    setError(null);
+    lastVersionRef.current = 0;
+    fetchLog(true);
+
+    // Subscribe to WS conversation_updated events. Debounce refetches by 250ms
+    // to coalesce rapid bursts (auto-continuation can fire many turn ends per
+    // second). Version-based guard prevents stale refetches from clobbering
+    // newer state on reconnect.
+    const ws = connectWs((ev: any) => {
+      if (cancelRef.current) return;
+      if (ev?.kind !== 'conversation_updated' || ev.session_id !== sessionId) return;
+      if (typeof ev.version === 'number' && ev.version <= lastVersionRef.current) return;
+      setLive(true);
+      if (refetchTimerRef.current != null) window.clearTimeout(refetchTimerRef.current);
+      refetchTimerRef.current = window.setTimeout(() => {
+        if (!cancelRef.current) fetchLog(false);
+      }, 250);
+    });
+
     return () => {
       cancelRef.current = true;
+      if (refetchTimerRef.current != null) window.clearTimeout(refetchTimerRef.current);
+      try {
+        ws.close();
+      } catch {}
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
   const totalTurns = useMemo(
@@ -308,6 +343,12 @@ export function ConversationFlow({ sessionId }: Props) {
     <div className="px-6 py-4 space-y-3">
       <div className="text-[11px] text-slate-500 font-mono flex items-center gap-3">
         <span>v{log.version}</span>
+        {live && (
+          <span className="inline-flex items-center gap-1 text-emerald-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            {t('flow.live')}
+          </span>
+        )}
         <span>·</span>
         <span>{log.interactions.length} {t('flow.interactions_short')}</span>
         <span>·</span>
