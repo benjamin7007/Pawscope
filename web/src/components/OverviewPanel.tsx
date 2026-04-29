@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { fetchOverview, fetchActivity, fetchActivityGrid, fetchSessions, fetchSkills, subscribeEvents, type SkillEntry } from '../api';
 import { useT } from '../i18n';
 import { categorize, CATEGORY_ORDER } from '../skillCategory';
@@ -727,8 +727,8 @@ function HeartbeatHeatmap({ data, t }: {
             </div>
           ))}
           {data.days.map((day, d) => (
-            <>
-              <div key={`l-${d}`} className="text-[10px] text-slate-500 pr-1 self-center">{day}</div>
+            <Fragment key={`row-${d}`}>
+              <div className="text-[10px] text-slate-500 pr-1 self-center">{day}</div>
               {data.grid[d].map((c, h) => {
                 const intensity = c / max;
                 return (
@@ -744,7 +744,7 @@ function HeartbeatHeatmap({ data, t }: {
                   />
                 );
               })}
-            </>
+            </Fragment>
           ))}
         </div>
       </div>
