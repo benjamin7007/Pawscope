@@ -8,12 +8,12 @@
 //! Active detection: Claude Code writes no PID lock; we mark a session "active" when
 //! its file mtime is within the last 5 minutes.
 
+use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use pawscope_core::{
     AgentAdapter, AgentKind, CoreError, Result, SessionDetail, SessionEvent, SessionMeta,
     SessionStatus,
 };
-use async_trait::async_trait;
-use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};

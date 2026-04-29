@@ -1,9 +1,9 @@
+use async_trait::async_trait;
+use chrono::{DateTime, TimeZone, Utc};
 use pawscope_core::{
     AgentAdapter, AgentKind, CoreError, Result, SessionDetail, SessionEvent, SessionMeta,
     SessionStatus,
 };
-use async_trait::async_trait;
-use chrono::{DateTime, TimeZone, Utc};
 use rusqlite::Connection;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};

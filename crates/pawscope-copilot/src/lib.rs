@@ -3,11 +3,11 @@ pub mod lock;
 pub mod watcher;
 pub mod workspace;
 
+use async_trait::async_trait;
 use pawscope_core::{
     AgentAdapter, AgentKind, CoreError, Result, SessionDetail, SessionEvent, SessionMeta,
     SessionStatus,
 };
-use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
