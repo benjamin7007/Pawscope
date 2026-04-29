@@ -4,6 +4,7 @@ import { useT } from '../i18n';
 import { renderMarkdown } from '../markdown';
 import { categorize, CATEGORY_ORDER } from '../skillCategory';
 import { CategoryDonut } from './CategoryDonut';
+import { SkillsSkeleton } from './Skeleton';
 
 const SOURCE_LABELS: Record<string, string> = {
   'copilot-superpowers': 'Copilot · superpowers',
@@ -184,11 +185,7 @@ export function SkillsPanel({
 
   if (err) return <main className="flex-1 p-8 text-rose-400 text-sm">Failed: {err}</main>;
   if (!skills) {
-    return (
-      <main className="flex-1 p-8 text-slate-500 text-sm">
-        {lang === 'zh' ? '加载技能中…' : 'Loading skills…'}
-      </main>
-    );
+    return <SkillsSkeleton />;
   }
 
   return (

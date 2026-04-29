@@ -3,6 +3,7 @@ import { fetchOverview, fetchActivity, fetchActivityGrid, fetchSessions, fetchSk
 import { useT } from '../i18n';
 import { categorize, CATEGORY_ORDER } from '../skillCategory';
 import { CategoryDonut } from './CategoryDonut';
+import { OverviewSkeleton } from './Skeleton';
 import { ToolTrend } from './ToolTrend';
 
 type Session = {
@@ -528,7 +529,7 @@ export function OverviewPanel({
   }, [allSkills]);
 
   if (err) return <main className="flex-1 p-8 text-rose-400 text-sm">Failed: {err}</main>;
-  if (!data) return <main className="flex-1 p-8 text-slate-500 text-sm">{t('overview.aggregating')}</main>;
+  if (!data) return <OverviewSkeleton />;
 
   const tools = Object.entries(data.tools_used).sort((a, b) => b[1] - a[1]);
   const skills = Object.entries(data.skills_invoked).sort((a, b) => b[1] - a[1]);

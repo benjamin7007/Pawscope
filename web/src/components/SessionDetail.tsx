@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useT } from '../i18n';
+import { SessionDetailSkeleton } from './Skeleton';
 
 type Meta = {
   id: string;
@@ -273,7 +274,7 @@ export function SessionDetail({ meta, detail, onOpenSkill, label, onSetLabel }: 
       )}
 
       {!detail ? (
-        <div className="p-8 text-sm text-slate-500">{t('detail.loading')}</div>
+        <SessionDetailSkeleton />
       ) : (
         <div className="p-6 space-y-6">
           <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">

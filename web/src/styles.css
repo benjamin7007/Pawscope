@@ -79,3 +79,36 @@ html.theme-light ::placeholder { color: #94a3b8 !important; }
 /* Subtle scrollbar tint in light mode */
 html.theme-light { color-scheme: light; }
 html:not(.theme-light) { color-scheme: dark; }
+
+/* Skeleton shimmer */
+.pawscope-skeleton {
+  position: relative;
+  overflow: hidden;
+}
+.pawscope-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(148, 163, 184, 0.15),
+    transparent
+  );
+  animation: pawscope-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes pawscope-shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+html.theme-light .pawscope-skeleton {
+  background: rgba(15, 23, 42, 0.08);
+}
+html.theme-light .pawscope-skeleton::after {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(15, 23, 42, 0.12),
+    transparent
+  );
+}
