@@ -16,6 +16,7 @@ import { Breadcrumbs } from './components/Breadcrumbs';
 import { CommandPalette } from './components/CommandPalette';
 import { LangToggle } from './components/LangToggle';
 import { ThemeToggle } from './components/ThemeToggle';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { useT } from './i18n';
 
 type View = 'overview' | 'session' | 'realm' | 'skills' | 'prompts';
@@ -257,49 +258,59 @@ export default function App() {
         <Breadcrumbs crumbs={crumbs} canBack={history.length > 0} onBack={goBack} />
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {view === 'overview' ? (
-            <OverviewPanel
-              onOpenSession={selectSession}
-              onOpenRealm={(name: string) => navigate({ realmPage: name, view: 'realm' })}
-              onOpenSkill={(name: string) => {
-                setPendingSkill(p => ({ name, n: (p?.n ?? 0) + 1 }));
-                navigate({ view: 'skills' });
-              }}
-              onOpenCategory={(name: string) => {
-                setPendingCategory(p => ({ name, n: (p?.n ?? 0) + 1 }));
-                navigate({ view: 'skills' });
-              }}
-              onOpenSearch={(q: string) => { setPaletteQuery(q); setPaletteOpen(true); }}
-            />
+            <ErrorBoundary scope="Overview">
+              <OverviewPanel
+                onOpenSession={selectSession}
+                onOpenRealm={(name: string) => navigate({ realmPage: name, view: 'realm' })}
+                onOpenSkill={(name: string) => {
+                  setPendingSkill(p => ({ name, n: (p?.n ?? 0) + 1 }));
+                  navigate({ view: 'skills' });
+                }}
+                onOpenCategory={(name: string) => {
+                  setPendingCategory(p => ({ name, n: (p?.n ?? 0) + 1 }));
+                  navigate({ view: 'skills' });
+                }}
+                onOpenSearch={(q: string) => { setPaletteQuery(q); setPaletteOpen(true); }}
+              />
+            </ErrorBoundary>
           ) : view === 'realm' && realmPage ? (
-            <RealmPanel
-              name={realmPage}
-              onOpenSession={selectSession}
-              onBack={goBack}
-            />
+            <ErrorBoundary scope="Realm">
+              <RealmPanel
+                name={realmPage}
+                onOpenSession={selectSession}
+                onBack={goBack}
+              />
+            </ErrorBoundary>
           ) : view === 'skills' ? (
-            <SkillsPanel
-              onOpenSession={selectSession}
-              autoOpen={pendingSkill?.name ?? null}
-              autoOpenNonce={pendingSkill?.n ?? 0}
-              autoCategory={pendingCategory?.name ?? null}
-              autoCategoryNonce={pendingCategory?.n ?? 0}
-            />
+            <ErrorBoundary scope="Skills">
+              <SkillsPanel
+                onOpenSession={selectSession}
+                autoOpen={pendingSkill?.name ?? null}
+                autoOpenNonce={pendingSkill?.n ?? 0}
+                autoCategory={pendingCategory?.name ?? null}
+                autoCategoryNonce={pendingCategory?.n ?? 0}
+              />
+            </ErrorBoundary>
           ) : view === 'prompts' ? (
-            <PromptsPanel onOpenSession={selectSession} />
+            <ErrorBoundary scope="Prompts">
+              <PromptsPanel onOpenSession={selectSession} />
+            </ErrorBoundary>
           ) : (
-            <SessionDetail
-              meta={sessions.find(s => s.id === selected)}
-              detail={detail}
-              onOpenSkill={(name: string) => {
-                setPendingSkill(p => ({ name, n: (p?.n ?? 0) + 1 }));
-                navigate({ view: 'skills' });
-              }}
-              label={selected ? labels[selected] : undefined}
-              onSetLabel={selected ? (lbl) => updateLabel(selected, lbl) : undefined}
-              onPrev={prevSession ? () => selectSession(prevSession) : undefined}
-              onNext={nextSession ? () => selectSession(nextSession) : undefined}
-              position={sessionPos ? { index: sessionPos.idx + 1, total: sessionPos.total } : undefined}
-            />
+            <ErrorBoundary scope="Session detail">
+              <SessionDetail
+                meta={sessions.find(s => s.id === selected)}
+                detail={detail}
+                onOpenSkill={(name: string) => {
+                  setPendingSkill(p => ({ name, n: (p?.n ?? 0) + 1 }));
+                  navigate({ view: 'skills' });
+                }}
+                label={selected ? labels[selected] : undefined}
+                onSetLabel={selected ? (lbl) => updateLabel(selected, lbl) : undefined}
+                onPrev={prevSession ? () => selectSession(prevSession) : undefined}
+                onNext={nextSession ? () => selectSession(nextSession) : undefined}
+                position={sessionPos ? { index: sessionPos.idx + 1, total: sessionPos.total } : undefined}
+              />
+            </ErrorBoundary>
           )}
         </div>
       </main>
