@@ -343,6 +343,94 @@ function exportJson(events: ReplayEvent[], sessionId: string): string {
   );
 }
 
+function exportSessionJson(meta: any, detail: any): string {
+  return JSON.stringify({
+    generated_at: new Date().toISOString(),
+    meta,
+    detail,
+  }, null, 2);
+}
+
+function exportSessionMarkdown(meta: any, detail: any): string {
+  const lines: string[] = [];
+  lines.push(`# ${meta.summary || meta.id}`);
+  lines.push('');
+  lines.push(`- **Session**: \`${meta.id}\``);
+  lines.push(`- **Agent**: ${meta.agent}`);
+  if (meta.model) lines.push(`- **Model**: ${meta.model}`);
+  if (meta.repo) lines.push(`- **Repo**: ${meta.repo}`);
+  if (meta.branch) lines.push(`- **Branch**: ${meta.branch}`);
+  if (meta.cwd) lines.push(`- **CWD**: \`${meta.cwd}\``);
+  lines.push(`- **Status**: ${meta.status}`);
+  lines.push(`- **Last event**: ${meta.last_event_at}`);
+  lines.push('');
+  if (detail?.prompts?.length) {
+    lines.push(`## Prompts (${detail.prompts.length})`);
+    lines.push('');
+    detail.prompts.forEach((p: any, i: number) => {
+      const ts = p.timestamp ? ` _(${p.timestamp})_` : '';
+      lines.push(`### ${i + 1}.${ts}`);
+      lines.push('');
+      lines.push('> ' + (p.text || p.snippet || '').split(/\r?\n/).join('\n> '));
+      lines.push('');
+    });
+  }
+  if (detail?.tool_calls?.length) {
+    lines.push(`## Tool calls (${detail.tool_calls.length})`);
+    lines.push('');
+    detail.tool_calls.forEach((c: any) => {
+      lines.push(`- \`${c.name}\` — ${c.timestamp || ''}`);
+    });
+    lines.push('');
+  }
+  if (detail?.tools_used && Object.keys(detail.tools_used).length) {
+    lines.push(`## Tool histogram`);
+    lines.push('');
+    lines.push('| Tool | Count |');
+    lines.push('|------|------:|');
+    Object.entries(detail.tools_used).sort((a: any, b: any) => b[1] - a[1])
+      .forEach(([n, c]) => lines.push(`| \`${n}\` | ${c} |`));
+    lines.push('');
+  }
+  return lines.join('\n');
+}
+
+function SessionExportMenu({ meta, detail, t }: { meta: any; detail: any; t: (k: string) => string }) {
+  const [open, setOpen] = useState(false);
+  const baseName = `session-${String(meta.id || '').slice(0, 12)}`;
+  const items: { label: string; ext: string; mime: string; build: () => string }[] = [
+    { label: '📝 Markdown', ext: 'md', mime: 'text/markdown', build: () => exportSessionMarkdown(meta, detail) },
+    { label: '🔢 JSON', ext: 'json', mime: 'application/json', build: () => exportSessionJson(meta, detail) },
+  ];
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs"
+        title={t('misc.export_session')}
+      >⤓ {t('misc.export_session')}</button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 z-30 rounded-md bg-slate-900 border border-slate-700 shadow-lg overflow-hidden text-xs min-w-[160px]">
+          {items.map(it => (
+            <button
+              key={it.ext}
+              type="button"
+              onClick={() => {
+                const data = it.build();
+                if (!data) return;
+                downloadFile(`${baseName}.${it.ext}`, data, it.mime);
+                setOpen(false);
+              }}
+              className="block w-full px-3 py-1.5 text-left hover:bg-slate-800 text-slate-200"
+            >{it.label}</button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ExportMenu({ events, sessionId, t }: { events: ReplayEvent[]; sessionId: string; t: (k: string) => string }) {
   const [open, setOpen] = useState(false);
   const baseName = `replay-${(sessionId || 'session').slice(0, 12)}`;
@@ -761,6 +849,7 @@ export function SessionDetail({ meta, detail, onOpenSkill, label, onSetLabel, on
                   {label?.starred ? '★' : '☆'}
                 </button>
               )}
+              <span className="ml-2"><SessionExportMenu meta={meta} detail={detail} t={t} /></span>
             </div>
             <h1 className="text-2xl font-semibold text-slate-100 truncate">
               {meta.summary || <span className="text-slate-500 italic">{t('misc.no_summary')}</span>}
