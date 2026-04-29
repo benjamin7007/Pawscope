@@ -80,6 +80,85 @@ function aggregateDaily(hourly: number[]): number[] {
   return days;
 }
 
+function bucketDowHour(hourly: number[]): { grid: number[][]; max: number; total: number } {
+  // hourly[0] is oldest (336h ago), hourly[len-1] is most recent hour.
+  // Map each index to its actual wall-clock dow (0=Sun..6=Sat) × hour (0..23).
+  const grid: number[][] = Array.from({ length: 7 }, () => Array(24).fill(0));
+  const now = new Date();
+  const len = hourly.length;
+  let max = 0;
+  let total = 0;
+  for (let i = 0; i < len; i++) {
+    const v = hourly[i] ?? 0;
+    if (v === 0) continue;
+    const hoursAgo = len - 1 - i;
+    const t = new Date(now.getTime() - hoursAgo * 3_600_000);
+    const dow = t.getDay();
+    const hour = t.getHours();
+    grid[dow][hour] += v;
+    total += v;
+    if (grid[dow][hour] > max) max = grid[dow][hour];
+  }
+  return { grid, max, total };
+}
+
+function Heatmap({ hourly }: { hourly: number[] }) {
+  const { grid, max, total } = bucketDowHour(hourly);
+  const dows = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  if (total === 0) {
+    return <div className="text-xs text-slate-600 py-4 text-center">No activity in last 14 days</div>;
+  }
+  return (
+    <div className="text-[10px]">
+      <div className="grid items-center gap-y-0.5" style={{ gridTemplateColumns: '32px repeat(24, minmax(0,1fr))' }}>
+        <div />
+        {Array.from({ length: 24 }, (_, h) => (
+          <div key={h} className="text-center text-slate-600 tabular-nums">
+            {h % 3 === 0 ? h : ''}
+          </div>
+        ))}
+        {dows.map((label, d) => (
+          <DowRow key={d} label={label} cells={grid[d]} max={max} />
+        ))}
+      </div>
+      <div className="flex items-center justify-end gap-1.5 mt-2 text-slate-500">
+        <span>less</span>
+        {[0.05, 0.2, 0.4, 0.7, 1].map(t => (
+          <div
+            key={t}
+            className="w-3 h-3 rounded-sm"
+            style={{ background: `rgba(251, 191, 36, ${t})` }}
+          />
+        ))}
+        <span>more</span>
+        <span className="ml-3 text-slate-400 tabular-nums">peak {max.toLocaleString()}/h</span>
+      </div>
+    </div>
+  );
+}
+
+function DowRow({ label, cells, max }: { label: string; cells: number[]; max: number }) {
+  return (
+    <>
+      <div className="text-slate-500 pr-1.5 text-right">{label}</div>
+      {cells.map((v, h) => {
+        const intensity = v === 0 ? 0 : 0.12 + 0.88 * (v / max);
+        const bg = v === 0
+          ? 'rgba(30, 41, 59, 0.6)'
+          : `rgba(251, 191, 36, ${intensity})`;
+        return (
+          <div
+            key={h}
+            className="h-3 rounded-sm mx-px"
+            style={{ background: bg }}
+            title={`${label} ${h.toString().padStart(2, '0')}:00 — ${v.toLocaleString()} turns`}
+          />
+        );
+      })}
+    </>
+  );
+}
+
 export function RealmPanel({
   name,
   onOpenSession,
@@ -190,6 +269,14 @@ export function RealmPanel({
               </div>
             ))}
           </div>
+        </section>
+
+        <section className="rounded-lg bg-slate-900/40 border border-slate-800 p-4">
+          <header className="flex items-baseline justify-between mb-3">
+            <h3 className="text-xs uppercase tracking-wider text-slate-400">Activity heatmap (14 days · weekday × hour)</h3>
+            <span className="text-[11px] text-slate-500">your local time</span>
+          </header>
+          <Heatmap hourly={data.activity_336h} />
         </section>
 
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
