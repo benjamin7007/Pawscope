@@ -181,7 +181,9 @@ impl AgentAdapter for CodexAdapter {
             };
 
             let mut detail = SessionDetail::default();
-            if !fum.trim().is_empty() {
+            let fum_for_fallback = fum.clone();
+            let fum_first_prompt = !fum.trim().is_empty();
+            if fum_first_prompt {
                 let snippet: String = fum.chars().take(120).collect();
                 detail.prompts.push(pawscope_core::PromptSummary {
                     id: "first".into(),
@@ -195,14 +197,20 @@ impl AgentAdapter for CodexAdapter {
             if !rollout_path.is_empty() {
                 let path = PathBuf::from(&rollout_path);
                 if let Ok(file) = std::fs::File::open(&path) {
+                    let prompts_before = detail.prompts.len();
                     parse_rollout_into_detail(file, &mut detail);
+                    // If rollout produced its own user prompts, drop the
+                    // DB-derived "first" placeholder to avoid duplication.
+                    if detail.prompts.len() > prompts_before && fum_first_prompt {
+                        detail.prompts.remove(0);
+                    }
                     parsed = true;
                 }
             }
             // Fallback: when rollout file unavailable, surface the first user
             // message as a single user_messages count so the UI shows non-zero
             // activity instead of an empty session.
-            if !parsed && detail.user_messages == 0 && !detail.prompts.is_empty() {
+            if !parsed && detail.user_messages == 0 && !fum_for_fallback.trim().is_empty() {
                 detail.user_messages = 1;
             }
             Ok(detail)
@@ -303,7 +311,19 @@ fn parse_rollout_into_detail(file: std::fs::File, detail: &mut SessionDetail) {
                     "message" => {
                         let role = p.get("role").and_then(|r| r.as_str()).unwrap_or("");
                         match role {
-                            "user" => detail.user_messages += 1,
+                            "user" => {
+                                detail.user_messages += 1;
+                                if let Some(text) = extract_user_text(p) {
+                                    let idx = detail.prompts.len();
+                                    let snippet: String = text.chars().take(120).collect();
+                                    detail.prompts.push(pawscope_core::PromptSummary {
+                                        id: format!("u-{idx}"),
+                                        timestamp: ts,
+                                        snippet,
+                                        text,
+                                    });
+                                }
+                            }
                             "assistant" => {
                                 detail.assistant_messages += 1;
                                 detail.turns += 1;
@@ -334,6 +354,34 @@ fn parse_rollout_into_detail(file: std::fs::File, detail: &mut SessionDetail) {
             _ => {}
         }
     }
+}
+
+/// Extract user-typed text from a Codex message payload. Codex (Responses
+/// API) wraps user content as `[{type:"input_text",text:"..."}]`. Some older
+/// rollouts use plain `[{type:"text",text:"..."}]` or a string. We also skip
+/// system-reminder / tool-output blocks that aren't real user prompts.
+fn extract_user_text(payload: &serde_json::Value) -> Option<String> {
+    let content = payload.get("content")?;
+    if let Some(s) = content.as_str() {
+        let t = s.trim();
+        return (!t.is_empty()).then(|| t.to_string());
+    }
+    let arr = content.as_array()?;
+    let mut out = String::new();
+    for item in arr {
+        let kind = item.get("type").and_then(|t| t.as_str()).unwrap_or("");
+        if !matches!(kind, "input_text" | "text") {
+            continue;
+        }
+        if let Some(t) = item.get("text").and_then(|t| t.as_str()) {
+            if !out.is_empty() {
+                out.push('\n');
+            }
+            out.push_str(t);
+        }
+    }
+    let trimmed = out.trim();
+    (!trimmed.is_empty()).then(|| trimmed.to_string())
 }
 
 fn parse_rollout_activity(file: std::fs::File, hours: usize) -> Vec<u64> {
@@ -575,5 +623,63 @@ mod tests {
         // rollout_path is empty so we fall back to first-user-message stub.
         assert_eq!(d.user_messages, 1);
         assert_eq!(d.assistant_messages, 0);
+    }
+
+    #[tokio::test]
+    async fn detail_extracts_all_user_prompts_from_rollout() {
+        let dir = tempfile::tempdir().unwrap();
+        let now = Utc::now();
+        let ts = |secs: i64| (now - chrono::Duration::seconds(secs)).to_rfc3339();
+        let rollout = write_rollout(
+            dir.path(),
+            "rollout-thread-3.jsonl",
+            &[
+                &format!(
+                    r#"{{"timestamp":"{}","type":"response_item","payload":{{"type":"message","role":"user","content":[{{"type":"input_text","text":"first prompt"}}]}}}}"#,
+                    ts(50)
+                ),
+                &format!(
+                    r#"{{"timestamp":"{}","type":"response_item","payload":{{"type":"message","role":"assistant","content":[{{"type":"output_text","text":"ok"}}]}}}}"#,
+                    ts(40)
+                ),
+                &format!(
+                    r#"{{"timestamp":"{}","type":"response_item","payload":{{"type":"message","role":"user","content":[{{"type":"input_text","text":"follow-up question"}}]}}}}"#,
+                    ts(30)
+                ),
+            ],
+        );
+        let db = dir.path().join("state_5.sqlite");
+        let conn = Connection::open(&db).unwrap();
+        conn.execute_batch(
+            "CREATE TABLE threads (
+                id TEXT PRIMARY KEY,
+                rollout_path TEXT NOT NULL DEFAULT '',
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                cwd TEXT NOT NULL,
+                title TEXT NOT NULL DEFAULT '',
+                archived INTEGER NOT NULL DEFAULT 0,
+                git_branch TEXT,
+                git_origin_url TEXT,
+                first_user_message TEXT NOT NULL DEFAULT '',
+                model TEXT
+            );",
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO threads (id, rollout_path, created_at, updated_at, cwd, first_user_message)
+             VALUES ('thread-3', ?1, ?2, ?2, '/x', 'first prompt')",
+            rusqlite::params![rollout.to_string_lossy(), now.timestamp()],
+        )
+        .unwrap();
+        drop(conn);
+
+        let a = CodexAdapter::with_db(db).unwrap();
+        let d = a.get_detail("thread-3").await.unwrap();
+        assert_eq!(d.user_messages, 2);
+        assert_eq!(d.prompts.len(), 2, "should extract both user prompts");
+        assert_eq!(d.prompts[0].text, "first prompt");
+        assert_eq!(d.prompts[1].text, "follow-up question");
+        assert!(d.prompts[0].timestamp.is_some());
     }
 }
