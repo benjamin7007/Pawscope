@@ -140,6 +140,42 @@ impl AgentAdapter for CopilotAdapter {
         Ok(buckets)
     }
 
+    async fn session_activity_hourly(&self, session_id: &str, hours: u32) -> Result<Vec<u64>> {
+        use chrono::{DateTime, Utc};
+        use std::io::{BufRead, BufReader};
+        let hours = hours.max(1) as usize;
+        let now = Utc::now();
+        let window_start = now - chrono::Duration::hours(hours as i64);
+        let mut buckets = vec![0u64; hours];
+        let path = self.root.join(session_id).join("events.jsonl");
+        let Ok(file) = std::fs::File::open(&path) else {
+            return Ok(buckets);
+        };
+        for line in BufReader::new(file)
+            .lines()
+            .map_while(std::result::Result::ok)
+        {
+            let Ok(v) = serde_json::from_str::<serde_json::Value>(&line) else {
+                continue;
+            };
+            let Some(ts) = v.get("timestamp").and_then(|t| t.as_str()) else {
+                continue;
+            };
+            let Ok(dt) = DateTime::parse_from_rfc3339(ts) else {
+                continue;
+            };
+            let dt = dt.with_timezone(&Utc);
+            if dt < window_start || dt > now {
+                continue;
+            }
+            let elapsed = (now - dt).num_hours() as usize;
+            if elapsed < hours {
+                buckets[hours - 1 - elapsed] += 1;
+            }
+        }
+        Ok(buckets)
+    }
+
     async fn activity_grid_7x24(&self) -> Result<Vec<Vec<u64>>> {
         use chrono::{DateTime, Local, Timelike};
         let mut grid = vec![vec![0u64; 24]; 7];

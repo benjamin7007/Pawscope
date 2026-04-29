@@ -417,6 +417,28 @@ impl AgentAdapter for ClaudeAdapter {
         Ok(buckets)
     }
 
+    async fn session_activity_hourly(&self, session_id: &str, hours: u32) -> Result<Vec<u64>> {
+        let hours = hours.max(1) as usize;
+        let now = Utc::now();
+        let window_start = now - chrono::Duration::hours(hours as i64);
+        let mut buckets = vec![0u64; hours];
+        for (path, id) in self.iter_session_files() {
+            if id != session_id {
+                continue;
+            }
+            scan_timestamps(&path, |dt| {
+                if dt < window_start || dt > now {
+                    return;
+                }
+                let elapsed = (now - dt).num_hours() as usize;
+                if elapsed < hours {
+                    buckets[hours - 1 - elapsed] += 1;
+                }
+            });
+        }
+        Ok(buckets)
+    }
+
     async fn activity_grid_7x24(&self) -> Result<Vec<Vec<u64>>> {
         use chrono::{Local, Timelike};
         let mut grid = vec![vec![0u64; 24]; 7];

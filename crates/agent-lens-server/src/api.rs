@@ -77,6 +77,8 @@ pub async fn overview(State(s): State<AppState>) -> impl IntoResponse {
         active: u64,
         sessions_this_week: u64,
         sessions_prev_week: u64,
+        turns_this_week: u64,
+        turns_prev_week: u64,
         last_event_at: Option<chrono::DateTime<chrono::Utc>>,
         agents: std::collections::BTreeSet<String>,
     }
@@ -122,11 +124,12 @@ pub async fn overview(State(s): State<AppState>) -> impl IntoResponse {
         let id = sess.id.clone();
         handles.push(tokio::spawn(async move {
             let detail = adapter.get_detail(&id).await;
-            (id, detail)
+            let activity = adapter.session_activity_hourly(&id, 336).await.ok();
+            (id, detail, activity)
         }));
     }
     for h in handles {
-        if let Ok((sid, Ok(d))) = h.await {
+        if let Ok((sid, Ok(d), activity)) = h.await {
             total_turns += d.turns as u64;
             total_user_msgs += d.user_messages as u64;
             total_assistant_msgs += d.assistant_messages as u64;
@@ -135,6 +138,14 @@ pub async fn overview(State(s): State<AppState>) -> impl IntoResponse {
                 if let Some(r) = realms.get_mut(key) {
                     r.turns += d.turns as u64;
                     r.tool_calls += session_tools;
+                    if let Some(buckets) = &activity {
+                        if buckets.len() >= 336 {
+                            let prev: u64 = buckets[0..168].iter().sum();
+                            let this: u64 = buckets[168..336].iter().sum();
+                            r.turns_this_week += this;
+                            r.turns_prev_week += prev;
+                        }
+                    }
                 }
             }
             for (k, v) in d.tools_used {
@@ -174,6 +185,8 @@ pub async fn overview(State(s): State<AppState>) -> impl IntoResponse {
                 "tool_calls": r.tool_calls,
                 "sessions_this_week": r.sessions_this_week,
                 "sessions_prev_week": r.sessions_prev_week,
+                "turns_this_week": r.turns_this_week,
+                "turns_prev_week": r.turns_prev_week,
                 "last_event_at": r.last_event_at,
                 "agents": r.agents.into_iter().collect::<Vec<_>>(),
             })
