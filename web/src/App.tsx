@@ -301,6 +301,7 @@ export default function App() {
         open={paletteOpen}
         onClose={() => { setPaletteOpen(false); setPaletteQuery(undefined); }}
         sessions={sessions}
+        labels={labels}
         initialQuery={paletteQuery}
         onOpenSession={(id) => selectSession(id)}
         onOpenSkill={(name) => {
