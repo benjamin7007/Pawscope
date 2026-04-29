@@ -62,11 +62,17 @@ export interface SkillUsageSession {
   last_event_at: string;
   invocations: number;
 }
+export interface SkillCoOccurrence {
+  name: string;
+  sessions: number;
+}
 export interface SkillUsage {
   name: string;
   total_invocations: number;
   session_count: number;
   daily30: number[];
+  daily365: number[];
+  cooccurring: SkillCoOccurrence[];
   sessions: SkillUsageSession[];
 }
 export async function fetchSkillUsage(name: string): Promise<SkillUsage> {

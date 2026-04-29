@@ -206,11 +206,19 @@ pub struct SkillSession {
 }
 
 #[derive(Serialize)]
+pub struct SkillCoOccurrence {
+    pub name: String,
+    pub sessions: u32,
+}
+
+#[derive(Serialize)]
 pub struct SkillUsage {
     pub name: String,
     pub total_invocations: u32,
     pub session_count: usize,
     pub daily30: [u32; 30],
+    pub daily365: Vec<u32>,
+    pub cooccurring: Vec<SkillCoOccurrence>,
     pub sessions: Vec<SkillSession>,
 }
 
@@ -231,8 +239,10 @@ pub async fn skill_usage(
 
     let now = chrono::Utc::now();
     let mut daily = [0u32; 30];
+    let mut daily365 = vec![0u32; 365];
     let mut sessions: Vec<SkillSession> = Vec::new();
     let mut total = 0u32;
+    let mut cooc: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
 
     for m in &metas {
         let Ok(d) = state.adapter.get_detail(&m.id).await else {
@@ -249,6 +259,18 @@ pub async fn skill_usage(
             let idx = (29 - days_ago) as usize;
             daily[idx] = daily[idx].saturating_add(count);
         }
+        if (0..365).contains(&days_ago) {
+            let idx = (364 - days_ago) as usize;
+            daily365[idx] = daily365[idx].saturating_add(count);
+        }
+
+        // Co-occurrence: every other unique skill in this session counts as 1.
+        let mut seen = std::collections::HashSet::new();
+        for n in &d.skills_invoked {
+            if n != &q.name && seen.insert(n.clone()) {
+                *cooc.entry(n.clone()).or_insert(0) += 1;
+            }
+        }
 
         sessions.push(SkillSession {
             id: m.id.clone(),
@@ -262,11 +284,20 @@ pub async fn skill_usage(
     sessions.sort_by(|a, b| b.last_event_at.cmp(&a.last_event_at));
     let session_count = sessions.len();
 
+    let mut cooccurring: Vec<SkillCoOccurrence> = cooc
+        .into_iter()
+        .map(|(name, sessions)| SkillCoOccurrence { name, sessions })
+        .collect();
+    cooccurring.sort_by(|a, b| b.sessions.cmp(&a.sessions).then_with(|| a.name.cmp(&b.name)));
+    cooccurring.truncate(12);
+
     Ok(Json(SkillUsage {
         name: q.name,
         total_invocations: total,
         session_count,
         daily30: daily,
+        daily365,
+        cooccurring,
         sessions,
     }))
 }
