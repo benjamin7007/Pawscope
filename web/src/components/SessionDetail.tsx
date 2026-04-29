@@ -1273,9 +1273,18 @@ const TIMELINE_COLORS = [
   '#fb923c', '#60a5fa', '#f472b6', '#4ade80', '#facc15',
 ];
 
-function ToolTimeline({ calls }: { calls: { name: string; timestamp: string }[] }) {
+type TimelineCall = {
+  name: string;
+  timestamp: string;
+  args_summary?: string | null;
+  result_snippet?: string | null;
+  success?: boolean | null;
+};
+
+function ToolTimeline({ calls }: { calls: TimelineCall[] }) {
   const { t, lang } = useT();
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   if (!calls || calls.length === 0) {
     return (
       <section className="rounded-lg bg-slate-900/40 border border-slate-800">
@@ -1355,15 +1364,25 @@ function ToolTimeline({ calls }: { calls: { name: string; timestamp: string }[] 
         {showDots && (
           <div className="relative h-6 mt-2 bg-slate-950/40 rounded border border-slate-800/60">
             <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-px bg-slate-800/80" />
-            {filtered.map((c, i) => {
+            {filtered.map((c) => {
               const tt = new Date(c.timestamp).getTime();
               const pct = ((tt - min) / span) * 100;
               const color = colorMap.get(c.name) ?? '#94a3b8';
+              const idx = calls.indexOf(c);
+              const isSelected = selectedIdx === idx;
               return (
-                <div
-                  key={i}
-                  className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-2 h-2 rounded-full transition-transform hover:scale-150"
-                  style={{ left: `${pct}%`, background: color, boxShadow: `0 0 0 1.5px rgba(15,23,42,1)` }}
+                <button
+                  type="button"
+                  key={idx}
+                  onClick={() => setSelectedIdx(isSelected ? null : idx)}
+                  className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-2 h-2 rounded-full transition-transform hover:scale-150 cursor-pointer"
+                  style={{
+                    left: `${pct}%`,
+                    background: color,
+                    boxShadow: isSelected
+                      ? `0 0 0 2px #f8fafc`
+                      : `0 0 0 1.5px rgba(15,23,42,1)`,
+                  }}
                   title={`${c.name} · ${new Date(c.timestamp).toLocaleString()}`}
                 />
               );
@@ -1403,6 +1422,64 @@ function ToolTimeline({ calls }: { calls: { name: string; timestamp: string }[] 
             <span className="text-[11px] text-slate-500 self-center">+{sortedNames.length - 16}</span>
           )}
         </div>
+        {/* Inspector panel */}
+        {selectedIdx !== null && calls[selectedIdx] && (() => {
+          const c = calls[selectedIdx];
+          const noDetail = !c.args_summary && !c.result_snippet && c.success == null;
+          return (
+            <div className="mt-3 rounded border border-slate-700 bg-slate-950/70 p-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="font-mono text-slate-100">{c.name}</span>
+                  {c.success === true && (
+                    <span className="px-1.5 py-0.5 rounded bg-emerald-900/60 text-emerald-300 text-[10px]">
+                      {t('timeline.success')}
+                    </span>
+                  )}
+                  {c.success === false && (
+                    <span className="px-1.5 py-0.5 rounded bg-rose-900/60 text-rose-300 text-[10px]">
+                      {t('timeline.failure')}
+                    </span>
+                  )}
+                  <span className="text-slate-500 tabular-nums">
+                    {new Date(c.timestamp).toLocaleString()}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedIdx(null)}
+                  className="px-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs"
+                >×</button>
+              </div>
+              {noDetail ? (
+                <div className="text-[11px] text-slate-500 italic">{t('timeline.no_detail')}</div>
+              ) : (
+                <div className="space-y-2">
+                  {c.args_summary && (
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">
+                        {t('timeline.args')}
+                      </div>
+                      <pre className="text-[11px] text-slate-300 bg-slate-900/60 rounded p-2 whitespace-pre-wrap break-all max-h-40 overflow-auto">
+                        {c.args_summary}
+                      </pre>
+                    </div>
+                  )}
+                  {c.result_snippet && (
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">
+                        {t('timeline.result')}
+                      </div>
+                      <pre className="text-[11px] text-slate-300 bg-slate-900/60 rounded p-2 whitespace-pre-wrap break-all max-h-40 overflow-auto">
+                        {c.result_snippet}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
     </section>
   );

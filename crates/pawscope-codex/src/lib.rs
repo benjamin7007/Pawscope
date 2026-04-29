@@ -300,6 +300,7 @@ fn parse_rollout_into_detail(file: std::fs::File, detail: &mut SessionDetail) {
                 detail.tool_calls.push(ToolCall {
                     name: name.to_string(),
                     timestamp: ts,
+                    ..Default::default()
                 });
             }
         };
