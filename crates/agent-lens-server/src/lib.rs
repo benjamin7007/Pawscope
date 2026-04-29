@@ -1,5 +1,5 @@
 use agent_lens_core::AgentAdapter;
-use axum::{Router, routing::get};
+use axum::{Router, routing::{get, post}};
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
@@ -34,6 +34,7 @@ pub fn build_app(adapter: Arc<dyn AgentAdapter>) -> (Router, AppState) {
         .route("/api/skills", get(skills::list_skills))
         .route("/api/skills/content", get(skills::skill_content))
         .route("/api/skills/usage", get(skills::skill_usage))
+        .route("/api/skills/reveal", post(skills::skill_reveal))
         .route("/api/events", get(sse::sse_handler))
         .route("/ws", get(ws::ws_handler))
         .fallback(assets::static_handler)

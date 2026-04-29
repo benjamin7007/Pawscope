@@ -35,7 +35,7 @@ type Detail = {
   prompts?: { id: string; timestamp: string | null; snippet: string; text?: string }[];
 };
 
-type Props = { meta: Meta | undefined; detail: Detail | null };
+type Props = { meta: Meta | undefined; detail: Detail | null; onOpenSkill?: (name: string) => void };
 
 function timeAgo(iso?: string | null): string {
   if (!iso) return '—';
@@ -148,8 +148,8 @@ function PromptRow({
   );
 }
 
-export function SessionDetail({ meta, detail }: Props) {
-  const { t } = useT();
+export function SessionDetail({ meta, detail, onOpenSkill }: Props) {
+  const { t, lang } = useT();
   const tools = useMemo(() => {
     if (!detail?.tools_used) return [];
     return Object.entries(detail.tools_used).sort((a, b) => b[1] - a[1]);
@@ -276,14 +276,41 @@ export function SessionDetail({ meta, detail }: Props) {
                 <div className="text-xs text-slate-600 text-center py-2">{t('detail.no_skills')}</div>
               ) : (
                 <div className="flex flex-wrap gap-2">
-                  {detail.skills_invoked.map(s => (
-                    <span
-                      key={s}
-                      className="px-2.5 py-1 rounded-full bg-slate-800 border border-slate-700 text-xs text-slate-200 hover:border-slate-600"
-                    >
-                      {s}
-                    </span>
-                  ))}
+                  {Object.entries(
+                    detail.skills_invoked.reduce<Record<string, number>>((acc, n) => {
+                      acc[n] = (acc[n] ?? 0) + 1;
+                      return acc;
+                    }, {})
+                  )
+                    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+                    .map(([name, count]) => {
+                      const inner = (
+                        <>
+                          <span className="font-mono">{name}</span>
+                          {count > 1 && (
+                            <span className="ml-1.5 text-emerald-300 tabular-nums">×{count}</span>
+                          )}
+                        </>
+                      );
+                      return onOpenSkill ? (
+                        <button
+                          key={name}
+                          type="button"
+                          onClick={() => onOpenSkill(name)}
+                          className="px-2.5 py-1 rounded-full bg-slate-800 border border-slate-700 text-xs text-slate-200 hover:border-emerald-500/60 hover:text-emerald-200 transition-colors cursor-pointer"
+                          title={lang === 'zh' ? '打开技能' : 'Open skill'}
+                        >
+                          {inner}
+                        </button>
+                      ) : (
+                        <span
+                          key={name}
+                          className="px-2.5 py-1 rounded-full bg-slate-800 border border-slate-700 text-xs text-slate-200"
+                        >
+                          {inner}
+                        </span>
+                      );
+                    })}
                 </div>
               )}
             </div>
