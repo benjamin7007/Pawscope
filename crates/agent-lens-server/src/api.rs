@@ -29,6 +29,13 @@ pub async fn activity(State(s): State<AppState>) -> impl IntoResponse {
     }
 }
 
+pub async fn activity_grid(State(s): State<AppState>) -> impl IntoResponse {
+    match s.adapter.activity_grid_7x24().await {
+        Ok(g) => Json(serde_json::json!({ "rows": 7, "cols": 24, "grid": g })).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
 pub async fn overview(State(s): State<AppState>) -> impl IntoResponse {
     let sessions = match s.adapter.list_sessions().await {
         Ok(v) => v,

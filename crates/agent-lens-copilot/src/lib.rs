@@ -136,6 +136,46 @@ impl AgentAdapter for CopilotAdapter {
         }
         Ok(buckets)
     }
+
+    async fn activity_grid_7x24(&self) -> Result<Vec<Vec<u64>>> {
+        use chrono::{DateTime, Local, Timelike};
+        let mut grid = vec![vec![0u64; 24]; 7];
+        let today_local = Local::now().date_naive();
+        let entries = match std::fs::read_dir(&self.root) {
+            Ok(e) => e,
+            Err(_) => return Ok(grid),
+        };
+        for entry in entries.flatten() {
+            if !entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                continue;
+            }
+            let path = entry.path().join("events.jsonl");
+            let Ok(file) = std::fs::File::open(&path) else {
+                continue;
+            };
+            use std::io::{BufRead, BufReader};
+            let reader = BufReader::new(file);
+            for line in reader.lines().map_while(std::result::Result::ok) {
+                let Ok(v) = serde_json::from_str::<serde_json::Value>(&line) else {
+                    continue;
+                };
+                let Some(ts) = v.get("timestamp").and_then(|t| t.as_str()) else {
+                    continue;
+                };
+                let Ok(dt_utc) = DateTime::parse_from_rfc3339(ts) else {
+                    continue;
+                };
+                let local = dt_utc.with_timezone(&Local);
+                let days_ago = (today_local - local.date_naive()).num_days();
+                if !(0..7).contains(&days_ago) {
+                    continue;
+                }
+                let hour = local.hour() as usize;
+                grid[days_ago as usize][hour] += 1;
+            }
+        }
+        Ok(grid)
+    }
 }
 
 #[cfg(test)]

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchOverview, fetchActivity } from '../api';
+import { fetchOverview, fetchActivity, fetchActivityGrid } from '../api';
 
 type Overview = {
   total_sessions: number;
@@ -38,6 +38,76 @@ function BarList({ entries, max, color }: { entries: [string, number][]; max: nu
         </li>
       ))}
     </ul>
+  );
+}
+
+function WeekGrid({ grid }: { grid: number[][] }) {
+  const flat = grid.flat();
+  const total = flat.reduce((a, b) => a + b, 0);
+  const max = flat.reduce((a, b) => Math.max(a, b), 0);
+
+  const intensity = (v: number): string => {
+    if (v === 0) return 'bg-slate-800/60';
+    const r = max > 0 ? v / max : 0;
+    if (r < 0.2) return 'bg-emerald-900/70';
+    if (r < 0.4) return 'bg-emerald-800';
+    if (r < 0.6) return 'bg-emerald-600';
+    if (r < 0.8) return 'bg-emerald-500';
+    return 'bg-emerald-400';
+  };
+
+  const dayLabel = (daysAgo: number): string => {
+    if (daysAgo === 0) return 'Today';
+    if (daysAgo === 1) return 'Yest';
+    const d = new Date();
+    d.setDate(d.getDate() - daysAgo);
+    return d.toLocaleDateString(undefined, { weekday: 'short' });
+  };
+
+  // grid[0] = today, render today at the bottom for natural reading
+  const rows = grid.map((row, i) => ({ daysAgo: i, row })).reverse();
+
+  return (
+    <section className="rounded-lg bg-slate-900/40 border border-slate-800">
+      <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
+        <h3 className="text-xs uppercase tracking-wider text-slate-400">7 days × 24h activity</h3>
+        <span className="text-[11px] text-slate-500">{total.toLocaleString()} events</span>
+      </header>
+      <div className="p-4">
+        <div className="flex">
+          <div className="flex flex-col justify-between mr-2 text-[10px] text-slate-500 leading-none">
+            {rows.map(({ daysAgo }) => (
+              <div key={daysAgo} className="h-5 flex items-center">{dayLabel(daysAgo)}</div>
+            ))}
+          </div>
+          <div className="flex-1">
+            <div className="grid gap-1" style={{ gridTemplateColumns: 'repeat(24, minmax(0,1fr))' }}>
+              {rows.flatMap(({ daysAgo, row }) =>
+                row.map((v, h) => (
+                  <div
+                    key={`${daysAgo}-${h}`}
+                    title={`${dayLabel(daysAgo)} ${String(h).padStart(2, '0')}:00 · ${v} events`}
+                    className={`h-5 rounded-sm ${intensity(v)} hover:ring-1 hover:ring-slate-500 transition`}
+                  />
+                ))
+              )}
+            </div>
+            <div className="mt-2 grid text-[10px] text-slate-500" style={{ gridTemplateColumns: 'repeat(24, minmax(0,1fr))' }}>
+              {Array.from({ length: 24 }).map((_, h) => (
+                <div key={h} className="text-center">{h % 6 === 0 ? String(h).padStart(2, '0') : ''}</div>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="mt-3 flex items-center gap-2 text-[10px] text-slate-500">
+          <span>less</span>
+          {['bg-slate-800/60', 'bg-emerald-900/70', 'bg-emerald-800', 'bg-emerald-600', 'bg-emerald-500', 'bg-emerald-400'].map(c => (
+            <div key={c} className={`w-3 h-3 rounded-sm ${c}`} />
+          ))}
+          <span>more</span>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -89,6 +159,7 @@ function ActivityHeatmap({ buckets }: { buckets: number[] }) {
 export function OverviewPanel() {
   const [data, setData] = useState<Overview | null>(null);
   const [activity, setActivity] = useState<number[] | null>(null);
+  const [grid, setGrid] = useState<number[][] | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
@@ -99,6 +170,9 @@ export function OverviewPanel() {
         .catch(e => !cancelled && setErr(String(e)));
       fetchActivity()
         .then(d => !cancelled && setActivity(d.buckets ?? []))
+        .catch(() => {});
+      fetchActivityGrid()
+        .then(d => !cancelled && setGrid(d.grid ?? null))
         .catch(() => {});
     };
     load();
@@ -142,6 +216,7 @@ export function OverviewPanel() {
         </section>
 
         {activity && <ActivityHeatmap buckets={activity} />}
+        {grid && <WeekGrid grid={grid} />}
 
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="rounded-lg bg-slate-900/40 border border-slate-800">
