@@ -44,14 +44,19 @@ interface Props {
   onOpenSession: (id: string) => void;
 }
 
+interface PromptHitFull extends PromptHit {
+  text: string;
+}
+
 export function PromptsPanel({ onOpenSession }: Props) {
   const { t } = useT();
   const [q, setQ] = useState('');
   const [agent, setAgent] = useState<string>('');
   const [repo, setRepo] = useState<string>('');
   const [range, setRange] = useState<string>('');
-  const [hits, setHits] = useState<PromptHit[]>([]);
+  const [hits, setHits] = useState<PromptHitFull[]>([]);
   const [loading, setLoading] = useState(false);
+  const [modal, setModal] = useState<PromptHitFull | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const filters: PromptSearchFilters = useMemo(() => {
@@ -169,7 +174,7 @@ export function PromptsPanel({ onOpenSession }: Props) {
             {hits.map((h) => (
               <li
                 key={`${h.session_id}::${h.prompt_id}`}
-                onClick={() => onOpenSession(h.session_id)}
+                onClick={() => setModal(h)}
                 className="px-6 py-3 hover:bg-slate-900/60 cursor-pointer transition-colors"
               >
                 <div className="flex items-center gap-2 mb-1.5">
@@ -199,6 +204,52 @@ export function PromptsPanel({ onOpenSession }: Props) {
           </ul>
         )}
       </div>
+      {modal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setModal(null)}
+        >
+          <div
+            className="bg-slate-900 border border-slate-700 rounded-lg shadow-2xl max-w-3xl w-full max-h-[80vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header className="px-5 py-3 border-b border-slate-800 flex items-center gap-2">
+              <span
+                className={`px-1.5 py-0.5 rounded border text-[10px] uppercase tracking-wider ${
+                  AGENT_BADGE[modal.agent] ?? 'bg-slate-500/10 text-slate-300 border-slate-700'
+                }`}
+              >
+                {modal.agent}
+              </span>
+              {modal.repo && <span className="text-[11px] text-slate-400 truncate max-w-xs">{modal.repo}</span>}
+              {modal.branch && <span className="text-[11px] text-slate-500">· {modal.branch}</span>}
+              <span className="ml-auto text-[11px] text-slate-500 font-mono">{relTime(modal.timestamp)}</span>
+              <button
+                onClick={() => setModal(null)}
+                className="ml-2 text-slate-500 hover:text-slate-200"
+              >✕</button>
+            </header>
+            <div className="px-5 py-4 overflow-y-auto flex-1">
+              <pre className="text-sm text-slate-200 whitespace-pre-wrap font-mono leading-relaxed break-words">
+                {modal.text || modal.snippet}
+              </pre>
+            </div>
+            <footer className="px-5 py-2.5 border-t border-slate-800 flex items-center gap-2">
+              <span className="text-[11px] text-slate-500 font-mono truncate flex-1">
+                {modal.session_id}
+              </span>
+              <button
+                onClick={() => navigator.clipboard.writeText(modal.text || modal.snippet)}
+                className="px-2.5 py-1 text-xs text-slate-300 bg-slate-800 hover:bg-slate-700 rounded"
+              >Copy</button>
+              <button
+                onClick={() => { onOpenSession(modal.session_id); setModal(null); }}
+                className="px-2.5 py-1 text-xs text-slate-100 bg-emerald-700 hover:bg-emerald-600 rounded"
+              >Open session →</button>
+            </footer>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

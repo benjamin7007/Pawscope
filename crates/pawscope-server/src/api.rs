@@ -412,6 +412,7 @@ struct PromptHit {
     prompt_id: String,
     timestamp: Option<chrono::DateTime<chrono::Utc>>,
     snippet: String,
+    text: String,
 }
 
 pub async fn prompts_search(
@@ -493,6 +494,16 @@ pub async fn prompts_search(
                 prompt_id: prompt.id.clone(),
                 timestamp: prompt.timestamp,
                 snippet: prompt.snippet.clone(),
+                text: {
+                    let max = 16 * 1024;
+                    if prompt.text.len() <= max {
+                        prompt.text.clone()
+                    } else {
+                        let mut s = prompt.text[..max].to_string();
+                        s.push_str("\n…[truncated]");
+                        s
+                    }
+                },
             });
         }
     }
