@@ -31,7 +31,7 @@ type Detail = {
     ended_at?: string | null;
     active?: boolean;
   }[];
-  prompts?: { id: string; timestamp: string | null; snippet: string }[];
+  prompts?: { id: string; timestamp: string | null; snippet: string; text?: string }[];
 };
 
 type Props = { meta: Meta | undefined; detail: Detail | null };
@@ -91,6 +91,59 @@ function CopyButton({ text }: { text: string }) {
     >
       {done ? '✓' : '⧉'}
     </button>
+  );
+}
+
+function PromptRow({
+  index,
+  prompt,
+}: {
+  index: number;
+  prompt: { id: string; timestamp: string | null; snippet: string; text?: string };
+}) {
+  const [open, setOpen] = useState(false);
+  const fullText = prompt.text || prompt.snippet;
+  const hasMore = (prompt.text?.length ?? 0) > prompt.snippet.length;
+  return (
+    <li className="px-4 py-2.5 text-sm">
+      <div className="flex gap-3">
+        <span className="text-slate-600 tabular-nums w-6 text-right flex-shrink-0">{index}</span>
+        <div className="min-w-0 flex-1">
+          <button
+            type="button"
+            onClick={() => hasMore && setOpen(o => !o)}
+            className={`block w-full text-left text-slate-200 ${hasMore ? 'cursor-pointer hover:text-slate-100' : 'cursor-default'} ${open ? '' : 'truncate'}`}
+            title={!open ? prompt.snippet : undefined}
+          >
+            {open ? (
+              <pre className="whitespace-pre-wrap break-words font-sans text-slate-200 text-sm leading-relaxed">
+                {fullText || <span className="italic text-slate-500">(empty)</span>}
+              </pre>
+            ) : (
+              prompt.snippet || <span className="italic text-slate-500">(empty)</span>
+            )}
+          </button>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="font-mono text-[10px] text-slate-600">{prompt.id.slice(0, 8)}</span>
+            {prompt.timestamp && (
+              <span className="text-[10px] text-slate-500" title={formatAbs(prompt.timestamp)}>
+                {timeAgo(prompt.timestamp)}
+              </span>
+            )}
+            {hasMore && (
+              <button
+                type="button"
+                onClick={() => setOpen(o => !o)}
+                className="px-1.5 py-0.5 text-[10px] rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200"
+              >
+                {open ? 'Collapse' : 'Expand'}
+              </button>
+            )}
+            {fullText && <CopyButton text={fullText} />}
+          </div>
+        </div>
+      </div>
+    </li>
   );
 }
 
@@ -321,22 +374,7 @@ export function SessionDetail({ meta, detail }: Props) {
               </header>
               <ol className="divide-y divide-slate-800/60">
                 {detail.prompts.map((p, i) => (
-                  <li key={p.id} className="px-4 py-2.5 flex gap-3 text-sm">
-                    <span className="text-slate-600 tabular-nums w-6 text-right flex-shrink-0">{i + 1}</span>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-slate-200 truncate" title={p.snippet}>
-                        {p.snippet || <span className="italic text-slate-500">(empty)</span>}
-                      </div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="font-mono text-[10px] text-slate-600">{p.id.slice(0, 8)}</span>
-                        {p.timestamp && (
-                          <span className="text-[10px] text-slate-500" title={formatAbs(p.timestamp)}>
-                            {timeAgo(p.timestamp)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </li>
+                  <PromptRow key={p.id} index={i + 1} prompt={p} />
                 ))}
               </ol>
             </section>

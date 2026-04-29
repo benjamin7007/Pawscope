@@ -58,6 +58,8 @@ pub struct PromptSummary {
     pub id: String,
     pub timestamp: Option<chrono::DateTime<chrono::Utc>>,
     pub snippet: String,
+    #[serde(default)]
+    pub text: String,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
