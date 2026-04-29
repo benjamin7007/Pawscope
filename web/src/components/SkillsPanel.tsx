@@ -30,6 +30,7 @@ export function SkillsPanel({
   const [sort, setSort] = useState<'invocations' | 'name' | 'source'>('invocations');
   const [category, setCategory] = useState<string>('all');
   const [groupByCategory, setGroupByCategory] = useState(true);
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [openSkill, setOpenSkill] = useState<SkillEntry | null>(null);
   const [openContent, setOpenContent] = useState<SkillContent | null>(null);
   const [openErr, setOpenErr] = useState<string | null>(null);
@@ -197,6 +198,28 @@ export function SkillsPanel({
           <input type="checkbox" checked={groupByCategory} onChange={e => setGroupByCategory(e.target.checked)} />
           {lang === 'zh' ? '按分类分组' : 'Group by category'}
         </label>
+        {groupByCategory && (
+          <>
+            <button
+              type="button"
+              onClick={() => setCollapsed({})}
+              className="text-[11px] text-slate-400 hover:text-slate-200 underline-offset-2 hover:underline"
+            >
+              {lang === 'zh' ? '展开全部' : 'Expand all'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const next: Record<string, boolean> = {};
+                for (const g of grouped) next[g.name] = true;
+                setCollapsed(next);
+              }}
+              className="text-[11px] text-slate-400 hover:text-slate-200 underline-offset-2 hover:underline"
+            >
+              {lang === 'zh' ? '折叠全部' : 'Collapse all'}
+            </button>
+          </>
+        )}
         <label className="flex items-center gap-1.5 text-xs text-slate-400 cursor-pointer">
           <input type="checkbox" checked={usedOnly} onChange={e => setUsedOnly(e.target.checked)} />
           {lang === 'zh' ? '仅显示被调用过的' : 'Used only'}
@@ -262,17 +285,30 @@ export function SkillsPanel({
 
         return (
           <div>
-            {grouped.map(g => (
-              <section key={g.name}>
-                <header className="sticky top-0 z-10 px-8 py-1.5 bg-slate-950/95 backdrop-blur border-b border-t border-slate-800/60 flex items-baseline gap-2">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-300">
-                    {g.name}
-                  </span>
-                  <span className="text-[10px] text-slate-500 tabular-nums">{fmt(g.items.length)}</span>
-                </header>
-                <ul className="divide-y divide-slate-800/60">{g.items.map(renderRow)}</ul>
-              </section>
-            ))}
+            {grouped.map(g => {
+              const isCollapsed = !!collapsed[g.name];
+              return (
+                <section key={g.name}>
+                  <button
+                    type="button"
+                    onClick={() => setCollapsed(c => ({ ...c, [g.name]: !c[g.name] }))}
+                    className="w-full sticky top-0 z-10 px-8 py-1.5 bg-slate-950/95 backdrop-blur border-b border-t border-slate-800/60 flex items-baseline gap-2 hover:bg-slate-900/60 transition-colors text-left cursor-pointer"
+                    aria-expanded={!isCollapsed}
+                  >
+                    <span className="text-[10px] text-slate-500 w-3 inline-block">
+                      {isCollapsed ? '▶' : '▼'}
+                    </span>
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-300">
+                      {g.name}
+                    </span>
+                    <span className="text-[10px] text-slate-500 tabular-nums">{fmt(g.items.length)}</span>
+                  </button>
+                  {!isCollapsed && (
+                    <ul className="divide-y divide-slate-800/60">{g.items.map(renderRow)}</ul>
+                  )}
+                </section>
+              );
+            })}
           </div>
         );
       })()}
