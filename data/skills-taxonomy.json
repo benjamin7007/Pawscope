@@ -87,6 +87,15 @@
   ],
   "skills": [
     {
+      "name": "agent-arch-design",
+      "source": "project",
+      "category": "ai-methodology",
+      "language_tag": null,
+      "popularity": 8,
+      "popularity_reason": "Agent architecture design (LangGraph/MCP/A2A)",
+      "summary_zh": "Agent 系统架构设计与框架选型"
+    },
+    {
       "name": "agent-harness-construction",
       "source": "claude",
       "category": "design",
@@ -132,6 +141,24 @@
       "summary_zh": "Operate..."
     },
     {
+      "name": "ai-daily-comic",
+      "source": "project",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Daily AI news as 4-panel comic + voiceover",
+      "summary_zh": "AI 日报四格漫画+语音播报自动化"
+    },
+    {
+      "name": "ai-daily-insight",
+      "source": "project",
+      "category": "writing",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "Daily AI news architect-perspective insight post",
+      "summary_zh": "AI 每日洞察：架构师视角海报+知识库发布"
+    },
+    {
       "name": "ai-first-engineering",
       "source": "claude",
       "category": "ai-methodology",
@@ -148,6 +175,33 @@
       "popularity": 5,
       "popularity_reason": "Specialized tool with moderate applicability.",
       "summary_zh": "Regression..."
+    },
+    {
+      "name": "algorithmic-art",
+      "source": "project",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Generative art via p5.js with seeded randomness",
+      "summary_zh": "p5.js 生成艺术与算法绘图"
+    },
+    {
+      "name": "anbei-wechat",
+      "source": "project",
+      "category": "writing",
+      "language_tag": null,
+      "popularity": 9,
+      "popularity_reason": "Personal one-click WeChat publishing workflow",
+      "summary_zh": "袁安贝的微信公众号一键发布工作流"
+    },
+    {
+      "name": "anbei-xiaohongshu",
+      "source": "project",
+      "category": "writing",
+      "language_tag": null,
+      "popularity": 9,
+      "popularity_reason": "Personal Xiaohongshu publishing automation",
+      "summary_zh": "小红书自动发布工作流（含 Playwright 自动化）"
     },
     {
       "name": "android-clean-architecture",
@@ -175,6 +229,15 @@
       "popularity": 5,
       "popularity_reason": "Useful visual creation tool; moderate demand.",
       "summary_zh": "REST..."
+    },
+    {
+      "name": "arch-analysis",
+      "source": "project",
+      "category": "ai-methodology",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "Framework / open-source architecture analysis",
+      "summary_zh": "分析框架/开源项目架构与设计哲学"
     },
     {
       "name": "article-writing",
@@ -402,6 +465,15 @@
       "summary_zh": "需求脑暴：在动手前梳理意图、需求与设计"
     },
     {
+      "name": "brand-guidelines",
+      "source": "project",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Apply Anthropic brand colors and typography",
+      "summary_zh": "应用 Anthropic 官方品牌色与字体"
+    },
+    {
       "name": "brand-voice",
       "source": "claude",
       "category": "writing",
@@ -409,6 +481,15 @@
       "popularity": 5,
       "popularity_reason": "Specialized tool with moderate applicability.",
       "summary_zh": "Build..."
+    },
+    {
+      "name": "canvas-design",
+      "source": "project",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "Beautiful PNG/PDF poster art via design philosophy",
+      "summary_zh": "PNG/PDF 海报与艺术品创作"
     },
     {
       "name": "carrier-relationship-management",
@@ -582,6 +663,15 @@
       "summary_zh": "Use..."
     },
     {
+      "name": "cross-domain-insight",
+      "source": "project",
+      "category": "ai-methodology",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Cross-domain pattern transfer & insight",
+      "summary_zh": "跨领域同构映射与原则提炼"
+    },
+    {
       "name": "crosspost",
       "source": "claude",
       "category": "writing",
@@ -735,6 +825,15 @@
       "summary_zh": "Multi-agent..."
     },
     {
+      "name": "doc-coauthoring",
+      "source": "project",
+      "category": "writing",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "Structured workflow for co-authoring docs",
+      "summary_zh": "结构化文档协同写作流程"
+    },
+    {
       "name": "docker-patterns",
       "source": "claude",
       "category": "development",
@@ -742,6 +841,15 @@
       "popularity": 7,
       "popularity_reason": "Language-specific patterns; widely useful for developers.",
       "summary_zh": "Docker..."
+    },
+    {
+      "name": "docx",
+      "source": "project",
+      "category": "writing",
+      "language_tag": null,
+      "popularity": 8,
+      "popularity_reason": "Create / read / edit Word .docx files",
+      "summary_zh": "Word 文档读写与编辑"
     },
     {
       "name": "dotnet-patterns",
@@ -769,6 +877,15 @@
       "popularity": 5,
       "popularity_reason": "Specialized tool with moderate applicability.",
       "summary_zh": "Evidence-first..."
+    },
+    {
+      "name": "edge-ai-analysis",
+      "source": "project",
+      "category": "ai-methodology",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "Edge AI inference / NPU / quantization advice",
+      "summary_zh": "端侧 AI 推理方案与 NPU 选型"
     },
     {
       "name": "email-ops",
@@ -868,6 +985,15 @@
       "popularity": 8,
       "popularity_reason": "Closing out a dev branch cleanly",
       "summary_zh": "收尾开发分支：合并、清理、PR"
+    },
+    {
+      "name": "fireworks-tech-graph",
+      "source": "project",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 4,
+      "popularity_reason": "Fireworks-style technical graphic (project skill)",
+      "summary_zh": "烟花风格技术图（项目级 skill）"
     },
     {
       "name": "foundation-models-on-device",
@@ -1003,6 +1129,15 @@
       "popularity": 5,
       "popularity_reason": "Specialized tool with moderate applicability.",
       "summary_zh": "HyperFrames..."
+    },
+    {
+      "name": "internal-comms",
+      "source": "project",
+      "category": "writing",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Internal company communication writing helpers",
+      "summary_zh": "公司内部沟通文案撰写"
     },
     {
       "name": "inventory-demand-planning",
@@ -1446,6 +1581,15 @@
       "summary_zh": "Conduct..."
     },
     {
+      "name": "mcp-builder",
+      "source": "project",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "Build high-quality MCP servers for tool integration",
+      "summary_zh": "构建高质量 MCP 服务器"
+    },
+    {
       "name": "mcp-server-patterns",
       "source": "claude",
       "category": "development",
@@ -1509,6 +1653,15 @@
       "summary_zh": "Process,..."
     },
     {
+      "name": "pdf",
+      "source": "project",
+      "category": "writing",
+      "language_tag": null,
+      "popularity": 8,
+      "popularity_reason": "PDF read/extract/merge/split/rotate operations",
+      "summary_zh": "PDF 读取/提取/合并/拆分/旋转"
+    },
+    {
       "name": "perl-patterns",
       "source": "claude",
       "category": "development",
@@ -1561,6 +1714,15 @@
       "popularity": 5,
       "popularity_reason": "Useful visual creation tool; moderate demand.",
       "summary_zh": "PostgreSQL..."
+    },
+    {
+      "name": "pptx",
+      "source": "project",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 8,
+      "popularity_reason": "Create / read / edit PowerPoint .pptx decks",
+      "summary_zh": "PowerPoint 幻灯片读写与生成"
     },
     {
       "name": "product-capability",
@@ -1752,6 +1914,15 @@
       "summary_zh": "Audit,..."
     },
     {
+      "name": "skill-creator",
+      "source": "project",
+      "category": "ai-methodology",
+      "language_tag": null,
+      "popularity": 9,
+      "popularity_reason": "Create / edit / measure performance of skills",
+      "summary_zh": "创建、编辑、评估 skill 的元工具"
+    },
+    {
       "name": "skill-stocktake",
       "source": "superpowers",
       "category": "ai-methodology",
@@ -1759,6 +1930,15 @@
       "popularity": 6,
       "popularity_reason": "Periodic audit of installed skills",
       "summary_zh": "定期盘点已安装的 skills"
+    },
+    {
+      "name": "slack-gif-creator",
+      "source": "project",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 4,
+      "popularity_reason": "Slack-optimized animated GIF creation",
+      "summary_zh": "Slack 优化的动画 GIF 创作"
     },
     {
       "name": "social-graph-ranker",
@@ -1822,6 +2002,15 @@
       "popularity": 9,
       "popularity_reason": "Building features via sub-agent delegation",
       "summary_zh": "用子 agent 驱动功能开发"
+    },
+    {
+      "name": "svg-infographic",
+      "source": "project",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 8,
+      "popularity_reason": "SVG infographic → high-res PNG creation",
+      "summary_zh": "SVG 信息图 → 高分辨率 PNG 输出"
     },
     {
       "name": "swift-actor-persistence",
@@ -1905,6 +2094,15 @@
       "summary_zh": "TDD：红绿重构的开发节奏"
     },
     {
+      "name": "theme-factory",
+      "source": "project",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "Apply preset themes to slides/docs/HTML artifacts",
+      "summary_zh": "10 套预设主题应用到各类制品"
+    },
+    {
       "name": "token-budget-advisor",
       "source": "claude",
       "category": "tools",
@@ -1968,6 +2166,15 @@
       "summary_zh": "\"A..."
     },
     {
+      "name": "video-creator",
+      "source": "project",
+      "category": "video",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "Topic→research→images→video+audio pipeline",
+      "summary_zh": "主题→图片→视频+旁白自动化创作"
+    },
+    {
       "name": "video-editing",
       "source": "claude",
       "category": "video",
@@ -1993,6 +2200,33 @@
       "popularity": 2,
       "popularity_reason": "Very narrow scope; experimental or unclear value.",
       "summary_zh": "Translate..."
+    },
+    {
+      "name": "web-artifacts-builder",
+      "source": "project",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "Multi-component React/Tailwind/shadcn artifacts",
+      "summary_zh": "多组件 React/Tailwind 制品构建"
+    },
+    {
+      "name": "webapp-testing",
+      "source": "project",
+      "category": "development",
+      "language_tag": null,
+      "popularity": 7,
+      "popularity_reason": "Playwright local web app testing toolkit",
+      "summary_zh": "Playwright 本地 web 应用测试"
+    },
+    {
+      "name": "whiteboard-drawing",
+      "source": "project",
+      "category": "design",
+      "language_tag": null,
+      "popularity": 5,
+      "popularity_reason": "Whiteboard-style drawing skill",
+      "summary_zh": "白板手绘风格作图"
     },
     {
       "name": "workspace-surface-audit",
@@ -2029,26 +2263,45 @@
       "popularity": 5,
       "popularity_reason": "Specialized tool with moderate applicability.",
       "summary_zh": "X/Twitter..."
+    },
+    {
+      "name": "xlsx",
+      "source": "project",
+      "category": "business",
+      "language_tag": null,
+      "popularity": 8,
+      "popularity_reason": "Read / edit / fix .xlsx / .csv spreadsheet files",
+      "summary_zh": "Excel/CSV 表格读写与编辑"
+    },
+    {
+      "name": "xr-arch-analysis",
+      "source": "project",
+      "category": "ai-methodology",
+      "language_tag": null,
+      "popularity": 6,
+      "popularity_reason": "XR/AR/VR architecture analysis (OpenXR/SLAM)",
+      "summary_zh": "XR/AR/VR 架构分析与空间计算设计"
     }
   ],
   "stats": {
-    "total_skills": 216,
+    "total_skills": 244,
     "by_category": {
-      "ai-methodology": 15,
-      "business": 9,
-      "design": 52,
-      "development": 60,
+      "ai-methodology": 21,
+      "business": 10,
+      "design": 62,
+      "development": 63,
       "devops": 14,
       "marketing": 1,
       "platforms": 18,
       "research": 14,
       "tools": 6,
-      "video": 1,
-      "writing": 26
+      "video": 2,
+      "writing": 33
     },
     "by_source": {
       "agents": 54,
       "claude": 147,
+      "project": 28,
       "superpowers": 15
     }
   }

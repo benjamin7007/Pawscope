@@ -25,8 +25,13 @@ pub struct SkillsResponse {
 }
 
 pub async fn list_skills(State(state): State<AppState>) -> Json<SkillsResponse> {
-    // Aggregate invocation counts from all sessions.
+    // Aggregate invocation counts from all sessions, and collect distinct
+    // session cwds to discover project-local skills (any cwd containing a
+    // `.github/skills/` directory contributes that root under the
+    // `project-skills` source).
     let mut invocations: HashMap<String, u64> = HashMap::new();
+    let mut project_skill_roots: Vec<PathBuf> = Vec::new();
+    let mut seen_roots: std::collections::HashSet<PathBuf> = std::collections::HashSet::new();
     if let Ok(metas) = state.adapter.list_sessions().await {
         for m in &metas {
             if let Ok(d) = state.adapter.get_detail(&m.id).await {
@@ -34,30 +39,40 @@ pub async fn list_skills(State(state): State<AppState>) -> Json<SkillsResponse> 
                     *invocations.entry(k).or_default() += 1;
                 }
             }
+            let candidate = m.cwd.join(".github").join("skills");
+            if candidate.is_dir() {
+                let canon = candidate.canonicalize().unwrap_or(candidate);
+                if seen_roots.insert(canon.clone()) {
+                    project_skill_roots.push(canon);
+                }
+            }
         }
     }
 
     let home = std::env::var("HOME").unwrap_or_default();
-    let sources = vec![
+    let mut sources: Vec<(String, PathBuf)> = vec![
         (
-            "copilot-superpowers",
+            "copilot-superpowers".to_string(),
             PathBuf::from(format!("{home}/.copilot/installed-plugins")),
         ),
         (
-            "claude-skills",
+            "claude-skills".to_string(),
             PathBuf::from(format!("{home}/.claude/skills")),
         ),
         (
-            "agents-skills",
+            "agents-skills".to_string(),
             PathBuf::from(format!("{home}/.agents/skills")),
         ),
     ];
+    for root in project_skill_roots {
+        sources.push(("project-skills".to_string(), root));
+    }
 
     let mut skills = Vec::new();
     let mut by_source: HashMap<String, usize> = HashMap::new();
-    for (label, root) in sources {
-        let mut found = scan_skills_recursive(&root, label, 4);
-        *by_source.entry(label.to_string()).or_default() += found.len();
+    for (label, root) in &sources {
+        let mut found = scan_skills_recursive(root, label, 4);
+        *by_source.entry(label.clone()).or_default() += found.len();
         skills.append(&mut found);
     }
 
