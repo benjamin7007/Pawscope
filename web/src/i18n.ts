@@ -21,6 +21,7 @@ const dict: Record<string, { en: string; zh: string }> = {
   'crumbs.skills': { en: 'Skills', zh: '技能' },
   'crumbs.prompts': { en: 'Prompts', zh: '提示' },
   'crumbs.realm': { en: 'Realm', zh: '领地' },
+  'crumbs.compare': { en: 'Compare', zh: '对比' },
 
   // Prompts search
   'prompts.title': { en: 'Search prompts', zh: '搜索用户提示' },
@@ -39,6 +40,14 @@ const dict: Record<string, { en: string; zh: string }> = {
   'prompts.filter.range.7d': { en: 'Last 7d', zh: '近 7 天' },
   'prompts.filter.range.30d': { en: 'Last 30d', zh: '近 30 天' },
   'prompts.filter.clear': { en: 'Clear', zh: '清除' },
+  'prompts.cluster': { en: 'Cluster', zh: '聚类' },
+  'prompts.cluster_tip': {
+    en: 'Group similar prompts using token overlap (Jaccard ≥ 0.45)',
+    zh: '基于词重合度对相似提示进行聚类 (Jaccard ≥ 0.45)',
+  },
+  'prompts.clusters': { en: 'clusters', zh: '类' },
+  'prompts.cluster_show': { en: 'show similar', zh: '展开相似' },
+  'prompts.cluster_hide': { en: 'hide similar', zh: '收起' },
 
   // Tool timeline
   'sec.tool_timeline': { en: 'Tool call timeline', zh: '工具调用时间轴' },
@@ -58,6 +67,16 @@ const dict: Record<string, { en: string; zh: string }> = {
   // Header / kicker
   'overview.kicker': { en: 'Overview', zh: '总览' },
   'overview.title': { en: 'All sessions', zh: '所有会话' },
+  'overview.export_day': { en: 'Daily digest', zh: '每日摘要' },
+  'overview.export_week': { en: 'Weekly digest', zh: '每周摘要' },
+  'overview.export_day_tip': {
+    en: 'Download a Markdown digest of activity in the last 24 hours',
+    zh: '下载最近 24 小时活动的 Markdown 摘要',
+  },
+  'overview.export_week_tip': {
+    en: 'Download a Markdown digest of activity in the last 7 days',
+    zh: '下载最近 7 天活动的 Markdown 摘要',
+  },
   'overview.aggregating': { en: 'Aggregating across all sessions…', zh: '正在聚合所有会话…' },
 
   // Hero stats
@@ -288,6 +307,33 @@ const dict: Record<string, { en: string; zh: string }> = {
   'flow.tokens_incomplete': { en: 'Some turns use models not in the pricing table', zh: '部分轮次模型不在价格表中' },
   'flow.tokens_incomplete_long': { en: '{n} turn(s) skipped — model not in pricing table', zh: '已跳过 {n} 轮 — 模型不在价格表中' },
   'flow.copy_link': { en: 'copy link to this interaction', zh: '复制此交互链接' },
+
+  // Compare view
+  'compare.kicker': { en: 'Compare', zh: '对比' },
+  'compare.title': { en: 'Side-by-side session compare', zh: '会话并排对比' },
+  'compare.close': { en: 'Close', zh: '关闭' },
+  'compare.open_session': { en: 'Open session', zh: '打开会话' },
+  'compare.turns': { en: 'Turns', zh: '轮数' },
+  'compare.duration': { en: 'Duration', zh: '时长' },
+  'compare.user_msgs': { en: 'User msgs', zh: '用户消息' },
+  'compare.tool_calls': { en: 'Tool calls', zh: '工具调用' },
+  'compare.tokens_in': { en: 'Tokens in', zh: '输入 tokens' },
+  'compare.tokens_out': { en: 'Tokens out', zh: '输出 tokens' },
+  'compare.cost': { en: 'Cost (est.)', zh: '估算成本' },
+  'compare.subagents': { en: 'Sub-agents', zh: '子代理' },
+  'compare.top_tools': { en: 'Top tools', zh: '常用工具' },
+  'compare.top_skills': { en: 'Top skills', zh: '常用技能' },
+  'compare.tool_overlap': { en: 'Tool overlap', zh: '工具重合' },
+  'compare.shared': { en: 'Shared', zh: '共有' },
+  'compare.only_left': { en: 'Only left', zh: '仅左侧' },
+  'compare.only_right': { en: 'Only right', zh: '仅右侧' },
+  'compare.prompt_diff': { en: 'Prompt overlap', zh: '提示重合' },
+  'compare.shared_prompts': { en: 'Similar prompts', zh: '相似提示' },
+  'compare.unique_left': { en: 'Unique to left', zh: '仅在左侧' },
+  'compare.unique_right': { en: 'Unique to right', zh: '仅在右侧' },
+  'compare.bar_label': { en: 'Compare:', zh: '对比:' },
+  'compare.bar_compare': { en: 'Compare →', zh: '对比 →' },
+  'compare.bar_clear': { en: 'Clear', zh: '清空' },
 };
 
 function readLang(): Lang {

@@ -24,6 +24,8 @@ type Props = {
   onToggleStar?: (id: string) => void;
   tokensMap?: Record<string, { in: number; out: number }>;
   pulseMap?: Record<string, { bins: number[]; events: number }>;
+  compareIds?: string[];
+  onToggleCompare?: (id: string) => void;
 };
 
 function timeAgo(iso?: string | null): string {
@@ -52,7 +54,7 @@ function sessionRealmKey(s: Session): string {
 
 type SortMode = 'recent' | 'oldest' | 'repo' | 'tokens';
 
-export function SessionList({ items, onSelect, selected, realmFilter, onClearRealmFilter, labels, onToggleStar, tokensMap, pulseMap }: Props) {
+export function SessionList({ items, onSelect, selected, realmFilter, onClearRealmFilter, labels, onToggleStar, tokensMap, pulseMap, compareIds, onToggleCompare }: Props) {
   const { t } = useT();
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -144,14 +146,26 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
     const cost = tk ? estimateCostUsd(s.model, tk.in, tk.out) : null;
     const fmtK = (n: number) => n >= 1_000_000 ? `${(n/1_000_000).toFixed(1)}M` : n >= 1000 ? `${(n/1000).toFixed(1)}k` : `${n}`;
     const pulse = pulseMap?.[s.id];
+    const inCompare = !!compareIds?.includes(s.id);
     return (
     <button
       key={s.id}
-      onClick={() => onSelect(s.id)}
+      onClick={(e) => {
+        // Shift-click toggles compare set (no navigation).
+        if (e.shiftKey && onToggleCompare) {
+          e.preventDefault();
+          onToggleCompare(s.id);
+          return;
+        }
+        onSelect(s.id);
+      }}
+      title={onToggleCompare ? 'Click to open · Shift+click to add to compare' : undefined}
       className={`group block w-full text-left px-3 py-2 border-l-2 transition-colors ${
         selected === s.id
           ? 'bg-slate-800/80 border-emerald-400'
-          : 'border-transparent hover:bg-slate-800/40'
+          : inCompare
+            ? 'bg-emerald-500/5 border-emerald-500/40'
+            : 'border-transparent hover:bg-slate-800/40'
       }`}
     >
       <div className="flex items-center gap-2">
@@ -161,6 +175,16 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
           }`}
         />
         <span className="font-mono text-[10px] text-slate-500">{s.id.slice(0, 8)}</span>
+        {onToggleCompare && (
+          <span
+            role="button"
+            onClick={(e) => { e.stopPropagation(); onToggleCompare(s.id); }}
+            className={`cursor-pointer text-[11px] leading-none ${inCompare ? 'text-emerald-300' : 'text-slate-700 hover:text-slate-400'}`}
+            title={inCompare ? 'Remove from compare' : 'Add to compare'}
+          >
+            {inCompare ? '☑' : '☐'}
+          </span>
+        )}
         {onToggleStar && (
           <span
             role="button"

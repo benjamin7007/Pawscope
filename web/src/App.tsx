@@ -9,6 +9,7 @@ import { OverviewPanel } from './components/OverviewPanel';
 import { RealmPanel } from './components/RealmPanel';
 import { SkillsPanel } from './components/SkillsPanel';
 import { PromptsPanel } from './components/PromptsPanel';
+import { CompareView } from './components/CompareView';
 import { SidebarResizer } from './components/SidebarResizer';
 import { ProgressBar } from './components/ProgressBar';
 import { ToastContainer } from './components/ToastContainer';
@@ -20,7 +21,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { LivePin } from './components/LivePin';
 import { useT } from './i18n';
 
-type View = 'overview' | 'session' | 'realm' | 'skills' | 'prompts';
+type View = 'overview' | 'session' | 'realm' | 'skills' | 'prompts' | 'compare';
 
 interface ViewSnapshot {
   view: View;
@@ -44,6 +45,7 @@ export default function App() {
   const [paletteQuery, setPaletteQuery] = useState<string | undefined>(undefined);
   const [tokensMap, setTokensMap] = useState<Record<string, { in: number; out: number }>>({});
   const [pulseMap, setPulseMap] = useState<Record<string, { bins: number[]; events: number }>>({});
+  const [compareIds, setCompareIds] = useState<string[]>([]);
   const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
     const v = parseInt(localStorage.getItem('pawscope.sidebarWidth') ?? '', 10);
     return Number.isFinite(v) && v >= 280 && v <= 720 ? v : 384;
@@ -130,6 +132,19 @@ export default function App() {
 
   const selectSession = (id: string | null) => navigate({ selected: id, view: id ? 'session' : view });
 
+  const toggleCompareId = (id: string) => {
+    setCompareIds(prev => {
+      if (prev.includes(id)) return prev.filter(x => x !== id);
+      // Cap at 2; if already 2, replace the oldest.
+      if (prev.length >= 2) return [prev[1], id];
+      return [...prev, id];
+    });
+  };
+  const clearCompare = () => setCompareIds([]);
+  const openCompare = () => {
+    if (compareIds.length === 2) navigate({ view: 'compare' });
+  };
+
   const activeCount = sessions.filter(s => s.status === 'active').length;
 
   // Prev/next session navigation, sorted by last_event_at desc (matches default list order).
@@ -161,6 +176,8 @@ export default function App() {
     crumbs.push({ label: t('crumbs.skills') });
   } else if (view === 'prompts') {
     crumbs.push({ label: t('crumbs.prompts') });
+  } else if (view === 'compare') {
+    crumbs.push({ label: t('crumbs.compare') });
   }
 
   return (
@@ -252,6 +269,8 @@ export default function App() {
           onToggleStar={toggleStar}
           tokensMap={tokensMap}
           pulseMap={pulseMap}
+          compareIds={compareIds}
+          onToggleCompare={toggleCompareId}
         />
       </div>
       <SidebarResizer onResize={setSidebarWidth} />
@@ -296,6 +315,15 @@ export default function App() {
             <ErrorBoundary scope="Prompts">
               <PromptsPanel onOpenSession={selectSession} />
             </ErrorBoundary>
+          ) : view === 'compare' && compareIds.length === 2 ? (
+            <ErrorBoundary scope="Compare">
+              <CompareView
+                ids={[compareIds[0], compareIds[1]]}
+                sessions={sessions}
+                onClose={() => { clearCompare(); navigate({ view: 'overview' }); }}
+                onOpenSession={selectSession}
+              />
+            </ErrorBoundary>
           ) : (
             <ErrorBoundary scope="Session detail">
               <SessionDetail
@@ -328,6 +356,39 @@ export default function App() {
         }}
       />
       <LivePin sessions={sessions} pulseMap={pulseMap} onOpen={(id) => selectSession(id)} />
+      {compareIds.length > 0 && view !== 'compare' && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-slate-900/95 backdrop-blur border border-emerald-500/40 rounded-full px-4 py-2 shadow-2xl shadow-emerald-500/10">
+          <span className="text-xs text-slate-300">
+            {t('compare.bar_label')} <span className="text-emerald-300 font-semibold">{compareIds.length}/2</span>
+          </span>
+          <div className="flex items-center gap-1">
+            {compareIds.map(id => {
+              const s = sessions.find(x => x.id === id);
+              return (
+                <span
+                  key={id}
+                  className="text-[11px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 max-w-[160px] truncate"
+                  title={s?.summary ?? id}
+                >
+                  {(s?.summary ?? id.slice(0, 8))}
+                </span>
+              );
+            })}
+          </div>
+          <button
+            onClick={openCompare}
+            disabled={compareIds.length !== 2}
+            className="text-xs px-3 py-1 rounded bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-medium"
+          >
+            {t('compare.bar_compare')}
+          </button>
+          <button
+            onClick={clearCompare}
+            className="text-xs text-slate-400 hover:text-slate-200"
+            title={t('compare.bar_clear')}
+          >✕</button>
+        </div>
+      )}
     </div>
   );
 }

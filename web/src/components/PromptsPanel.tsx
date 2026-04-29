@@ -49,6 +49,61 @@ interface PromptHitFull extends PromptHit {
   text: string;
 }
 
+// Tokenize for clustering: lower-case, keep alphanum/CJK, drop tokens shorter than 2.
+function clusterTokens(s: string): Set<string> {
+  const out = new Set<string>();
+  const matches = s.toLowerCase().match(/[a-z0-9\u4e00-\u9fff]{2,}/g) || [];
+  for (const m of matches) out.add(m);
+  return out;
+}
+
+function jaccard(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 || b.size === 0) return 0;
+  let inter = 0;
+  for (const t of a) if (b.has(t)) inter++;
+  return inter / (a.size + b.size - inter);
+}
+
+interface Cluster {
+  rep: PromptHitFull;
+  members: PromptHitFull[];
+  tokens: Set<string>;
+}
+
+// Single-pass agglomerative-style: assign each hit to its best existing
+// cluster if jaccard >= threshold, otherwise start a new one. O(n*k) where
+// k = #clusters; capped at 200 hits so worst-case 40k comparisons.
+function clusterHits(hits: PromptHitFull[], threshold = 0.45): Cluster[] {
+  const clusters: Cluster[] = [];
+  for (const h of hits) {
+    const tk = clusterTokens(h.snippet || h.text || '');
+    if (tk.size < 2) {
+      clusters.push({ rep: h, members: [h], tokens: tk });
+      continue;
+    }
+    let bestIdx = -1;
+    let bestSim = threshold;
+    for (let i = 0; i < clusters.length; i++) {
+      const sim = jaccard(tk, clusters[i].tokens);
+      if (sim >= bestSim) { bestSim = sim; bestIdx = i; }
+    }
+    if (bestIdx >= 0) {
+      clusters[bestIdx].members.push(h);
+      // Keep the rep's tokens as the centroid; cheap & deterministic.
+    } else {
+      clusters.push({ rep: h, members: [h], tokens: tk });
+    }
+  }
+  // Sort by cluster size desc, ties by recency.
+  clusters.sort((a, b) => {
+    if (b.members.length !== a.members.length) return b.members.length - a.members.length;
+    const ta = new Date(a.rep.timestamp || 0).getTime();
+    const tb = new Date(b.rep.timestamp || 0).getTime();
+    return tb - ta;
+  });
+  return clusters;
+}
+
 export function PromptsPanel({ onOpenSession }: Props) {
   const { t } = useT();
   const [q, setQ] = useState('');
@@ -58,6 +113,8 @@ export function PromptsPanel({ onOpenSession }: Props) {
   const [hits, setHits] = useState<PromptHitFull[]>([]);
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState<PromptHitFull | null>(null);
+  const [clusterOn, setClusterOn] = useState(false);
+  const [expandedClusters, setExpandedClusters] = useState<Set<number>>(new Set());
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const filters: PromptSearchFilters = useMemo(() => {
@@ -87,11 +144,19 @@ export function PromptsPanel({ onOpenSession }: Props) {
 
   const filterActive = !!(agent || repo.trim() || range);
 
+  const clusters = useMemo<Cluster[]>(() => {
+    if (!clusterOn || hits.length === 0) return [];
+    return clusterHits(hits.slice(0, 200));
+  }, [clusterOn, hits]);
+
   const header = useMemo(() => {
     if (loading) return t('prompts.loading');
+    if (clusterOn && clusters.length) {
+      return `${clusters.length} ${t('prompts.clusters')} · ${hits.length} ${t('prompts.results')}`;
+    }
     if (q.trim() || filterActive) return `${hits.length} ${t('prompts.results')}`;
     return t('prompts.recent');
-  }, [loading, hits.length, q, filterActive, t]);
+  }, [loading, hits.length, q, filterActive, t, clusterOn, clusters.length]);
 
   const selectClass =
     'bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-emerald-500/60';
@@ -163,6 +228,17 @@ export function PromptsPanel({ onOpenSession }: Props) {
               {t('prompts.filter.clear')}
             </button>
           )}
+          <button
+            onClick={() => { setClusterOn(v => !v); setExpandedClusters(new Set()); }}
+            title={t('prompts.cluster_tip')}
+            className={`text-[11px] px-2 py-1 rounded border transition-colors ${
+              clusterOn
+                ? 'bg-emerald-500/20 text-emerald-200 border-emerald-500/40'
+                : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-slate-200'
+            }`}
+          >
+            🔀 {t('prompts.cluster')}
+          </button>
           <span className="ml-auto text-[11px] uppercase tracking-wider text-slate-500">{header}</span>
         </div>
       </div>
@@ -170,6 +246,90 @@ export function PromptsPanel({ onOpenSession }: Props) {
       <div className="flex-1 overflow-y-auto">
         {hits.length === 0 && !loading ? (
           <div className="px-6 py-12 text-center text-sm text-slate-500">{t('prompts.empty')}</div>
+        ) : clusterOn ? (
+          <ul className="divide-y divide-slate-800/60">
+            {clusters.map((c, ci) => {
+              const expanded = expandedClusters.has(ci);
+              const extra = c.members.length - 1;
+              return (
+                <li key={ci} className="px-6 py-3">
+                  <div
+                    onClick={() => setModal(c.rep)}
+                    className="cursor-pointer hover:bg-slate-900/40 -mx-3 px-3 py-1 rounded"
+                  >
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span
+                        className={`px-1.5 py-0.5 rounded border text-[10px] uppercase tracking-wider ${
+                          AGENT_BADGE[c.rep.agent] ?? 'bg-slate-500/10 text-slate-300 border-slate-700'
+                        }`}
+                      >
+                        {c.rep.agent}
+                      </span>
+                      {c.rep.repo && (
+                        <span className="text-[11px] text-slate-400 truncate max-w-xs">{c.rep.repo}</span>
+                      )}
+                      {extra > 0 && (
+                        <span className="px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px]">
+                          ×{c.members.length}
+                        </span>
+                      )}
+                      <span className="ml-auto text-[11px] text-slate-500 font-mono">
+                        {relTime(c.rep.timestamp)}
+                      </span>
+                    </div>
+                    <div className="text-sm text-slate-200 leading-snug line-clamp-2">
+                      {highlight(c.rep.snippet, q.trim())}
+                    </div>
+                  </div>
+                  {extra > 0 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setExpandedClusters(prev => {
+                          const next = new Set(prev);
+                          if (next.has(ci)) next.delete(ci); else next.add(ci);
+                          return next;
+                        });
+                      }}
+                      className="mt-2 text-[11px] text-slate-500 hover:text-slate-300"
+                    >
+                      {expanded
+                        ? `▾ ${t('prompts.cluster_hide')}`
+                        : `▸ ${t('prompts.cluster_show')} (${extra})`}
+                    </button>
+                  )}
+                  {expanded && extra > 0 && (
+                    <ul className="mt-1 ml-4 border-l border-slate-800 pl-3 divide-y divide-slate-800/40">
+                      {c.members.slice(1).map((m) => (
+                        <li
+                          key={`${m.session_id}::${m.prompt_id}`}
+                          onClick={() => setModal(m)}
+                          className="py-2 cursor-pointer hover:bg-slate-900/40 -mr-3 pr-3 rounded"
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <span
+                              className={`px-1 py-0.5 rounded border text-[9px] uppercase ${
+                                AGENT_BADGE[m.agent] ?? 'bg-slate-500/10 text-slate-300 border-slate-700'
+                              }`}
+                            >
+                              {m.agent}
+                            </span>
+                            {m.repo && (
+                              <span className="text-[10px] text-slate-500 truncate max-w-xs">{m.repo}</span>
+                            )}
+                            <span className="ml-auto text-[10px] text-slate-600 font-mono">
+                              {relTime(m.timestamp)}
+                            </span>
+                          </div>
+                          <div className="text-xs text-slate-300 line-clamp-1">{m.snippet}</div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
         ) : (
           <ul className="divide-y divide-slate-800/60">
             {hits.map((h) => (
