@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { fetchSkills, fetchSkillContent, fetchSkillUsage, revealSkill, type SkillEntry, type SkillContent, type SkillUsage } from '../api';
 import { useT } from '../i18n';
 import { renderMarkdown } from '../markdown';
+import { categorize, CATEGORY_ORDER } from '../skillCategory';
 
 const SOURCE_LABELS: Record<string, string> = {
   'copilot-superpowers': 'Copilot · superpowers',
@@ -27,6 +28,8 @@ export function SkillsPanel({
   const [source, setSource] = useState<string>('all');
   const [usedOnly, setUsedOnly] = useState(false);
   const [sort, setSort] = useState<'invocations' | 'name' | 'source'>('invocations');
+  const [category, setCategory] = useState<string>('all');
+  const [groupByCategory, setGroupByCategory] = useState(true);
   const [openSkill, setOpenSkill] = useState<SkillEntry | null>(null);
   const [openContent, setOpenContent] = useState<SkillContent | null>(null);
   const [openErr, setOpenErr] = useState<string | null>(null);
@@ -76,6 +79,7 @@ export function SkillsPanel({
     const q = filter.trim().toLowerCase();
     const list = skills.filter(s => {
       if (source !== 'all' && s.source !== source) return false;
+      if (category !== 'all' && categorize(s.name) !== category) return false;
       if (usedOnly && s.invocations === 0) return false;
       if (q && !s.name.toLowerCase().includes(q) && !s.description.toLowerCase().includes(q)) return false;
       return true;
@@ -89,7 +93,36 @@ export function SkillsPanel({
       sorted.sort((a, b) => a.source.localeCompare(b.source) || a.name.localeCompare(b.name));
     }
     return sorted;
-  }, [skills, filter, source, usedOnly, sort]);
+  }, [skills, filter, source, usedOnly, sort, category]);
+
+  const categoryCounts = useMemo(() => {
+    const c: Record<string, number> = {};
+    if (skills) for (const s of skills) {
+      const k = categorize(s.name);
+      c[k] = (c[k] ?? 0) + 1;
+    }
+    return c;
+  }, [skills]);
+
+  // For grouped view, bucket the (post-sort) filtered list into ordered categories.
+  const grouped = useMemo(() => {
+    const buckets = new Map<string, SkillEntry[]>();
+    for (const s of filtered) {
+      const k = categorize(s.name);
+      if (!buckets.has(k)) buckets.set(k, []);
+      buckets.get(k)!.push(s);
+    }
+    const ordered: { name: string; items: SkillEntry[] }[] = [];
+    for (const k of CATEGORY_ORDER) {
+      const items = buckets.get(k);
+      if (items && items.length > 0) ordered.push({ name: k, items });
+    }
+    // Any unexpected categories (shouldn't happen because of 'Other' fallback) appended.
+    for (const [k, items] of buckets) {
+      if (!CATEGORY_ORDER.includes(k)) ordered.push({ name: k, items });
+    }
+    return ordered;
+  }, [filtered]);
 
   const usedCount = skills?.filter(s => s.invocations > 0).length ?? 0;
 
@@ -138,6 +171,19 @@ export function SkillsPanel({
           ))}
         </select>
         <select
+          value={category}
+          onChange={e => setCategory(e.target.value)}
+          className="bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-sm"
+          title={lang === 'zh' ? '分类' : 'Category'}
+        >
+          <option value="all">{lang === 'zh' ? '全部分类' : 'All categories'}</option>
+          {CATEGORY_ORDER.filter(k => (categoryCounts[k] ?? 0) > 0).map(k => (
+            <option key={k} value={k}>
+              {k} ({categoryCounts[k]})
+            </option>
+          ))}
+        </select>
+        <select
           value={sort}
           onChange={e => setSort(e.target.value as typeof sort)}
           className="bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-sm"
@@ -148,13 +194,17 @@ export function SkillsPanel({
           <option value="source">{lang === 'zh' ? '按来源' : 'By source'}</option>
         </select>
         <label className="flex items-center gap-1.5 text-xs text-slate-400 cursor-pointer">
+          <input type="checkbox" checked={groupByCategory} onChange={e => setGroupByCategory(e.target.checked)} />
+          {lang === 'zh' ? '按分类分组' : 'Group by category'}
+        </label>
+        <label className="flex items-center gap-1.5 text-xs text-slate-400 cursor-pointer">
           <input type="checkbox" checked={usedOnly} onChange={e => setUsedOnly(e.target.checked)} />
           {lang === 'zh' ? '仅显示被调用过的' : 'Used only'}
         </label>
       </div>
 
-      <ul className="divide-y divide-slate-800/60">
-        {filtered.map(s => (
+      {(() => {
+        const renderRow = (s: SkillEntry) => (
           <li key={`${s.source}|${s.path}`}>
             <button
               type="button"
@@ -173,6 +223,11 @@ export function SkillsPanel({
                 >
                   {SOURCE_LABELS[s.source] ?? s.source}
                 </span>
+                {!groupByCategory && (
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-800 border border-slate-700 text-slate-300">
+                    {categorize(s.name)}
+                  </span>
+                )}
                 {s.invocations > 0 && (
                   <span className="text-[11px] text-emerald-300 tabular-nums">
                     ×{fmt(s.invocations)}
@@ -189,13 +244,38 @@ export function SkillsPanel({
               )}
             </button>
           </li>
-        ))}
-        {filtered.length === 0 && (
-          <li className="px-8 py-12 text-center text-sm text-slate-600">
-            {lang === 'zh' ? '没有匹配的技能。' : 'No skills match.'}
-          </li>
-        )}
-      </ul>
+        );
+
+        if (filtered.length === 0) {
+          return (
+            <ul>
+              <li className="px-8 py-12 text-center text-sm text-slate-600">
+                {lang === 'zh' ? '没有匹配的技能。' : 'No skills match.'}
+              </li>
+            </ul>
+          );
+        }
+
+        if (!groupByCategory) {
+          return <ul className="divide-y divide-slate-800/60">{filtered.map(renderRow)}</ul>;
+        }
+
+        return (
+          <div>
+            {grouped.map(g => (
+              <section key={g.name}>
+                <header className="sticky top-0 z-10 px-8 py-1.5 bg-slate-950/95 backdrop-blur border-b border-t border-slate-800/60 flex items-baseline gap-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-300">
+                    {g.name}
+                  </span>
+                  <span className="text-[10px] text-slate-500 tabular-nums">{fmt(g.items.length)}</span>
+                </header>
+                <ul className="divide-y divide-slate-800/60">{g.items.map(renderRow)}</ul>
+              </section>
+            ))}
+          </div>
+        );
+      })()}
       {openSkill && (
         <SkillDrawer
           skill={openSkill}
