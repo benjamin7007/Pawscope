@@ -389,6 +389,16 @@ pub struct PromptSearchQuery {
     pub q: Option<String>,
     #[serde(default)]
     pub limit: Option<usize>,
+    #[serde(default)]
+    pub agent: Option<String>,
+    #[serde(default)]
+    pub repo: Option<String>,
+    /// Lower bound on prompt timestamp (RFC3339).
+    #[serde(default)]
+    pub since: Option<String>,
+    /// Upper bound on prompt timestamp (RFC3339).
+    #[serde(default)]
+    pub until: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -415,6 +425,18 @@ pub async fn prompts_search(
     }
     let limit = p.limit.unwrap_or(50).min(200);
     let needle = q.to_lowercase();
+    let agent_filter = p.agent.as_deref().map(str::to_lowercase);
+    let repo_filter = p.repo.as_deref().map(|s| s.to_lowercase());
+    let since = p
+        .since
+        .as_deref()
+        .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
+        .map(|dt| dt.with_timezone(&chrono::Utc));
+    let until = p
+        .until
+        .as_deref()
+        .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
+        .map(|dt| dt.with_timezone(&chrono::Utc));
 
     let sessions = match s.adapter.list_sessions().await {
         Ok(v) => v,
@@ -423,11 +445,38 @@ pub async fn prompts_search(
 
     let mut hits: Vec<PromptHit> = Vec::new();
     for sess in &sessions {
+        if let Some(af) = &agent_filter {
+            let ak = serde_json::to_value(sess.agent)
+                .ok()
+                .and_then(|v| v.as_str().map(str::to_string))
+                .unwrap_or_default();
+            if &ak != af {
+                continue;
+            }
+        }
+        if let Some(rf) = &repo_filter {
+            let r = sess.repo.as_deref().unwrap_or("").to_lowercase();
+            if !r.contains(rf) {
+                continue;
+            }
+        }
         let detail = match s.adapter.get_detail(&sess.id).await {
             Ok(d) => d,
             Err(_) => continue,
         };
         for prompt in &detail.prompts {
+            if let Some(t) = prompt.timestamp {
+                if let Some(s) = since {
+                    if t < s {
+                        continue;
+                    }
+                }
+                if let Some(u) = until {
+                    if t > u {
+                        continue;
+                    }
+                }
+            }
             let hay_snip = prompt.snippet.to_lowercase();
             let hay_text = prompt.text.to_lowercase();
             if !needle.is_empty() && !hay_snip.contains(&needle) && !hay_text.contains(&needle) {
