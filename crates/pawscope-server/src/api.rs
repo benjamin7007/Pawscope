@@ -590,6 +590,79 @@ pub async fn prompts_search(
     Json(hits).into_response()
 }
 
+#[derive(Debug, Serialize)]
+struct PromptLenStats {
+    total: u64,
+    mean: f64,
+    median: u64,
+    p95: u64,
+    p99: u64,
+    max: u64,
+    buckets: Vec<PromptLenBucket>,
+}
+
+#[derive(Debug, Serialize)]
+struct PromptLenBucket {
+    label: String,
+    min: u64,
+    max: u64,
+    count: u64,
+}
+
+pub async fn prompts_length(State(s): State<AppState>) -> impl IntoResponse {
+    let sessions = match s.adapter.list_sessions().await {
+        Ok(v) => v,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    };
+    let pairs = s.detail_cache.fan_out(&s.adapter, &sessions).await;
+    let mut lens: Vec<u64> = Vec::new();
+    for (_, detail) in pairs {
+        for prompt in &detail.prompts {
+            lens.push(prompt.text.chars().count() as u64);
+        }
+    }
+    if lens.is_empty() {
+        return Json(PromptLenStats {
+            total: 0, mean: 0.0, median: 0, p95: 0, p99: 0, max: 0, buckets: vec![],
+        }).into_response();
+    }
+    lens.sort_unstable();
+    let total = lens.len() as u64;
+    let sum: u64 = lens.iter().sum();
+    let mean = sum as f64 / total as f64;
+    let pct = |p: f64| -> u64 {
+        let idx = ((lens.len() as f64 - 1.0) * p).round() as usize;
+        lens[idx]
+    };
+    let median = pct(0.5);
+    let p95 = pct(0.95);
+    let p99 = pct(0.99);
+    let max_v = *lens.last().unwrap();
+    let edges: &[(&str, u64, u64)] = &[
+        ("<50", 0, 50),
+        ("50-100", 50, 100),
+        ("100-200", 100, 200),
+        ("200-500", 200, 500),
+        ("500-1k", 500, 1_000),
+        ("1k-2k", 1_000, 2_000),
+        ("2k-5k", 2_000, 5_000),
+        ("5k-10k", 5_000, 10_000),
+        ("10k+", 10_000, u64::MAX),
+    ];
+    let mut buckets: Vec<PromptLenBucket> = edges.iter().map(|(l, mn, mx)| PromptLenBucket {
+        label: (*l).to_string(), min: *mn, max: *mx, count: 0,
+    }).collect();
+    for &len in &lens {
+        for b in buckets.iter_mut() {
+            if len >= b.min && len < b.max {
+                b.count += 1;
+                break;
+            }
+        }
+    }
+    Json(PromptLenStats { total, mean, median, p95, p99, max: max_v, buckets }).into_response()
+}
+
 #[derive(Debug, Deserialize)]
 pub struct WordcloudQuery {
     #[serde(default)]

@@ -494,6 +494,50 @@ function WordCloud({ entries, onPick }: {
   );
 }
 
+function PromptLengthHist({ stats, t }: {
+  stats: { total: number; mean: number; median: number; p95: number; p99: number; max: number;
+    buckets: { label: string; min: number; max: number; count: number }[] };
+  t: (k: string) => string;
+}) {
+  const max = Math.max(1, ...stats.buckets.map(b => b.count));
+  return (
+    <div className="px-4 py-4 space-y-3">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-[11px]">
+        <Stat label="median" value={`${stats.median}`} />
+        <Stat label="mean" value={stats.mean.toFixed(0)} />
+        <Stat label="p95" value={`${stats.p95}`} />
+        <Stat label="p99" value={`${stats.p99}`} />
+        <Stat label="max" value={`${stats.max}`} />
+      </div>
+      <div className="flex items-end gap-1.5 h-32 pt-2">
+        {stats.buckets.map(b => {
+          const h = (b.count / max) * 100;
+          return (
+            <div key={b.label} className="flex-1 flex flex-col items-center gap-1 group" title={`${b.count} prompts (${b.min}-${b.max === Number.MAX_SAFE_INTEGER || b.max > 1e10 ? '∞' : b.max} chars)`}>
+              <div className="text-[10px] text-slate-500 group-hover:text-slate-300 tabular-nums">{b.count || ''}</div>
+              <div
+                className="w-full rounded-t bg-gradient-to-t from-cyan-700/60 to-cyan-400/80 hover:from-cyan-600/80 hover:to-cyan-300 transition-colors"
+                style={{ height: `${Math.max(2, h)}%` }}
+              />
+              <div className="text-[10px] text-slate-500 tabular-nums">{b.label}</div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="text-[10px] text-slate-600 text-center">{t('misc.length_chars')}</div>
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded bg-slate-800/40 border border-slate-800 px-2 py-1.5 flex flex-col">
+      <span className="text-[9px] uppercase tracking-wider text-slate-500">{label}</span>
+      <span className="text-cyan-300 tabular-nums font-medium">{value}</span>
+    </div>
+  );
+}
+
 function TokenUsageSection({
   tokensIn,
   tokensOut,
@@ -641,6 +685,10 @@ export function OverviewPanel({
   const [tokensMap, setTokensMap] = useState<Record<string, { in: number; out: number }>>({});
   const [allSkills, setAllSkills] = useState<SkillEntry[] | null>(null);
   const [wordcloud, setWordcloud] = useState<{ word: string; count: number; sessions: number }[]>([]);
+  const [promptLen, setPromptLen] = useState<{
+    total: number; mean: number; median: number; p95: number; p99: number; max: number;
+    buckets: { label: string; min: number; max: number; count: number }[];
+  } | null>(null);
   const [, forceTick] = useState(0);
   const [err, setErr] = useState<string | null>(null);
 
@@ -675,6 +723,10 @@ export function OverviewPanel({
       fetch('/api/prompts/wordcloud?top=80')
         .then(r => r.ok ? r.json() : [])
         .then(d => { if (!cancelled) setWordcloud(Array.isArray(d) ? d : []); })
+        .catch(() => {});
+      fetch('/api/prompts/length')
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (!cancelled && d) setPromptLen(d); })
         .catch(() => {});
     };
     load();
@@ -856,6 +908,16 @@ export function OverviewPanel({
               <span className="text-[11px] text-slate-500">{wordcloud.length} {t('misc.terms')}</span>
             </header>
             <WordCloud entries={wordcloud} onPick={(w) => onOpenSearch?.(w)} />
+          </section>
+        )}
+
+        {promptLen && promptLen.total > 0 && (
+          <section className="rounded-lg bg-slate-900/40 border border-slate-800">
+            <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
+              <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.prompt_length')}</h3>
+              <span className="text-[11px] text-slate-500">{promptLen.total} {t('misc.prompts')}</span>
+            </header>
+            <PromptLengthHist stats={promptLen} t={t} />
           </section>
         )}
 
