@@ -72,7 +72,7 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
     [items]
   );
 
-  const { active, byRepo, repoOrder, total } = useMemo(() => {
+  const { starred, active, byRepo, repoOrder, total } = useMemo(() => {
     const q = query.trim().toLowerCase();
     const filtered = items.filter(s => {
       if (realmFilter && sessionRealmKey(s) !== realmFilter) return false;
@@ -105,8 +105,12 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
     };
     const sorted = [...filtered].sort(cmp);
 
-    const active = sorted.filter(s => s.status === 'active');
-    const inactive = sorted.filter(s => s.status !== 'active');
+    const starred = sorted.filter(s => labels?.[s.id]?.starred);
+    const starredIds = new Set(starred.map(s => s.id));
+    const rest = sorted.filter(s => !starredIds.has(s.id));
+
+    const active = rest.filter(s => s.status === 'active');
+    const inactive = rest.filter(s => s.status !== 'active');
 
     const byRepo = new Map<string, Session[]>();
     for (const s of inactive) {
@@ -122,7 +126,7 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
       return sortMode === 'oldest' ? la.localeCompare(lb) : lb.localeCompare(la);
     });
 
-    return { active, byRepo, repoOrder, total: filtered.length };
+    return { starred, active, byRepo, repoOrder, total: filtered.length };
   }, [items, query, agentFilter, activeOnly, sortMode, realmFilter, starredOnly, tagFilter, labels, tokensMap]);
 
   const toggle = (key: string) =>
@@ -219,6 +223,15 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
     | { type: 'row'; session: Session };
 
   const flat: FlatItem[] = [];
+  if (starred.length > 0) {
+    flat.push({
+      type: 'header', key: 'starred', label: '★ Starred', count: starred.length,
+      accent: 'text-amber-300', collapsed: !!collapsed['starred'],
+    });
+    if (!collapsed['starred']) {
+      for (const s of starred) flat.push({ type: 'row', session: s });
+    }
+  }
   if (active.length > 0) {
     flat.push({
       type: 'header', key: 'active', label: 'Active', count: active.length,
