@@ -3,46 +3,38 @@
 [English](./README.md) · [简体中文](./README.zh-CN.md)
 
 [![CI](https://github.com/benjamin7007/Pawscope/actions/workflows/ci.yml/badge.svg)](https://github.com/benjamin7007/Pawscope/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/benjamin7007/Pawscope?logo=github)](https://github.com/benjamin7007/Pawscope/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.87+-orange?logo=rust&logoColor=white)](https://www.rust-lang.org)
-[![Status](https://img.shields.io/badge/status-active-success.svg)](https://github.com/benjamin7007/Pawscope)
 
-> **A local web dashboard for inspecting the runtime state of CLI agent sessions.**
-> Stop wondering what your agent is actually doing across 5 terminal windows.
+> A local web dashboard for inspecting the runtime state of CLI agent sessions.
+> Stop wondering what your agent is actually doing across five terminal windows.
 
 ![Pawscope overview](./docs/screenshot.png)
 
 <table>
 <tr>
 <td width="50%"><img src="./docs/screenshot-skills.png" alt="Skills page with category donut and grouped list"/></td>
-<td width="50%"><img src="./docs/screenshot-session.png" alt="Session detail with turn/msg stats and tool histogram"/></td>
+<td width="50%"><img src="./docs/screenshot-session.png" alt="Session detail with turn / message stats and tool histogram"/></td>
 </tr>
 <tr>
-<td align="center"><sub><b>Skills</b> · 267 local skills, grouped by 5 categories with usage donut</sub></td>
-<td align="center"><sub><b>Session detail</b> · turns, in/out messages, ranked tool histogram</sub></td>
+<td align="center"><sub><b>Skills</b> — local skills grouped by category, with a usage donut</sub></td>
+<td align="center"><sub><b>Session detail</b> — turns, in / out messages, ranked tool histogram</sub></td>
 </tr>
 </table>
 
-```
-┌─ Pawscope ──────────────────────────────────────────────────┐
-│  ● 4dac1bf8   Building feature X         master             │
-│  ○ 7c2afd91   Refactoring auth           feat/auth          │
-│  ──────────────────────────────────────────────────────────  │
-│   📁 ~/code/repo    🌿 master    🤖 claude-opus-4.7     ●   │
-│   Turns: 12     ↑ 14 / ↓ 13                                 │
-│   Tools used:   bash ×8   view ×11   edit ×3                │
-│   Skills:       brainstorming  writing-plans                │
-└──────────────────────────────────────────────────────────────┘
-```
+---
 
 ## Why
 
-When you're juggling several `copilot`, `claude`, or `codex` sessions in
-different terminals, you can't see at a glance which skills are loaded, which
-tools have run, how many turns deep each conversation is, or which sessions are
-still alive. Pawscope reads the on-disk state each CLI already produces
-(`~/.copilot/session-state/`) and renders it on a single panel that updates in
-real time.
+When you're juggling several `copilot`, `claude`, or `codex` sessions in different terminals, you can't see at a glance:
+
+- which skills are loaded
+- which tools have run
+- how many turns deep each conversation is
+- which sessions are still alive
+
+Pawscope reads the state each CLI already writes to disk (e.g. `~/.copilot/session-state/`) and renders it in a single panel that updates in real time. **Read-only. No daemon. Local-only by default.**
 
 ## Install
 
@@ -52,11 +44,11 @@ Grab the latest from [Releases](https://github.com/benjamin7007/Pawscope/release
 
 | Platform | Asset |
 |---|---|
-| macOS (Apple Silicon) | `pawscope-aarch64-apple-darwin.tar.gz` |
-| macOS (Intel) | `pawscope-x86_64-apple-darwin.tar.gz` |
-| Linux (x86_64) | `pawscope-x86_64-unknown-linux-gnu.tar.gz` |
-| Linux (aarch64) | `pawscope-aarch64-unknown-linux-gnu.tar.gz` |
-| Windows (x86_64) | `pawscope-x86_64-pc-windows-msvc.zip` |
+| macOS · Apple Silicon | `pawscope-aarch64-apple-darwin.tar.gz` |
+| macOS · Intel | `pawscope-x86_64-apple-darwin.tar.gz` |
+| Linux · x86_64 | `pawscope-x86_64-unknown-linux-gnu.tar.gz` |
+| Linux · aarch64 | `pawscope-aarch64-unknown-linux-gnu.tar.gz` |
+| Windows · x86_64 | `pawscope-x86_64-pc-windows-msvc.zip` |
 
 ```bash
 # macOS / Linux example
@@ -66,82 +58,58 @@ tar -xzf pawscope.tar.gz
 ./pawscope-aarch64-apple-darwin/pawscope serve
 ```
 
-Each archive ships with a matching `.sha256` file for verification.
+Each archive ships with a matching `.sha256` for verification.
 
 ### From source
 
 ```bash
 git clone https://github.com/benjamin7007/Pawscope.git
 cd Pawscope
-cargo install --path .       # or: cargo build --release
+cargo install --path .          # or: cargo build --release
 ```
 
 ## Quick start
 
 ```bash
-pawscope serve             # opens http://127.0.0.1:7777 in your browser
+pawscope serve                  # opens http://127.0.0.1:7777 in your browser
 ```
-
-Flags:
 
 | Flag         | Default              | Notes                            |
 |--------------|----------------------|----------------------------------|
 | `--bind`     | `127.0.0.1:7777`     | local-only by default            |
 | `--no-open`  | off                  | skip auto-launching the browser  |
 
-## How it works
+## Architecture
 
-```
-┌───────────────────────────────┐      ┌──────────────────────┐
-│ ~/.copilot/session-state/     │      │ React 19 + Tailwind4 │
-│   <uuid>/                     │      │ dashboard            │
-│     workspace.yaml   ─────┐   │      │ (embedded in binary) │
-│     events.jsonl     ─┐   │   │      └──────────▲───────────┘
-│     inuse.<PID>.lock  │   │   │                 │ WS push
-└───────────────────────┼───┼───┘                 │ + REST snapshot
-                        │   │                     │
-                        ▼   ▼                     │
-              ┌────────────────────┐              │
-              │  CopilotAdapter    │              │
-              │   ─ JSONL parser   │   debounced  │
-              │   ─ PID liveness   ├──── 200ms ───┤
-              │   ─ notify watcher │              │
-              └────────────────────┘              │
-                        │                         │
-                        └─────► axum server ──────┘
-                               (single binary)
-```
+![Pawscope architecture](./docs/architecture.png)
 
-- **Adapter trait** — `AgentAdapter` in `pawscope-core` makes V2 (Claude Code,
-  Codex) a pure addition: implement the trait, register the adapter.
-- **No daemon** — `pawscope serve` is a regular CLI process; close the
-  terminal and it's gone.
+- **Adapter trait** — `AgentAdapter` in `pawscope-core` makes V2 (Claude Code) and V3 (Codex) pure additions: implement the trait, register the adapter.
+- **Single binary** — `pawscope-server` (axum) embeds the React 19 SPA via `rust-embed` at build time; no separate static-file step at runtime.
+- **No daemon** — `pawscope serve` is a regular CLI process; close the terminal and it's gone.
 - **Local only** — binds `127.0.0.1` by default, no auth token, no telemetry.
 
 ## Roadmap
 
-| Version | Scope                                                                |
-|---------|----------------------------------------------------------------------|
-| **v0.1 (MVP-1)** | Copilot CLI sessions, real-time updates, embedded UI         |
-| **v0.2** | Claude Code adapter (`~/.claude/projects/`), multi-adapter fan-out, overview & activity heatmaps |
-| **v0.3** | Codex CLI adapter (`~/.codex/state_*.sqlite` threads table)          |
-| v0.4     | Skill marketplace + one-click install across CLIs                    |
+| Version | Scope |
+|---|---|
+| **v0.1** (released) | Copilot CLI sessions · real-time updates · embedded UI |
+| **v0.2** | Claude Code adapter (`~/.claude/projects/`) · multi-adapter fan-out · activity heatmap |
+| **v0.3** | Codex CLI adapter (`~/.codex/state_*.sqlite`) |
+| v0.4 | Skill marketplace + one-click install across CLIs |
 
-## Architecture
+## Project layout
 
-Cargo workspace with three library crates plus the `pawscope` binary:
-
-```
+```text
 crates/
-  pawscope-core/      # Adapter trait, shared types, errors
+  pawscope-core/      # AgentAdapter trait, shared types, errors
   pawscope-copilot/   # V1 backend: Copilot CLI session-state reader
+  pawscope-claude/    # V2 backend (planned)
+  pawscope-codex/     # V3 backend (planned)
   pawscope-server/    # axum REST + WebSocket + embedded SPA
-src/main.rs             # CLI entrypoint
-web/                    # React 19 + Vite + Tailwind 4 dashboard
-e2e/                    # Playwright smoke tests
+src/main.rs           # CLI entrypoint
+web/                  # React 19 + Vite + Tailwind 4 dashboard
+e2e/                  # Playwright smoke tests
 ```
-
-Test counts: 12 Rust unit/integration tests + 2 Playwright e2e tests.
 
 ## License
 
