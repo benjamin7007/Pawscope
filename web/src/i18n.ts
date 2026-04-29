@@ -259,6 +259,28 @@ const dict: Record<string, { en: string; zh: string }> = {
   // Lang
   'lang.toggle': { en: '中文', zh: 'EN' },
   'lang.toggle_title': { en: 'Switch to Chinese', zh: 'Switch to English' },
+
+  // Conversation flow
+  'tab.summary': { en: 'Summary', zh: '概览' },
+  'tab.conversation': { en: 'Conversation', zh: '对话流' },
+  'flow.empty': { en: 'No conversation events yet.', zh: '暂无对话事件。' },
+  'flow.load_error': { en: 'Failed to load conversation', zh: '加载对话失败' },
+  'flow.copilot_only': { en: 'Conversation flow is currently Copilot-only.', zh: '对话流目前仅支持 Copilot 会话。' },
+  'flow.system_prompt': { en: 'System prompt', zh: '系统提示' },
+  'flow.secret_warning': { en: '⚠ may contain secrets', zh: '⚠ 可能含敏感信息' },
+  'flow.user_human': { en: '👤 human', zh: '👤 用户' },
+  'flow.user_injected': { en: '💉 injected context', zh: '💉 注入上下文' },
+  'flow.show_transformed': { en: 'show transformed', zh: '显示拼接后' },
+  'flow.show_raw': { en: 'show raw', zh: '显示原始' },
+  'flow.raw': { en: 'Raw', zh: '原始' },
+  'flow.transformed': { en: 'Transformed (sent to LLM)', zh: '拼接后（发给模型）' },
+  'flow.assistant_turn': { en: 'Turn', zh: '回合' },
+  'flow.subagent': { en: 'Subagent', zh: '子代理' },
+  'flow.compaction': { en: 'Compaction', zh: '上下文压缩' },
+  'flow.completed_at': { en: 'Completed at', zh: '完成于' },
+  'flow.turns_short': { en: 'turns', zh: '回合' },
+  'flow.interactions_short': { en: 'interactions', zh: '次交互' },
+  'flow.compactions_short': { en: 'compactions', zh: '次压缩' },
 };
 
 function readLang(): Lang {
