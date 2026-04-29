@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import './styles.css';
 import { fetchSessions, fetchDetail, connectWs, fetchLabels, setLabel as apiSetLabel, type LabelMap } from './api';
+import { estimateCostUsd, formatUsd } from './pricing';
 import { toast } from './toast';
 import { SessionList } from './components/SessionList';
 import { SessionDetail } from './components/SessionDetail';
@@ -179,6 +180,7 @@ export default function App() {
             </g>
           </svg>
           <span className="font-semibold text-slate-100 text-base tracking-tight">Pawscope</span>
+          <TodayCostBadge sessions={sessions} tokensMap={tokensMap} t={t} />
         </div>
         <nav className="flex border-b border-slate-800">
           <button
@@ -313,5 +315,37 @@ export default function App() {
         }}
       />
     </div>
+  );
+}
+
+function TodayCostBadge({ sessions, tokensMap, t }: {
+  sessions: any[];
+  tokensMap: Record<string, { in: number; out: number }>;
+  t: (k: string) => string;
+}) {
+  const { cost, count } = useMemo(() => {
+    const now = new Date();
+    const y = now.getFullYear(), m = now.getMonth(), d = now.getDate();
+    let total = 0;
+    let n = 0;
+    for (const s of sessions) {
+      if (!s.last_event_at) continue;
+      const dt = new Date(s.last_event_at);
+      if (dt.getFullYear() !== y || dt.getMonth() !== m || dt.getDate() !== d) continue;
+      const tk = tokensMap[s.id];
+      if (!tk) continue;
+      const c = estimateCostUsd(s.model, tk.in, tk.out);
+      if (c !== null) { total += c; n += 1; }
+    }
+    return { cost: total, count: n };
+  }, [sessions, tokensMap]);
+  if (count === 0) return null;
+  return (
+    <span
+      className="ml-auto px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-mono text-emerald-300 tabular-nums"
+      title={`${count} sessions today · ${formatUsd(cost)}`}
+    >
+      {t('misc.today_cost')} · {formatUsd(cost)}
+    </span>
   );
 }

@@ -710,6 +710,20 @@ function HeartbeatHeatmap({ data, t }: {
   const flat = data.grid.flat();
   const max = Math.max(1, ...flat);
   const fmtHr = (h: number) => `${h.toString().padStart(2, '0')}:00`;
+  const peakDow = data.peak_dow;
+  const peakHr = data.peak_hour;
+  const tip = (() => {
+    const isWeekend = peakDow === 5 || peakDow === 6;
+    let timeBand: string;
+    let advice: string;
+    if (peakHr >= 5 && peakHr < 11) { timeBand = t('tip.morning'); advice = t('tip.morning_advice'); }
+    else if (peakHr >= 11 && peakHr < 14) { timeBand = t('tip.midday'); advice = t('tip.midday_advice'); }
+    else if (peakHr >= 14 && peakHr < 18) { timeBand = t('tip.afternoon'); advice = t('tip.afternoon_advice'); }
+    else if (peakHr >= 18 && peakHr < 23) { timeBand = t('tip.evening'); advice = t('tip.evening_advice'); }
+    else { timeBand = t('tip.night'); advice = t('tip.night_advice'); }
+    const wkPart = isWeekend ? t('tip.weekend') : t('tip.weekday');
+    return { band: `${wkPart} · ${timeBand}`, advice };
+  })();
   return (
     <div className="px-4 py-4 space-y-3">
       <div className="text-[11px] text-slate-400">
@@ -748,14 +762,23 @@ function HeartbeatHeatmap({ data, t }: {
           ))}
         </div>
       </div>
+      <div className="rounded-md border border-cyan-500/20 bg-cyan-500/5 px-3 py-2 text-[11px] flex items-start gap-2">
+        <span className="text-cyan-300">💡</span>
+        <div className="flex-1 leading-relaxed">
+          <span className="text-cyan-300 font-semibold">{tip.band}</span>
+          <span className="text-slate-400"> · {tip.advice}</span>
+        </div>
+      </div>
     </div>
   );
 }
 
-function DangerousTools({ data, t }: {
-  data: { entries: { name: string; severity: string; count: number; sessions: number }[]; total_calls: number; sessions_affected: number };
+function DangerousTools({ data, t, onOpenSession }: {
+  data: { entries: { name: string; severity: string; count: number; sessions: number; session_ids: string[] }[]; total_calls: number; sessions_affected: number };
   t: (k: string) => string;
+  onOpenSession?: (id: string) => void;
 }) {
+  const [expanded, setExpanded] = useState<string | null>(null);
   if (data.entries.length === 0) {
     return <div className="px-4 py-6 text-xs text-slate-600 text-center">{t('misc.no_dangerous')}</div>;
   }
@@ -770,24 +793,56 @@ function DangerousTools({ data, t }: {
         {data.total_calls} {t('misc.calls')} · {data.sessions_affected} {t('misc.sessions_affected')}
       </div>
       <ul className="divide-y divide-slate-800/60">
-        {data.entries.slice(0, 10).map(e => (
-          <li key={e.name} className="py-2 flex items-center gap-2 text-xs">
-            <span className={`px-1.5 py-0.5 rounded border text-[9px] uppercase tracking-wider font-semibold ${sevColor[e.severity] ?? sevColor.low}`}>
-              {e.severity}
-            </span>
-            <span className="font-mono text-slate-200 truncate flex-1">{e.name}</span>
-            <span className="text-slate-500 tabular-nums">{e.sessions}s</span>
-            <span className="text-slate-300 tabular-nums w-14 text-right">×{e.count}</span>
-          </li>
-        ))}
+        {data.entries.slice(0, 10).map(e => {
+          const isOpen = expanded === e.name;
+          return (
+            <li key={e.name} className="py-1">
+              <button
+                type="button"
+                onClick={() => setExpanded(isOpen ? null : e.name)}
+                className="w-full flex items-center gap-2 text-xs hover:bg-slate-800/40 rounded px-1 py-1 transition-colors"
+              >
+                <span className={`px-1.5 py-0.5 rounded border text-[9px] uppercase tracking-wider font-semibold ${sevColor[e.severity] ?? sevColor.low}`}>
+                  {e.severity}
+                </span>
+                <span className="font-mono text-slate-200 truncate flex-1 text-left">{e.name}</span>
+                <span className="text-slate-500 tabular-nums">{e.sessions}s</span>
+                <span className="text-slate-300 tabular-nums w-14 text-right">×{e.count}</span>
+                <span className="text-slate-600 text-[10px] w-3">{isOpen ? '▾' : '▸'}</span>
+              </button>
+              {isOpen && (
+                <div className="ml-8 mr-1 mb-1 mt-1 flex flex-wrap gap-1">
+                  {e.session_ids.length === 0 && (
+                    <span className="text-[10px] text-slate-600">{t('misc.no_sessions')}</span>
+                  )}
+                  {e.session_ids.map(id => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => onOpenSession?.(id)}
+                      className="px-1.5 py-0.5 rounded bg-slate-800/70 hover:bg-cyan-500/20 text-[10px] font-mono text-slate-400 hover:text-cyan-300 transition-colors"
+                      title={id}
+                    >
+                      {id.slice(0, 8)}
+                    </button>
+                  ))}
+                  {e.sessions > e.session_ids.length && (
+                    <span className="px-1.5 py-0.5 text-[10px] text-slate-600">+{e.sessions - e.session_ids.length} more</span>
+                  )}
+                </div>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
 }
 
-function HotFiles({ files, t }: {
+function HotFiles({ files, t, onClick }: {
   files: { path: string; mentions: number; sessions: number }[];
   t: (k: string) => string;
+  onClick?: (path: string) => void;
 }) {
   if (files.length === 0) {
     return <div className="px-4 py-6 text-xs text-slate-600 text-center">{t('misc.no_hot_files')}</div>;
@@ -798,12 +853,19 @@ function HotFiles({ files, t }: {
       {files.slice(0, 20).map(f => {
         const pct = (f.sessions / max) * 100;
         return (
-          <li key={f.path} className="px-4 py-1.5 flex items-center gap-2 text-xs">
-            <span className="font-mono text-slate-300 truncate flex-1" title={f.path}>{f.path}</span>
-            <div className="w-16 h-1 bg-slate-800 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-violet-500/70 to-violet-400" style={{ width: `${pct}%` }} />
-            </div>
-            <span className="text-slate-400 tabular-nums w-12 text-right">{f.sessions}s · {f.mentions}</span>
+          <li key={f.path}>
+            <button
+              type="button"
+              onClick={() => onClick?.(f.path)}
+              className="w-full px-4 py-1.5 flex items-center gap-2 text-xs hover:bg-slate-800/40 transition-colors text-left"
+              title={`${t('misc.search_for')} ${f.path}`}
+            >
+              <span className="font-mono text-slate-300 truncate flex-1">{f.path}</span>
+              <div className="w-16 h-1 bg-slate-800 rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-violet-500/70 to-violet-400" style={{ width: `${pct}%` }} />
+              </div>
+              <span className="text-slate-400 tabular-nums w-12 text-right">{f.sessions}s · {f.mentions}</span>
+            </button>
           </li>
         );
       })}
@@ -983,7 +1045,7 @@ export function OverviewPanel({
     peak_hour: number; peak_dow: number; total: number;
   } | null>(null);
   const [dangerous, setDangerous] = useState<{
-    entries: { name: string; severity: string; count: number; sessions: number }[];
+    entries: { name: string; severity: string; count: number; sessions: number; session_ids: string[] }[];
     total_calls: number; sessions_affected: number;
   } | null>(null);
   const [hotFiles, setHotFiles] = useState<{ path: string; mentions: number; sessions: number }[]>([]);
@@ -1278,7 +1340,7 @@ export function OverviewPanel({
                 <h3 className="text-xs uppercase tracking-wider text-slate-400">⚠ {t('sec.dangerous')}</h3>
                 <span className="text-[11px] text-rose-400">{dangerous.entries.filter(e => e.severity === 'high').length} {t('misc.high_risk')}</span>
               </header>
-              <DangerousTools data={dangerous} t={t} />
+              <DangerousTools data={dangerous} t={t} onOpenSession={onOpenSession} />
             </div>
           )}
           {hotFiles.length > 0 && (
@@ -1287,7 +1349,7 @@ export function OverviewPanel({
                 <h3 className="text-xs uppercase tracking-wider text-slate-400">🔥 {t('sec.hot_files')}</h3>
                 <span className="text-[11px] text-slate-500">{hotFiles.length} {t('misc.files')}</span>
               </header>
-              <HotFiles files={hotFiles} t={t} />
+              <HotFiles files={hotFiles} t={t} onClick={(p) => onOpenSearch?.(p)} />
             </div>
           )}
         </section>

@@ -964,6 +964,7 @@ struct DangerEntry {
     severity: String,
     count: u64,
     sessions: u64,
+    session_ids: Vec<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -1013,8 +1014,14 @@ pub async fn tools_dangerous(State(s): State<AppState>) -> impl IntoResponse {
             }
         }
     }
-    let mut entries: Vec<DangerEntry> = counts.into_iter().map(|(name, (count, sess, sev))| DangerEntry {
-        name, severity: sev.to_string(), count, sessions: sess.len() as u64,
+    let mut entries: Vec<DangerEntry> = counts.into_iter().map(|(name, (count, sess, sev))| {
+        let total_sess = sess.len() as u64;
+        let mut ids: Vec<String> = sess.into_iter().collect();
+        ids.sort();
+        ids.truncate(20);
+        DangerEntry {
+            name, severity: sev.to_string(), count, sessions: total_sess, session_ids: ids,
+        }
     }).collect();
     let sev_rank = |s: &str| -> u8 { match s { "high" => 0, "medium" => 1, "low" => 2, _ => 3 } };
     entries.sort_by(|a, b| sev_rank(&a.severity).cmp(&sev_rank(&b.severity)).then(b.count.cmp(&a.count)));
