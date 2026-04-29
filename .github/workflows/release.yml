@@ -1,0 +1,135 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release (e.g. v0.1.0). Leave empty for dry-run."
+        required: false
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  build:
+    name: build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            archive: tar.gz
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            archive: tar.gz
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            archive: tar.gz
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            archive: tar.gz
+            cross: true
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            archive: zip
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build web bundle
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Install cross (linux aarch64 only)
+        if: matrix.cross == true
+        run: cargo install cross --locked
+
+      - name: Build (cargo)
+        if: matrix.cross != true
+        run: cargo build --release --locked --target ${{ matrix.target }} --bin pawscope
+
+      - name: Build (cross)
+        if: matrix.cross == true
+        run: cross build --release --locked --target ${{ matrix.target }} --bin pawscope
+
+      - name: Package (unix)
+        if: matrix.archive == 'tar.gz'
+        shell: bash
+        run: |
+          set -euo pipefail
+          BIN_DIR="target/${{ matrix.target }}/release"
+          STAGE="pawscope-${{ matrix.target }}"
+          mkdir -p "$STAGE"
+          cp "$BIN_DIR/pawscope" "$STAGE/"
+          cp README.md LICENSE "$STAGE/"
+          tar -czf "$STAGE.tar.gz" "$STAGE"
+          shasum -a 256 "$STAGE.tar.gz" > "$STAGE.tar.gz.sha256"
+
+      - name: Package (windows)
+        if: matrix.archive == 'zip'
+        shell: pwsh
+        run: |
+          $stage = "pawscope-${{ matrix.target }}"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item "target/${{ matrix.target }}/release/pawscope.exe" $stage
+          Copy-Item README.md, LICENSE $stage
+          Compress-Archive -Path $stage -DestinationPath "$stage.zip"
+          $hash = (Get-FileHash "$stage.zip" -Algorithm SHA256).Hash.ToLower()
+          "$hash  $stage.zip" | Out-File -Encoding ascii "$stage.zip.sha256"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pawscope-${{ matrix.target }}
+          path: |
+            pawscope-${{ matrix.target }}.tar.gz
+            pawscope-${{ matrix.target }}.tar.gz.sha256
+            pawscope-${{ matrix.target }}.zip
+            pawscope-${{ matrix.target }}.zip.sha256
+          if-no-files-found: ignore
+
+  release:
+    name: publish release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -lah dist/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true
