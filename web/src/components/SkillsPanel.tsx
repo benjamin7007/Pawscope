@@ -3,6 +3,7 @@ import { fetchSkills, fetchSkillContent, fetchSkillUsage, revealSkill, type Skil
 import { useT } from '../i18n';
 import { renderMarkdown } from '../markdown';
 import { categorize, CATEGORY_ORDER } from '../skillCategory';
+import { CategoryDonut } from './CategoryDonut';
 
 const SOURCE_LABELS: Record<string, string> = {
   'copilot-superpowers': 'Copilot · superpowers',
@@ -158,6 +159,29 @@ export function SkillsPanel({
 
   const usedCount = skills?.filter(s => s.invocations > 0).length ?? 0;
 
+  const overviewStats = useMemo(() => {
+    if (!skills) return [];
+    const byCat: Record<string, { invocations: number; count: number; used: number }> = {};
+    for (const s of skills) {
+      // Match the source filter so the donut reflects what the user is currently scoped to.
+      if (source !== 'all' && s.source !== source) continue;
+      const c = categorize(s.name);
+      if (!byCat[c]) byCat[c] = { invocations: 0, count: 0, used: 0 };
+      byCat[c].invocations += s.invocations;
+      byCat[c].count += 1;
+      if (s.invocations > 0) byCat[c].used += 1;
+    }
+    const order = (n: string) => {
+      const i = CATEGORY_ORDER.indexOf(n);
+      return i === -1 ? 9999 : i;
+    };
+    return Object.entries(byCat)
+      .filter(([, v]) => v.invocations > 0)
+      .map(([name, v]) => ({ name, ...v }))
+      .sort((a, b) => b.invocations - a.invocations || order(a.name) - order(b.name));
+  }, [skills, source]);
+  const overviewTotal = overviewStats.reduce((a, b) => a + b.invocations, 0);
+
   if (err) return <main className="flex-1 p-8 text-rose-400 text-sm">Failed: {err}</main>;
   if (!skills) {
     return (
@@ -256,6 +280,20 @@ export function SkillsPanel({
           {lang === 'zh' ? '仅显示被调用过的' : 'Used only'}
         </label>
       </div>
+
+      {overviewStats.length > 0 && (
+        <div className="px-8 py-4 border-b border-slate-800/60">
+          <CategoryDonut
+            stats={overviewStats}
+            total={overviewTotal}
+            lang={lang}
+            fmt={fmt}
+            compact
+            selected={category === 'all' ? null : category}
+            onPick={(name: string) => setCategory(c => (c === name ? 'all' : name))}
+          />
+        </div>
+      )}
 
       {(() => {
         const renderRow = (s: SkillEntry) => (
