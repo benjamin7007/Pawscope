@@ -15,7 +15,11 @@ const SOURCE_COLORS: Record<string, string> = {
   'agents-skills': '#f59e0b',
 };
 
-export function SkillsPanel({ onOpenSession }: { onOpenSession?: (id: string) => void } = {}) {
+export function SkillsPanel({
+  onOpenSession,
+  autoOpen,
+  autoOpenNonce,
+}: { onOpenSession?: (id: string) => void; autoOpen?: string | null; autoOpenNonce?: number } = {}) {
   const [skills, setSkills] = useState<SkillEntry[] | null>(null);
   const [bySource, setBySource] = useState<Record<string, number>>({});
   const [err, setErr] = useState<string | null>(null);
@@ -57,6 +61,14 @@ export function SkillsPanel({ onOpenSession }: { onOpenSession?: (id: string) =>
       cancelled = true;
     };
   }, []);
+
+  // Auto-open a specific skill by name (used when navigating from Overview Top skills).
+  useEffect(() => {
+    if (!autoOpen || !skills) return;
+    const hit = skills.find(s => s.name === autoOpen);
+    if (hit) setOpenSkill(hit);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- nonce drives re-runs for repeat clicks
+  }, [autoOpen, autoOpenNonce, skills]);
 
   const filtered = useMemo(() => {
     if (!skills) return [];
