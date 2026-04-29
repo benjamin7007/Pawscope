@@ -602,7 +602,8 @@ const TIMELINE_COLORS = [
 ];
 
 function ToolTimeline({ calls }: { calls: { name: string; timestamp: string }[] }) {
-  const { t } = useT();
+  const { t, lang } = useT();
+  const [activeFilter, setActiveFilter] = useState<string | null>(null);
   if (!calls || calls.length === 0) {
     return (
       <section className="rounded-lg bg-slate-900/40 border border-slate-800">
@@ -619,51 +620,115 @@ function ToolTimeline({ calls }: { calls: { name: string; timestamp: string }[] 
   const max = Math.max(...times);
   const span = Math.max(max - min, 1);
   const colorMap = new Map<string, string>();
-  let colorIdx = 0;
+  const countByName = new Map<string, number>();
   for (const c of calls) {
+    countByName.set(c.name, (countByName.get(c.name) ?? 0) + 1);
     if (!colorMap.has(c.name)) {
-      colorMap.set(c.name, TIMELINE_COLORS[colorIdx % TIMELINE_COLORS.length]);
-      colorIdx++;
+      colorMap.set(c.name, TIMELINE_COLORS[colorMap.size % TIMELINE_COLORS.length]);
     }
   }
+  // Sort legend by call frequency desc
+  const sortedNames = Array.from(countByName.entries()).sort((a, b) => b[1] - a[1]);
   const totalMin = (max - min) / 60000;
   const durationLabel =
     totalMin < 1 ? `${Math.round((max - min) / 1000)}s` :
     totalMin < 60 ? `${Math.round(totalMin)}m` :
     `${(totalMin / 60).toFixed(1)}h`;
 
+  // Density bins for high-volume sessions
+  const N_BINS = 60;
+  const filtered = activeFilter ? calls.filter(c => c.name === activeFilter) : calls;
+  const bins = new Array(N_BINS).fill(0) as number[];
+  for (const c of filtered) {
+    const tt = new Date(c.timestamp).getTime();
+    const idx = Math.min(N_BINS - 1, Math.floor(((tt - min) / span) * N_BINS));
+    bins[idx]++;
+  }
+  const binMax = Math.max(1, ...bins);
+  const showDots = filtered.length <= 200;
+
+  const fmtTime = (ms: number) => new Date(ms).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+
   return (
     <section className="rounded-lg bg-slate-900/40 border border-slate-800">
       <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
         <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.tool_timeline')}</h3>
-        <span className="text-[11px] text-slate-500 tabular-nums">{calls.length} · {durationLabel}</span>
+        <span className="text-[11px] text-slate-500 tabular-nums">
+          {activeFilter ? `${filtered.length} / ${calls.length}` : calls.length} · {durationLabel}
+          {activeFilter && (
+            <button
+              type="button"
+              onClick={() => setActiveFilter(null)}
+              className="ml-2 px-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
+            >×</button>
+          )}
+        </span>
       </header>
       <div className="p-4">
-        <div className="relative h-10 bg-slate-950/60 rounded border border-slate-800/80">
-          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-px bg-slate-800/80" />
-          {calls.map((c, i) => {
-            const t = new Date(c.timestamp).getTime();
-            const pct = ((t - min) / span) * 100;
-            const color = colorMap.get(c.name) ?? '#94a3b8';
+        {/* Density histogram */}
+        <div className="relative h-12 flex items-end gap-px bg-slate-950/60 rounded border border-slate-800/80 px-1 pb-1">
+          {bins.map((v, i) => {
+            const h = (v / binMax) * 100;
             return (
               <div
                 key={i}
-                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-2 h-2 rounded-full transition-transform hover:scale-150"
-                style={{ left: `${pct}%`, background: color, boxShadow: `0 0 0 1.5px rgba(15,23,42,1)` }}
-                title={`${c.name} · ${new Date(c.timestamp).toLocaleString()}`}
+                className="flex-1 bg-emerald-500/60 hover:bg-emerald-400 transition-colors rounded-sm"
+                style={{ height: `${h}%`, minHeight: v > 0 ? '2px' : '0' }}
+                title={`${fmtTime(min + (i / N_BINS) * span)} — ${fmtTime(min + ((i + 1) / N_BINS) * span)}: ${v}`}
               />
             );
           })}
         </div>
-        <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1.5">
-          {Array.from(colorMap.entries()).slice(0, 12).map(([name, color]) => (
-            <div key={name} className="flex items-center gap-1.5 text-[11px] text-slate-300">
-              <span className="w-2 h-2 rounded-full" style={{ background: color }} />
-              <span className="font-mono">{name}</span>
-            </div>
-          ))}
-          {colorMap.size > 12 && (
-            <span className="text-[11px] text-slate-500">+{colorMap.size - 12}</span>
+        {/* Dot strip — only when ≤200 calls (avoids visual mush) */}
+        {showDots && (
+          <div className="relative h-6 mt-2 bg-slate-950/40 rounded border border-slate-800/60">
+            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-px bg-slate-800/80" />
+            {filtered.map((c, i) => {
+              const tt = new Date(c.timestamp).getTime();
+              const pct = ((tt - min) / span) * 100;
+              const color = colorMap.get(c.name) ?? '#94a3b8';
+              return (
+                <div
+                  key={i}
+                  className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-2 h-2 rounded-full transition-transform hover:scale-150"
+                  style={{ left: `${pct}%`, background: color, boxShadow: `0 0 0 1.5px rgba(15,23,42,1)` }}
+                  title={`${c.name} · ${new Date(c.timestamp).toLocaleString()}`}
+                />
+              );
+            })}
+          </div>
+        )}
+        {/* Time axis labels */}
+        <div className="mt-1 flex justify-between text-[10px] text-slate-500 tabular-nums">
+          <span>{fmtTime(min)}</span>
+          <span>{fmtTime(min + span / 2)}</span>
+          <span>{fmtTime(max)}</span>
+        </div>
+        {/* Clickable legend (sorted by frequency) */}
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {sortedNames.slice(0, 16).map(([name, n]) => {
+            const color = colorMap.get(name) ?? '#94a3b8';
+            const isActive = activeFilter === name;
+            return (
+              <button
+                key={name}
+                type="button"
+                onClick={() => setActiveFilter(isActive ? null : name)}
+                className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded text-[11px] border transition-colors ${
+                  isActive
+                    ? 'bg-slate-800 border-slate-600 text-slate-100'
+                    : 'border-transparent hover:bg-slate-800/60 text-slate-300'
+                }`}
+                title={lang === 'zh' ? '点击仅看这个工具' : 'Click to filter to this tool'}
+              >
+                <span className="w-2 h-2 rounded-full" style={{ background: color }} />
+                <span className="font-mono">{name}</span>
+                <span className="text-slate-500 tabular-nums">×{n}</span>
+              </button>
+            );
+          })}
+          {sortedNames.length > 16 && (
+            <span className="text-[11px] text-slate-500 self-center">+{sortedNames.length - 16}</span>
           )}
         </div>
       </div>
