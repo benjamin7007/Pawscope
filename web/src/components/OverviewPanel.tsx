@@ -1,6 +1,18 @@
 import { useEffect, useState } from 'react';
 import { fetchOverview, fetchActivity, fetchActivityGrid } from '../api';
 
+type Subagent = {
+  session_id: string;
+  id: string;
+  turns: number;
+  tool_calls: number;
+  agent_type: string | null;
+  description: string | null;
+  started_at: string | null;
+  ended_at: string | null;
+  active: boolean;
+};
+
 type Overview = {
   total_sessions: number;
   active_sessions: number;
@@ -11,6 +23,9 @@ type Overview = {
   total_assistant_messages: number;
   tools_used: Record<string, number>;
   skills_invoked: Record<string, number>;
+  subagent_count?: number;
+  subagent_active?: number;
+  top_subagents?: Subagent[];
 };
 
 function HeroStat({ label, value, accent }: { label: string; value: React.ReactNode; accent?: string }) {
@@ -234,6 +249,46 @@ export function OverviewPanel() {
             <BarList entries={skills.slice(0, 12)} max={skillsMax} color="bg-gradient-to-r from-sky-500/70 to-sky-400" />
           </div>
         </section>
+
+        {data.top_subagents && data.top_subagents.length > 0 && (
+          <section className="rounded-lg bg-slate-900/40 border border-slate-800">
+            <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
+              <h3 className="text-xs uppercase tracking-wider text-slate-400">Top subagents</h3>
+              <span className="text-[11px] text-slate-500">
+                {data.subagent_count ?? 0} total{data.subagent_active ? ` · ${data.subagent_active} active` : ''}
+              </span>
+            </header>
+            <ul className="divide-y divide-slate-800/60">
+              {data.top_subagents.map(sa => (
+                <li key={`${sa.session_id}-${sa.id}`} className="px-4 py-2.5 flex items-center gap-3 text-sm">
+                  <span
+                    className={`w-2 h-2 rounded-full flex-shrink-0 ${sa.active ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`}
+                    title={sa.active ? 'active' : 'idle'}
+                  />
+                  {sa.agent_type && (
+                    <span className="px-1.5 py-0.5 rounded bg-indigo-500/15 border border-indigo-500/30 text-[10px] font-medium text-indigo-300 flex-shrink-0">
+                      {sa.agent_type}
+                    </span>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="text-slate-200 truncate" title={sa.description || sa.id}>
+                      {sa.description || <span className="font-mono text-[11px] text-slate-400">{sa.id}</span>}
+                    </div>
+                    <div className="font-mono text-[10px] text-slate-600 mt-0.5 truncate">
+                      {sa.session_id.slice(0, 8)} · {sa.id}
+                    </div>
+                  </div>
+                  <span className="text-slate-400 tabular-nums text-xs flex-shrink-0">
+                    <span className="text-slate-500">turns</span> {sa.turns}
+                  </span>
+                  <span className="text-slate-400 tabular-nums text-xs flex-shrink-0">
+                    <span className="text-slate-500">tools</span> {sa.tool_calls}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="rounded-lg bg-slate-900/40 border border-slate-800">
