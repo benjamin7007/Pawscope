@@ -107,7 +107,10 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
     };
     const sorted = [...filtered].sort(cmp);
 
-    const starred = sorted.filter(s => labels?.[s.id]?.starred);
+    // When the Live filter is on, do NOT pull starred sessions into a separate
+    // group — otherwise starred-active sessions become invisible (they would
+    // sit in the Starred bucket while the Active bucket is empty).
+    const starred = activeOnly ? [] : sorted.filter(s => labels?.[s.id]?.starred);
     const starredIds = new Set(starred.map(s => s.id));
     const rest = sorted.filter(s => !starredIds.has(s.id));
 
