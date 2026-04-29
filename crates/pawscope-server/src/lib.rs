@@ -45,6 +45,8 @@ pub fn build_app(adapter: Arc<dyn AgentAdapter>) -> (Router, AppState) {
         .route("/api/prompts/search", get(api::prompts_search))
         .route("/api/prompts/wordcloud", get(api::prompts_wordcloud))
         .route("/api/prompts/length", get(api::prompts_length))
+        .route("/api/prompts/techstack", get(api::techstack))
+        .route("/api/activity/weekly", get(api::activity_weekly))
         .route("/api/tools/trend", get(api::tools_trend))
         .route("/api/tools/bucket", get(api::tools_bucket))
         .route("/api/labels", get(api::list_labels))

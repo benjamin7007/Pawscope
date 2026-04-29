@@ -663,6 +663,196 @@ pub async fn prompts_length(State(s): State<AppState>) -> impl IntoResponse {
     Json(PromptLenStats { total, mean, median, p95, p99, max: max_v, buckets }).into_response()
 }
 
+#[derive(Debug, Serialize)]
+struct TechEntry {
+    key: String,
+    label: String,
+    icon: String,
+    hits: u64,
+    sessions: u64,
+}
+
+#[derive(Debug, Serialize)]
+struct TechStackStats {
+    total_sessions: u64,
+    sessions_with_tech: u64,
+    entries: Vec<TechEntry>,
+    per_session: HashMap<String, Vec<String>>,
+}
+
+fn tech_patterns() -> &'static [(&'static str, &'static str, &'static str, &'static [&'static str])] {
+    &[
+        ("rust",       "Rust",       "🦀", &["rust", "cargo", "rustc", "clippy", "tokio", "serde", "axum", "actix"]),
+        ("python",     "Python",     "🐍", &["python", "pip ", "pip3", "django", "flask", "fastapi", "pandas", "numpy", "pytorch", ".py"]),
+        ("typescript", "TypeScript", "🔷", &["typescript", "tsconfig", " tsc ", ".ts", ".tsx"]),
+        ("javascript", "JavaScript", "🟨", &["javascript", "node.js", " npm ", "yarn", "pnpm", ".js", ".jsx"]),
+        ("react",      "React",      "⚛️", &["react", "jsx", "tsx", "useState", "useEffect", "next.js", "vite"]),
+        ("vue",        "Vue",        "💚", &["vue.js", "vuejs", "nuxt"]),
+        ("go",         "Go",         "🐹", &["golang", " go ", " go.mod", "goroutine", ".go "]),
+        ("java",       "Java",       "☕", &["java ", "maven", "gradle", "spring", "kotlin"]),
+        ("swift",      "Swift",      "🦅", &["swift", "swiftui", "xcode", ".swift"]),
+        ("ruby",       "Ruby",       "💎", &["ruby", "rails", "gemfile"]),
+        ("php",        "PHP",        "🐘", &["php ", "laravel", "composer", ".php"]),
+        ("cpp",        "C/C++",      "⚙️", &["c++", "cpp", "cmake", " gcc ", " clang "]),
+        ("csharp",     "C#",         "🎯", &["c#", "csharp", ".net ", "dotnet", ".cs "]),
+        ("docker",     "Docker",     "🐳", &["docker", "dockerfile", "compose.yml", "compose.yaml"]),
+        ("k8s",        "Kubernetes", "☸️", &["kubernetes", "k8s", "kubectl", "helm"]),
+        ("postgres",   "Postgres",   "🐘", &["postgres", "postgresql", "psql"]),
+        ("mysql",      "MySQL",      "🐬", &["mysql", "mariadb"]),
+        ("sqlite",     "SQLite",     "📦", &["sqlite", ".db "]),
+        ("mongo",      "MongoDB",    "🍃", &["mongodb", "mongo "]),
+        ("redis",      "Redis",      "🔴", &["redis", "valkey"]),
+        ("aws",        "AWS",        "☁️", &["aws ", "amazon web", " s3 ", "ec2", "lambda"]),
+        ("git",        "Git",        "🔧", &["git ", "github", "gitlab", "merge request", "pull request"]),
+        ("tailwind",   "Tailwind",   "💨", &["tailwind", "tailwindcss"]),
+        ("nginx",      "Nginx",      "🟢", &["nginx"]),
+        ("graphql",    "GraphQL",    "🔺", &["graphql", "apollo"]),
+        ("terraform",  "Terraform",  "🌍", &["terraform", "hcl"]),
+    ]
+}
+
+pub async fn techstack(State(s): State<AppState>) -> impl IntoResponse {
+    let sessions = match s.adapter.list_sessions().await {
+        Ok(v) => v,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    };
+    let total_sessions = sessions.len() as u64;
+    let pairs = s.detail_cache.fan_out(&s.adapter, &sessions).await;
+    let pats = tech_patterns();
+    let mut hits: HashMap<&'static str, u64> = HashMap::new();
+    let mut sess_count: HashMap<&'static str, u64> = HashMap::new();
+    let mut per_session: HashMap<String, Vec<String>> = HashMap::new();
+    let mut sessions_with_tech: u64 = 0;
+    for (meta, detail) in pairs {
+        let mut blob = String::new();
+        for p in &detail.prompts {
+            blob.push_str(&p.text.to_lowercase());
+            blob.push(' ');
+        }
+        if blob.is_empty() {
+            continue;
+        }
+        let mut local: Vec<&'static str> = Vec::new();
+        for (key, _label, _icon, kws) in pats {
+            let mut h = 0u64;
+            for k in *kws {
+                let mut idx = 0;
+                while let Some(pos) = blob[idx..].find(k) {
+                    h += 1;
+                    idx += pos + k.len();
+                }
+            }
+            if h > 0 {
+                *hits.entry(*key).or_insert(0) += h;
+                local.push(*key);
+            }
+        }
+        if !local.is_empty() {
+            sessions_with_tech += 1;
+            for k in &local {
+                *sess_count.entry(*k).or_insert(0) += 1;
+            }
+            per_session.insert(meta.id.clone(), local.iter().map(|s| s.to_string()).collect());
+        }
+    }
+    let mut entries: Vec<TechEntry> = pats.iter().filter_map(|(key, label, icon, _)| {
+        let h = *hits.get(key).unwrap_or(&0);
+        if h == 0 { return None; }
+        Some(TechEntry {
+            key: key.to_string(),
+            label: label.to_string(),
+            icon: icon.to_string(),
+            hits: h,
+            sessions: *sess_count.get(key).unwrap_or(&0),
+        })
+    }).collect();
+    entries.sort_by(|a, b| b.sessions.cmp(&a.sessions).then(b.hits.cmp(&a.hits)));
+    Json(TechStackStats { total_sessions, sessions_with_tech, entries, per_session }).into_response()
+}
+
+#[derive(Debug, Deserialize)]
+pub struct WeeklyQuery {
+    #[serde(default)]
+    pub weeks: Option<usize>,
+}
+
+#[derive(Debug, Serialize)]
+struct WeeklySeries {
+    label: String,
+    days: Vec<u64>,
+}
+
+#[derive(Debug, Serialize)]
+struct WeeklyTrend {
+    weeks: Vec<WeeklySeries>,
+    total_this_week: u64,
+    total_last_week: u64,
+    delta_pct: f64,
+}
+
+pub async fn activity_weekly(
+    State(s): State<AppState>,
+    Query(q): Query<WeeklyQuery>,
+) -> impl IntoResponse {
+    use chrono::{Datelike, Duration, Local, NaiveDate, Weekday};
+    let n = q.weeks.unwrap_or(2).clamp(2, 8);
+    let sessions = match s.adapter.list_sessions().await {
+        Ok(v) => v,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    };
+    let pairs = s.detail_cache.fan_out(&s.adapter, &sessions).await;
+    let mut events: Vec<NaiveDate> = Vec::new();
+    for (_, d) in pairs {
+        for p in &d.prompts {
+            if let Some(t) = p.timestamp {
+                events.push(t.with_timezone(&Local).date_naive());
+            }
+        }
+    }
+    let today = Local::now().date_naive();
+    let days_from_mon = today.weekday().num_days_from_monday() as i64;
+    let this_monday = today - Duration::days(days_from_mon);
+    let mut weeks: Vec<WeeklySeries> = Vec::new();
+    let mut totals: Vec<u64> = Vec::new();
+    for w in 0..n {
+        let start = this_monday - Duration::weeks(w as i64);
+        let mut days = vec![0u64; 7];
+        for ev in &events {
+            let diff = (*ev - start).num_days();
+            if (0..7).contains(&diff) {
+                days[diff as usize] += 1;
+            }
+        }
+        let label = if w == 0 {
+            "this".to_string()
+        } else if w == 1 {
+            "last".to_string()
+        } else {
+            format!("-{}w", w)
+        };
+        let total: u64 = days.iter().sum();
+        totals.push(total);
+        weeks.push(WeeklySeries { label, days });
+        let _ = Weekday::Mon;
+    }
+    let total_this = *totals.first().unwrap_or(&0);
+    let total_last = *totals.get(1).unwrap_or(&0);
+    let delta_pct = if total_last > 0 {
+        ((total_this as f64 - total_last as f64) / total_last as f64) * 100.0
+    } else if total_this > 0 {
+        100.0
+    } else {
+        0.0
+    };
+    Json(WeeklyTrend {
+        weeks,
+        total_this_week: total_this,
+        total_last_week: total_last,
+        delta_pct,
+    })
+    .into_response()
+}
+
 #[derive(Debug, Deserialize)]
 pub struct WordcloudQuery {
     #[serde(default)]
