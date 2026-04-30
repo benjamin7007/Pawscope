@@ -117,6 +117,12 @@ curl -fsSL https://raw.githubusercontent.com/benjamin7007/Pawscope/master/instal
 
 自动识别平台、抓最新 release、校验 SHA-256，把二进制放到 `~/.local/bin`（或 `/usr/local/bin`，若可写）。环境变量：`PAWSCOPE_VERSION=v1.0.0` 锁版本，`PAWSCOPE_PREFIX=/opt/bin` 改安装目录。
 
+卸载：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/benjamin7007/Pawscope/master/uninstall.sh | bash
+```
+
 ### 预编译二进制
 
 从 [Releases](https://github.com/benjamin7007/Pawscope/releases/latest) 抓最新版：
