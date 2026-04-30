@@ -101,4 +101,32 @@ case ":$PATH:" in
 esac
 
 "$prefix/pawscope" --version || true
-info "Done. Run: pawscope serve"
+info "Installed."
+
+# --- auto-start (background) ---
+if pgrep -f 'pawscope serve' >/dev/null 2>&1; then
+  info "An existing 'pawscope serve' is already running — leaving it alone."
+else
+  log_file="${TMPDIR:-/tmp}/pawscope.log"
+  nohup "$prefix/pawscope" serve --no-open >"$log_file" 2>&1 &
+  pid=$!
+  disown 2>/dev/null || true
+  # wait up to 10s for the server to come up
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    if curl -fsS -o /dev/null --max-time 1 http://127.0.0.1:7777/; then
+      break
+    fi
+    sleep 1
+  done
+  if curl -fsS -o /dev/null --max-time 1 http://127.0.0.1:7777/; then
+    info "Server is up: http://127.0.0.1:7777  (pid $pid, log $log_file)"
+    if command -v open >/dev/null 2>&1; then
+      open "http://127.0.0.1:7777" >/dev/null 2>&1 || true
+    elif command -v xdg-open >/dev/null 2>&1; then
+      xdg-open "http://127.0.0.1:7777" >/dev/null 2>&1 || true
+    fi
+    info "To stop: kill $pid"
+  else
+    info "Could not auto-start. Run manually: pawscope serve   (log: $log_file)"
+  fi
+fi
