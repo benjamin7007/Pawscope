@@ -104,27 +104,41 @@ esac
 info "Installed."
 
 # --- auto-start (background) ---
-if pgrep -f 'pawscope serve' >/dev/null 2>&1; then
-  info "An existing 'pawscope serve' is already running — leaving it alone."
+url="http://127.0.0.1:7777"
+open_browser() {
+  if command -v open >/dev/null 2>&1; then
+    open "$url" >/dev/null 2>&1 || true
+  elif command -v xdg-open >/dev/null 2>&1; then
+    xdg-open "$url" >/dev/null 2>&1 || true
+  fi
+}
+
+# Is something already serving on 7777?
+already_up=0
+if curl -fsS -o /dev/null --max-time 1 "$url"; then
+  already_up=1
+fi
+
+if [ "$already_up" = "1" ]; then
+  info "Server already responding at $url — opening browser."
+  open_browser
+elif pgrep -f 'pawscope serve' >/dev/null 2>&1; then
+  info "An existing 'pawscope serve' is running but not on :7777 — leaving it alone."
+  info "If you want the dashboard, stop it first or run: pawscope serve"
 else
   log_file="${TMPDIR:-/tmp}/pawscope.log"
   nohup "$prefix/pawscope" serve --no-open >"$log_file" 2>&1 &
   pid=$!
   disown 2>/dev/null || true
-  # wait up to 10s for the server to come up
   for _ in 1 2 3 4 5 6 7 8 9 10; do
-    if curl -fsS -o /dev/null --max-time 1 http://127.0.0.1:7777/; then
+    if curl -fsS -o /dev/null --max-time 1 "$url"; then
       break
     fi
     sleep 1
   done
-  if curl -fsS -o /dev/null --max-time 1 http://127.0.0.1:7777/; then
-    info "Server is up: http://127.0.0.1:7777  (pid $pid, log $log_file)"
-    if command -v open >/dev/null 2>&1; then
-      open "http://127.0.0.1:7777" >/dev/null 2>&1 || true
-    elif command -v xdg-open >/dev/null 2>&1; then
-      xdg-open "http://127.0.0.1:7777" >/dev/null 2>&1 || true
-    fi
+  if curl -fsS -o /dev/null --max-time 1 "$url"; then
+    info "Server is up: $url  (pid $pid, log $log_file)"
+    open_browser
     info "To stop: kill $pid"
   else
     info "Could not auto-start. Run manually: pawscope serve   (log: $log_file)"
