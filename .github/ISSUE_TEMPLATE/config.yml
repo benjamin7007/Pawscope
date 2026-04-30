@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Question / discussion
+    url: https://github.com/benjamin7007/Pawscope/discussions
+    about: For "how do I..." questions, ideas you're not sure about yet, or general chat — please open a Discussion instead of an Issue.
+  - name: 🔒 Security disclosure
+    url: https://github.com/benjamin7007/Pawscope/security/advisories/new
+    about: Please report security issues privately via GitHub Security Advisories rather than a public Issue.

@@ -1,0 +1,80 @@
+name: 🐛 Bug report
+description: Something isn't working — sessions don't show, the dashboard crashes, parsing breaks, etc.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing! A few notes before you start:
+        - Pawscope only **reads** local CLI session files. If a session doesn't appear, it's almost always a parser issue — please attach a sample (with secrets redacted).
+        - For security issues, please email instead of opening a public issue.
+
+  - type: input
+    id: version
+    attributes:
+      label: Pawscope version
+      description: Output of `pawscope --version`
+      placeholder: "pawscope 1.0.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: OS
+      options:
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Linux x86_64
+        - Linux aarch64
+        - Windows x86_64
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: agent
+    attributes:
+      label: Which CLI agent's sessions are affected?
+      multiple: true
+      options:
+        - Claude Code
+        - GitHub Copilot CLI
+        - Codex CLI
+        - All / not agent-specific
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what did you see instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Run `pawscope serve`
+        2. Open http://127.0.0.1:7777
+        3. Click "..."
+        4. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Paste the terminal output of `pawscope serve` (or `RUST_LOG=debug pawscope serve`). Redact any paths/secrets.
+      render: shell
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Screenshots, sample session JSONL (redacted), browser console errors, etc.
