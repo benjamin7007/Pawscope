@@ -109,7 +109,15 @@ One click exports a Markdown digest for the last 24h or 7d — activity, cost, h
 
 ## Install
 
-### Pre-built binaries (recommended)
+### One-line install (macOS · Linux)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/benjamin7007/Pawscope/master/install.sh | bash
+```
+
+Detects your platform, downloads the latest release, verifies SHA-256, drops the binary into `~/.local/bin` (or `/usr/local/bin` if writable). Pin a version with `PAWSCOPE_VERSION=v1.0.0`, change the prefix with `PAWSCOPE_PREFIX=/opt/bin`.
+
+### Pre-built binaries
 
 Grab the latest from [Releases](https://github.com/benjamin7007/Pawscope/releases/latest):
 
