@@ -117,6 +117,12 @@ curl -fsSL https://raw.githubusercontent.com/benjamin7007/Pawscope/master/instal
 
 Detects your platform, downloads the latest release, verifies SHA-256, drops the binary into `~/.local/bin` (or `/usr/local/bin` if writable). Pin a version with `PAWSCOPE_VERSION=v1.0.0`, change the prefix with `PAWSCOPE_PREFIX=/opt/bin`.
 
+To remove it later:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/benjamin7007/Pawscope/master/uninstall.sh | bash
+```
+
 ### Pre-built binaries
 
 Grab the latest from [Releases](https://github.com/benjamin7007/Pawscope/releases/latest):
