@@ -35,6 +35,10 @@ const dict: Record<string, { en: string; zh: string }> = {
   'config.no_instructions': { en: 'No copilot-instructions.md found.\nCreate one at ~/.copilot/copilot-instructions.md to configure your agent persona.', zh: '未找到 copilot-instructions.md。\n在 ~/.copilot/copilot-instructions.md 创建此文件以配置你的 agent 人设。' },
   'config.settings_title': { en: 'Settings', zh: '设置' },
   'config.no_plugins': { en: 'No plugins installed', zh: '未安装插件' },
+  'config.agents_title': { en: '🤖 Agents', zh: '🤖 智能体' },
+  'config.agents_search': { en: 'Search agents…', zh: '搜索智能体…' },
+  'config.no_agents': { en: 'No agents found', zh: '未找到智能体' },
+  'config.agents_no_match': { en: 'No agents match your search', zh: '没有匹配的智能体' },
 
   // Prompts search
   'prompts.title': { en: 'Search prompts', zh: '搜索用户提示' },

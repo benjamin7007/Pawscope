@@ -121,12 +121,18 @@ export interface CopilotPlugin {
   version: string;
   marketplace: string;
 }
+export interface AgentEntry {
+  name: string;
+  description: string;
+  source: string;
+}
 export interface CopilotConfig {
   instructions: string | null;
   model: string | null;
   effort_level: string | null;
   plugins: CopilotPlugin[];
   skills_count: number;
+  agents: AgentEntry[];
 }
 export async function fetchCopilotConfig(): Promise<CopilotConfig> {
   const r = await fetch('/api/config/copilot');
