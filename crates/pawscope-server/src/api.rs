@@ -1536,6 +1536,13 @@ pub struct CopilotPlugin {
     pub marketplace: String,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct AgentEntry {
+    pub name: String,
+    pub description: String,
+    pub source: String,
+}
+
 #[derive(Debug, Serialize)]
 pub struct CopilotConfigResponse {
     pub instructions: Option<String>,
@@ -1543,6 +1550,7 @@ pub struct CopilotConfigResponse {
     pub effort_level: Option<String>,
     pub plugins: Vec<CopilotPlugin>,
     pub skills_count: usize,
+    pub agents: Vec<AgentEntry>,
 }
 
 pub async fn copilot_config(State(_state): State<AppState>) -> impl IntoResponse {
@@ -1595,12 +1603,23 @@ pub async fn copilot_config(State(_state): State<AppState>) -> impl IntoResponse
     let skills_dir = copilot_dir.join("installed-plugins");
     let skills_count = count_skills_recursive(&skills_dir, 4);
 
+    // Scan agents from ~/.copilot/agents/ and installed plugins
+    let mut agents = scan_agents_dir(&copilot_dir.join("agents"), "user");
+    let plugin_agents_dir = copilot_dir
+        .join("installed-plugins")
+        .join("superpowers-marketplace")
+        .join("superpowers")
+        .join("agents");
+    agents.extend(scan_agents_dir(&plugin_agents_dir, "superpowers"));
+    agents.sort_by(|a, b| a.name.cmp(&b.name));
+
     Json(CopilotConfigResponse {
         instructions,
         model,
         effort_level,
         plugins,
         skills_count,
+        agents,
     })
     .into_response()
 }
@@ -1614,7 +1633,6 @@ fn count_skills_recursive(dir: &PathBuf, max_depth: usize) -> usize {
         for entry in entries.flatten() {
             let path = entry.path();
             if path.is_dir() {
-                // Check if this directory contains a skill file (SKILL.md or similar)
                 let has_skill = path.join("SKILL.md").is_file()
                     || path.join("skill.md").is_file()
                     || path.join("index.md").is_file();
@@ -1626,4 +1644,84 @@ fn count_skills_recursive(dir: &PathBuf, max_depth: usize) -> usize {
         }
     }
     count
+}
+
+/// Scan a directory for `*.agent.md` or `*.md` agent definition files.
+/// Extracts `name` and `description` from YAML frontmatter.
+fn scan_agents_dir(dir: &std::path::Path, source: &str) -> Vec<AgentEntry> {
+    let mut agents = Vec::new();
+    let entries = match std::fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(_) => return agents,
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let name_str = entry.file_name().to_string_lossy().to_string();
+        if !name_str.ends_with(".md") {
+            continue;
+        }
+        let content = match std::fs::read_to_string(&path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+        // Parse YAML frontmatter between --- lines
+        if !content.starts_with("---") {
+            continue;
+        }
+        let rest = &content[3..];
+        let end = match rest.find("\n---") {
+            Some(i) => i,
+            None => continue,
+        };
+        let frontmatter = &rest[..end];
+        let mut name = None;
+        let mut description = None;
+        for line in frontmatter.lines() {
+            if let Some(v) = line.strip_prefix("name:") {
+                name = Some(v.trim().trim_matches('"').to_string());
+            } else if let Some(v) = line.strip_prefix("description:") {
+                let v = v.trim();
+                if v.starts_with('|') {
+                    // Multi-line YAML — take next lines until a non-indented line
+                    let after_pipe = &frontmatter[line.as_ptr() as usize - frontmatter.as_ptr() as usize + line.len()..];
+                    let desc_lines: Vec<&str> = after_pipe
+                        .lines()
+                        .take_while(|l| l.starts_with(' ') || l.starts_with('\t') || l.is_empty())
+                        .collect();
+                    description = Some(
+                        desc_lines
+                            .iter()
+                            .map(|l| l.trim())
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                            .trim()
+                            .to_string(),
+                    );
+                } else {
+                    description = Some(v.trim_matches('"').to_string());
+                }
+            }
+        }
+        // Truncate long descriptions to first sentence
+        let desc = description.unwrap_or_default();
+        let short_desc = desc
+            .split_once(". ")
+            .or_else(|| desc.split_once("。"))
+            .map(|(s, _)| format!("{}.", s.trim_end_matches('.')))
+            .unwrap_or_else(|| {
+                if desc.len() > 200 {
+                    format!("{}…", &desc[..200])
+                } else {
+                    desc
+                }
+            });
+        if let Some(n) = name {
+            agents.push(AgentEntry {
+                name: n,
+                description: short_desc,
+                source: source.to_string(),
+            });
+        }
+    }
+    agents
 }
