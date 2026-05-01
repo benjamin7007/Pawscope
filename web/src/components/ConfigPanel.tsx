@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchCopilotConfig, type CopilotConfig } from '../api';
+import { fetchCopilotConfig, fetchSkills, type CopilotConfig, type SkillEntry } from '../api';
 import { useT } from '../i18n';
 import { renderMarkdown } from '../markdown';
 
@@ -9,6 +9,9 @@ export function ConfigPanel({ onOpenSkills }: { onOpenSkills?: () => void }) {
   const [err, setErr] = useState<string | null>(null);
   const [agentSearch, setAgentSearch] = useState('');
   const [expandedAgent, setExpandedAgent] = useState<string | null>(null);
+  const [skillsOpen, setSkillsOpen] = useState(false);
+  const [skills, setSkills] = useState<SkillEntry[] | null>(null);
+  const [skillsLoading, setSkillsLoading] = useState(false);
 
   useEffect(() => {
     fetchCopilotConfig()
@@ -84,22 +87,83 @@ export function ConfigPanel({ onOpenSkills }: { onOpenSkills?: () => void }) {
           </div>
           <div>
             <span className="text-slate-500">{t('config.skills_count')}</span>
-            <p className="mt-0.5">
-              {onOpenSkills ? (
-                <button
-                  type="button"
-                  onClick={onOpenSkills}
-                  className="text-emerald-400 hover:text-emerald-300 text-xs font-mono underline underline-offset-2"
-                >
-                  {config.skills_count}
-                </button>
-              ) : (
-                <span className="text-slate-200 font-mono text-xs">{config.skills_count}</span>
-              )}
+            <p className="mt-0.5 relative">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!skillsOpen && !skills) {
+                    setSkillsLoading(true);
+                    fetchSkills()
+                      .then(r => setSkills(r.skills))
+                      .catch(() => setSkills([]))
+                      .finally(() => setSkillsLoading(false));
+                  }
+                  setSkillsOpen(!skillsOpen);
+                }}
+                className="text-emerald-400 hover:text-emerald-300 text-xs font-mono underline underline-offset-2"
+              >
+                {config.skills_count} {skillsOpen ? '▼' : '▶'}
+              </button>
             </p>
           </div>
         </div>
       </section>
+
+      {/* Skills detail panel (lazy-loaded on click) */}
+      {skillsOpen && (
+        <section className="mx-8 mb-6 rounded-lg border border-slate-800 bg-slate-900/40 p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-slate-200">
+              {t('config.skills_detail_title')}
+            </h2>
+            {onOpenSkills && (
+              <button
+                type="button"
+                onClick={onOpenSkills}
+                className="text-[10px] text-emerald-400 hover:text-emerald-300 underline"
+              >
+                {t('config.skills_open_full')}
+              </button>
+            )}
+          </div>
+          {skillsLoading ? (
+            <div className="animate-pulse space-y-2">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-6 bg-slate-800/50 rounded w-3/4" />
+              ))}
+            </div>
+          ) : skills && skills.length > 0 ? (
+            <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
+              {skills.map(s => (
+                <div
+                  key={s.name}
+                  className="flex items-start gap-3 px-3 py-2 rounded bg-slate-800/40"
+                >
+                  <span className="text-violet-400 text-[10px] mt-1 flex-shrink-0">◆</span>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono text-slate-200">{s.name}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-700/50 text-slate-500">
+                        {s.source}
+                      </span>
+                      {s.invocations > 0 && (
+                        <span className="text-[10px] text-amber-400/70">×{s.invocations}</span>
+                      )}
+                    </div>
+                    {s.description && (
+                      <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed line-clamp-2">
+                        {s.description}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-slate-500 text-sm">{t('config.no_skills')}</p>
+          )}
+        </section>
+      )}
 
       {/* Agents section */}
       <section className="mx-8 mb-6 rounded-lg border border-slate-800 bg-slate-900/40 p-5">
