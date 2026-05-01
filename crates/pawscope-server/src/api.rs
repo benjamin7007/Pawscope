@@ -1600,9 +1600,17 @@ pub async fn copilot_config(State(_state): State<AppState>) -> impl IntoResponse
         Err(_) => (None, None, Vec::new()),
     };
 
-    // Count skills from copilot source by scanning the installed-plugins dir
-    let skills_dir = copilot_dir.join("installed-plugins");
-    let skills_count = count_skills_recursive(&skills_dir, 4);
+    // Count all skills (same sources as /api/skills)
+    let home_str = home.to_string_lossy().to_string();
+    let skill_sources: Vec<PathBuf> = vec![
+        PathBuf::from(format!("{home_str}/.copilot/installed-plugins")),
+        PathBuf::from(format!("{home_str}/.claude/skills")),
+        PathBuf::from(format!("{home_str}/.agents/skills")),
+    ];
+    let skills_count: usize = skill_sources
+        .iter()
+        .map(|d| count_skills_recursive(d, 4))
+        .sum();
 
     // Scan agents from ~/.copilot/agents/ and installed plugins
     let mut agents = scan_agents_dir(&copilot_dir.join("agents"), "user");
