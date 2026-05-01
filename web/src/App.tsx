@@ -10,6 +10,7 @@ import { RealmPanel } from './components/RealmPanel';
 import { SkillsPanel } from './components/SkillsPanel';
 import { PromptsPanel } from './components/PromptsPanel';
 import { CompareView } from './components/CompareView';
+import { ConfigPanel } from './components/ConfigPanel';
 import { SidebarResizer } from './components/SidebarResizer';
 import { ProgressBar } from './components/ProgressBar';
 import { ToastContainer } from './components/ToastContainer';
@@ -21,7 +22,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { LivePin } from './components/LivePin';
 import { useT } from './i18n';
 
-type View = 'overview' | 'session' | 'realm' | 'skills' | 'prompts' | 'compare';
+type View = 'overview' | 'session' | 'realm' | 'skills' | 'prompts' | 'compare' | 'config';
 
 interface ViewSnapshot {
   view: View;
@@ -178,6 +179,8 @@ export default function App() {
     crumbs.push({ label: t('crumbs.prompts') });
   } else if (view === 'compare') {
     crumbs.push({ label: t('crumbs.compare') });
+  } else if (view === 'config') {
+    crumbs.push({ label: t('crumbs.config') });
   }
 
   return (
@@ -248,6 +251,16 @@ export default function App() {
           >
             {t('nav.prompts')}
           </button>
+          <button
+            onClick={() => navigate({ view: 'config' })}
+            className={`flex-1 px-2 py-2.5 text-xs font-medium whitespace-nowrap transition-colors ${
+              view === 'config'
+                ? 'bg-slate-800/80 text-slate-100 border-b-2 border-emerald-400'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
+            }`}
+          >
+            {t('nav.config')}
+          </button>
           <div className="px-2 flex items-center gap-1 border-l border-slate-800">
             <button
               type="button"
@@ -314,6 +327,10 @@ export default function App() {
           ) : view === 'prompts' ? (
             <ErrorBoundary scope="Prompts">
               <PromptsPanel onOpenSession={selectSession} />
+            </ErrorBoundary>
+          ) : view === 'config' ? (
+            <ErrorBoundary scope="Config">
+              <ConfigPanel onOpenSkills={() => navigate({ view: 'skills' })} />
             </ErrorBoundary>
           ) : view === 'compare' && compareIds.length === 2 ? (
             <ErrorBoundary scope="Compare">

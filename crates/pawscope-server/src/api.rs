@@ -8,6 +8,7 @@ use axum::{
 use pawscope_core::SessionStatus;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 pub async fn list_sessions(State(s): State<AppState>) -> impl IntoResponse {
     match s.adapter.list_sessions().await {
@@ -1524,4 +1525,105 @@ pub async fn set_label(
         Ok(()) => Json(normalized).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
+}
+
+// ── Copilot configuration ──────────────────────────────────────────────
+
+#[derive(Debug, Serialize)]
+pub struct CopilotPlugin {
+    pub name: String,
+    pub version: String,
+    pub marketplace: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CopilotConfigResponse {
+    pub instructions: Option<String>,
+    pub model: Option<String>,
+    pub effort_level: Option<String>,
+    pub plugins: Vec<CopilotPlugin>,
+    pub skills_count: usize,
+}
+
+pub async fn copilot_config(State(_state): State<AppState>) -> impl IntoResponse {
+    let home = match dirs::home_dir() {
+        Some(h) => h,
+        None => return (StatusCode::INTERNAL_SERVER_ERROR, "cannot resolve home dir").into_response(),
+    };
+
+    let copilot_dir = home.join(".copilot");
+
+    // Read copilot-instructions.md
+    let instructions_path = copilot_dir.join("copilot-instructions.md");
+    let instructions = std::fs::read_to_string(&instructions_path).ok();
+
+    // Read settings.json
+    let settings_path = copilot_dir.join("settings.json");
+    let (model, effort_level, plugins) = match std::fs::read_to_string(&settings_path) {
+        Ok(raw) => {
+            let v: serde_json::Value = serde_json::from_str(&raw).unwrap_or_default();
+            let model = v.get("model").and_then(|m| m.as_str()).map(String::from);
+            let effort_level = v.get("effortLevel").and_then(|e| e.as_str()).map(String::from);
+            let plugins = v
+                .get("installedPlugins")
+                .and_then(|p| p.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|p| {
+                            let name = p.get("name")?.as_str()?.to_string();
+                            let version = p
+                                .get("version")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("unknown")
+                                .to_string();
+                            let marketplace = p
+                                .get("marketplace")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string();
+                            Some(CopilotPlugin { name, version, marketplace })
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            (model, effort_level, plugins)
+        }
+        Err(_) => (None, None, Vec::new()),
+    };
+
+    // Count skills from copilot source by scanning the installed-plugins dir
+    let skills_dir = copilot_dir.join("installed-plugins");
+    let skills_count = count_skills_recursive(&skills_dir, 4);
+
+    Json(CopilotConfigResponse {
+        instructions,
+        model,
+        effort_level,
+        plugins,
+        skills_count,
+    })
+    .into_response()
+}
+
+fn count_skills_recursive(dir: &PathBuf, max_depth: usize) -> usize {
+    if max_depth == 0 || !dir.is_dir() {
+        return 0;
+    }
+    let mut count = 0;
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                // Check if this directory contains a skill file (SKILL.md or similar)
+                let has_skill = path.join("SKILL.md").is_file()
+                    || path.join("skill.md").is_file()
+                    || path.join("index.md").is_file();
+                if has_skill {
+                    count += 1;
+                }
+                count += count_skills_recursive(&path, max_depth - 1);
+            }
+        }
+    }
+    count
 }
