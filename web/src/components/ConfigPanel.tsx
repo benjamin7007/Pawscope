@@ -8,6 +8,7 @@ export function ConfigPanel({ onOpenSkills }: { onOpenSkills?: () => void }) {
   const [config, setConfig] = useState<CopilotConfig | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [agentSearch, setAgentSearch] = useState('');
+  const [expandedAgent, setExpandedAgent] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCopilotConfig()
@@ -121,25 +122,41 @@ export function ConfigPanel({ onOpenSkills }: { onOpenSkills?: () => void }) {
           <p className="text-slate-500 text-sm">{t('config.no_agents')}</p>
         ) : (
           <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
-            {filteredAgents.map(a => (
-              <div
-                key={a.name}
-                className="flex items-start gap-3 px-3 py-2 rounded bg-slate-800/40 hover:bg-slate-800/70 transition-colors"
-              >
-                <span className="text-emerald-400 text-[10px] mt-1 flex-shrink-0">●</span>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono text-slate-200">{a.name}</span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-700/50 text-slate-500">
-                      {a.source}
-                    </span>
+            {filteredAgents.map(a => {
+              const isExpanded = expandedAgent === a.name;
+              const hasMore = a.full_description !== a.description;
+              return (
+                <button
+                  type="button"
+                  key={a.name}
+                  onClick={() => setExpandedAgent(isExpanded ? null : a.name)}
+                  className={`w-full text-left flex items-start gap-3 px-3 py-2 rounded transition-colors ${
+                    isExpanded ? 'bg-slate-800/70 ring-1 ring-emerald-500/30' : 'bg-slate-800/40 hover:bg-slate-800/70'
+                  }`}
+                >
+                  <span className={`text-[10px] mt-1 flex-shrink-0 transition-transform ${isExpanded ? 'text-emerald-300' : 'text-emerald-400'}`}>
+                    {hasMore ? (isExpanded ? '▼' : '▶') : '●'}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono text-slate-200">{a.name}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-700/50 text-slate-500">
+                        {a.source}
+                      </span>
+                    </div>
+                    {isExpanded ? (
+                      <p className="text-[11px] text-slate-300 mt-1 leading-relaxed whitespace-pre-line">
+                        {a.full_description}
+                      </p>
+                    ) : (
+                      <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed line-clamp-2">
+                        {a.description}
+                      </p>
+                    )}
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed line-clamp-2">
-                    {a.description}
-                  </p>
-                </div>
-              </div>
-            ))}
+                </button>
+              );
+            })}
             {agentSearch && filteredAgents.length === 0 && (
               <p className="text-slate-500 text-xs text-center py-4">{t('config.agents_no_match')}</p>
             )}
