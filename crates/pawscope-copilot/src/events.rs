@@ -128,8 +128,9 @@ pub fn parse_incremental(path: &Path, state: &mut ParseState) -> anyhow::Result<
                 }
             }
             "user.message" => {
-                state.detail.user_messages += 1;
                 let content = ev.data.get("content").and_then(|v| v.as_str()).unwrap_or("");
+                let kind = classify_user_message(content);
+                let is_human = kind == UserMessageKind::Human;
                 let transformed = ev
                     .data
                     .get("transformedContent")
@@ -141,19 +142,25 @@ pub fn parse_incremental(path: &Path, state: &mut ParseState) -> anyhow::Result<
                     .map(|s| s.to_string())
                     .unwrap_or_else(|| format!("p{}", state.detail.prompts.len()));
 
-                // Maintain the legacy prompts list (used elsewhere).
-                if !state.detail.prompts.iter().any(|p| p.id == interaction_id) {
-                    let snippet: String = content.chars().take(120).collect();
-                    state.detail.prompts.push(pawscope_core::PromptSummary {
-                        id: interaction_id.clone(),
-                        timestamp: ts,
-                        snippet,
-                        text: content.to_string(),
-                    });
+                // Only count genuine human messages in stats and prompts.
+                // Injected context (skill-context, system-reminder, etc.)
+                // is system-generated and should not appear as user prompts.
+                if is_human {
+                    state.detail.user_messages += 1;
+                    if !state.detail.prompts.iter().any(|p| p.id == interaction_id) {
+                        let snippet: String = content.chars().take(120).collect();
+                        state.detail.prompts.push(pawscope_core::PromptSummary {
+                            id: interaction_id.clone(),
+                            timestamp: ts,
+                            snippet,
+                            text: content.to_string(),
+                        });
+                    }
                 }
 
+                // Always create conversation interactions (including injected
+                // context) so the conversation flow stays correctly threaded.
                 if let Some(at) = ts {
-                    let kind = classify_user_message(content);
                     state.conversation.interactions.push(Interaction {
                         interaction_id: interaction_id.clone(),
                         started_at: at,
@@ -662,6 +669,65 @@ mod tests {
         let mut s = ParseState::default();
         parse_incremental(&p, &mut s).unwrap();
         assert_eq!(s.detail.user_messages, 2);
+    }
+
+    #[test]
+    fn injected_context_excluded_from_prompts_and_count() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("events.jsonl");
+        let mut f = std::fs::File::create(&p).unwrap();
+        let ts = "2026-01-01T00:00:00Z";
+
+        // Human message
+        writeln!(
+            f,
+            r#"{{"type":"user.message","timestamp":"{ts}","data":{{"content":"hello world","interactionId":"id-1"}}}}"#
+        )
+        .unwrap();
+        // Injected skill-context (same interactionId)
+        writeln!(
+            f,
+            r#"{{"type":"user.message","timestamp":"{ts}","data":{{"content":"<skill-context name=\"foo\">bar</skill-context>","interactionId":"id-1"}}}}"#
+        )
+        .unwrap();
+        // Another injected context (different interactionId, no human message)
+        writeln!(
+            f,
+            r#"{{"type":"user.message","timestamp":"{ts}","data":{{"content":"<skill-context name=\"baz\">qux</skill-context>","interactionId":"id-2"}}}}"#
+        )
+        .unwrap();
+        // Second human message
+        writeln!(
+            f,
+            r#"{{"type":"user.message","timestamp":"{ts}","data":{{"content":"second prompt","interactionId":"id-3"}}}}"#
+        )
+        .unwrap();
+        // Assistant turn attached after injected context (should still work)
+        writeln!(
+            f,
+            r#"{{"type":"assistant.turn_start","timestamp":"{ts}","data":{{"turnId":"t1"}}}}"#
+        )
+        .unwrap();
+        writeln!(
+            f,
+            r#"{{"type":"assistant.message","timestamp":"{ts}","data":{{"content":"hi"}}}}"#
+        )
+        .unwrap();
+        writeln!(f, r#"{{"type":"assistant.turn_end","timestamp":"{ts}"}}"#).unwrap();
+
+        let mut s = ParseState::default();
+        parse_incremental(&p, &mut s).unwrap();
+
+        // Only human messages are counted
+        assert_eq!(s.detail.user_messages, 2);
+        // Only human prompts appear (no skill-context)
+        assert_eq!(s.detail.prompts.len(), 2);
+        assert_eq!(s.detail.prompts[0].text, "hello world");
+        assert_eq!(s.detail.prompts[1].text, "second prompt");
+        // Conversation log still has all interactions (including injected)
+        assert_eq!(s.conversation.interactions.len(), 4);
+        // Assistant turn is still attached correctly
+        assert_eq!(s.detail.turns, 1);
     }
 
     #[test]
