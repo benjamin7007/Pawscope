@@ -124,6 +124,7 @@ export interface CopilotPlugin {
 export interface AgentEntry {
   name: string;
   description: string;
+  full_description: string;
   source: string;
 }
 export interface CopilotConfig {

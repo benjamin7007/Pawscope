@@ -1540,6 +1540,7 @@ pub struct CopilotPlugin {
 pub struct AgentEntry {
     pub name: String,
     pub description: String,
+    pub full_description: String,
     pub source: String,
 }
 
@@ -1702,7 +1703,7 @@ fn scan_agents_dir(dir: &std::path::Path, source: &str) -> Vec<AgentEntry> {
                 }
             }
         }
-        // Truncate long descriptions to first sentence
+        // Truncate long descriptions to first sentence for summary
         let desc = description.unwrap_or_default();
         let short_desc = desc
             .split_once(". ")
@@ -1712,13 +1713,14 @@ fn scan_agents_dir(dir: &std::path::Path, source: &str) -> Vec<AgentEntry> {
                 if desc.len() > 200 {
                     format!("{}…", &desc[..200])
                 } else {
-                    desc
+                    desc.clone()
                 }
             });
         if let Some(n) = name {
             agents.push(AgentEntry {
                 name: n,
                 description: short_desc,
+                full_description: desc,
                 source: source.to_string(),
             });
         }
