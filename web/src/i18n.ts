@@ -39,6 +39,9 @@ const dict: Record<string, { en: string; zh: string }> = {
   'config.agents_search': { en: 'Search agents…', zh: '搜索智能体…' },
   'config.no_agents': { en: 'No agents found', zh: '未找到智能体' },
   'config.agents_no_match': { en: 'No agents match your search', zh: '没有匹配的智能体' },
+  'config.skills_detail_title': { en: '🧩 Skills Detail', zh: '🧩 技能详情' },
+  'config.skills_open_full': { en: 'Open Skills tab →', zh: '打开技能页 →' },
+  'config.no_skills': { en: 'No skills found', zh: '未找到技能' },
 
   // Prompts search
   'prompts.title': { en: 'Search prompts', zh: '搜索用户提示' },
