@@ -12,6 +12,7 @@ const dict: Record<string, { en: string; zh: string }> = {
   'nav.session': { en: '⌖ Session', zh: '⌖ 会话' },
   'nav.skills': { en: '🛠 Skills', zh: '🛠 技能' },
   'nav.prompts': { en: '⌕ Prompts', zh: '⌕ 提示' },
+  'nav.config': { en: '⚙ Config', zh: '⚙ 配置' },
 
   // Breadcrumbs
   'crumbs.back': { en: 'Back', zh: '后退' },
@@ -22,6 +23,18 @@ const dict: Record<string, { en: string; zh: string }> = {
   'crumbs.prompts': { en: 'Prompts', zh: '提示' },
   'crumbs.realm': { en: 'Realm', zh: '领地' },
   'crumbs.compare': { en: 'Compare', zh: '对比' },
+  'crumbs.config': { en: 'Config', zh: '配置' },
+
+  // Config page
+  'config.title': { en: '⚙ Copilot Configuration', zh: '⚙ Copilot 配置' },
+  'config.model': { en: 'Model', zh: '模型' },
+  'config.effort': { en: 'Effort Level', zh: '努力等级' },
+  'config.plugins': { en: 'Plugins', zh: '插件' },
+  'config.skills_count': { en: 'Skills', zh: '技能' },
+  'config.instructions_title': { en: '📝 Custom Instructions', zh: '📝 人设配置' },
+  'config.no_instructions': { en: 'No copilot-instructions.md found.\nCreate one at ~/.copilot/copilot-instructions.md to configure your agent persona.', zh: '未找到 copilot-instructions.md。\n在 ~/.copilot/copilot-instructions.md 创建此文件以配置你的 agent 人设。' },
+  'config.settings_title': { en: 'Settings', zh: '设置' },
+  'config.no_plugins': { en: 'No plugins installed', zh: '未安装插件' },
 
   // Prompts search
   'prompts.title': { en: 'Search prompts', zh: '搜索用户提示' },

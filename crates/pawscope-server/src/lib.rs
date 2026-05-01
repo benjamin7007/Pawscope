@@ -64,6 +64,7 @@ pub fn build_app(adapter: Arc<dyn AgentAdapter>) -> (Router, AppState) {
         .route("/api/skills/usage", get(skills::skill_usage))
         .route("/api/skills/reveal", post(skills::skill_reveal))
         .route("/api/sessions/{id}/skills", get(skills::session_skills))
+        .route("/api/config/copilot", get(api::copilot_config))
         .route("/api/events", get(sse::sse_handler))
         .route("/ws", get(ws::ws_handler))
         .fallback(assets::static_handler)
@@ -131,5 +132,26 @@ mod tests {
             .await
             .unwrap();
         assert!(body.is_array());
+    }
+
+    #[tokio::test]
+    async fn copilot_config_returns_valid_json() {
+        let (router, _) = build_app(Arc::new(MockAdapter));
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            axum::serve(listener, router).await.unwrap();
+        });
+        let resp = reqwest::get(format!("http://{}/api/config/copilot", addr))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), 200);
+        let body: serde_json::Value = resp.json().await.unwrap();
+        assert!(body.is_object());
+        assert!(body.get("plugins").unwrap().is_array());
+        assert!(body.get("skills_count").unwrap().is_number());
+        // instructions, model, effort_level may be null or string
+        let instr = body.get("instructions").unwrap();
+        assert!(instr.is_null() || instr.is_string());
     }
 }

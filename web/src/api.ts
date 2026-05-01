@@ -116,6 +116,24 @@ export function connectWs(onEvent: (ev: any) => void): WebSocket {
   return ws;
 }
 
+export interface CopilotPlugin {
+  name: string;
+  version: string;
+  marketplace: string;
+}
+export interface CopilotConfig {
+  instructions: string | null;
+  model: string | null;
+  effort_level: string | null;
+  plugins: CopilotPlugin[];
+  skills_count: number;
+}
+export async function fetchCopilotConfig(): Promise<CopilotConfig> {
+  const r = await fetch('/api/config/copilot');
+  if (!r.ok) throw new Error(`config fetch ${r.status}`);
+  return r.json();
+}
+
 export interface ToolTrendSeries {
   name: string;
   counts: number[];
