@@ -193,6 +193,8 @@ pub async fn overview(State(s): State<AppState>) -> impl IntoResponse {
     // Index 0 = 6 days ago; index 6 = today (in local Utc).
     let mut tokens_daily7_in: [u64; 7] = [0; 7];
     let mut tokens_daily7_out: [u64; 7] = [0; 7];
+    let mut tokens_daily30_in: [u64; 30] = [0; 30];
+    let mut tokens_daily30_out: [u64; 30] = [0; 30];
     let today_utc = chrono::Utc::now().date_naive();
 
     let mut handles = Vec::with_capacity(sessions.len());
@@ -225,6 +227,11 @@ pub async fn overview(State(s): State<AppState>) -> impl IntoResponse {
                         let idx = (6 - days_ago) as usize;
                         tokens_daily7_in[idx] += d.tokens_in;
                         tokens_daily7_out[idx] += d.tokens_out;
+                    }
+                    if (0..30).contains(&days_ago) {
+                        let idx = (29 - days_ago) as usize;
+                        tokens_daily30_in[idx] += d.tokens_in;
+                        tokens_daily30_out[idx] += d.tokens_out;
                     }
                 }
             }
@@ -332,6 +339,8 @@ pub async fn overview(State(s): State<AppState>) -> impl IntoResponse {
         "tokens_by_agent": tokens_by_agent_json,
         "tokens_daily7_in": tokens_daily7_in,
         "tokens_daily7_out": tokens_daily7_out,
+        "tokens_daily30_in": tokens_daily30_in,
+        "tokens_daily30_out": tokens_daily30_out,
         "tools_used": tools_used,
         "skills_invoked": skills_invoked,
         "subagent_count": subagent_count,
