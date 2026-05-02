@@ -23,6 +23,7 @@ export function StorePanel({ onOpenSkills: _onOpenSkills }: Props) {
   const [expandedSkill, setExpandedSkill] = useState<string | null>(null);
   const [skillContent, setSkillContent] = useState<Record<string, string>>({});
   const [filterMode, setFilterMode] = useState<'all' | 'installed' | 'not_installed'>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
   useEffect(() => {
     setLoading(true);
@@ -38,10 +39,11 @@ export function StorePanel({ onOpenSkills: _onOpenSkills }: Props) {
     return catalog.skills.filter(s => {
       if (filterMode === 'installed' && !s.installed) return false;
       if (filterMode === 'not_installed' && s.installed) return false;
+      if (categoryFilter !== 'all' && s.category !== categoryFilter) return false;
       if (!q) return true;
       return s.name.includes(q) || s.description.toLowerCase().includes(q);
     });
-  }, [catalog, query, filterMode]);
+  }, [catalog, query, filterMode, categoryFilter]);
 
   const installedCount = catalog?.skills.filter(s => s.installed).length ?? 0;
 
@@ -208,6 +210,35 @@ export function StorePanel({ onOpenSkills: _onOpenSkills }: Props) {
         )}
       </div>
 
+      {/* Category filter */}
+      {catalog && catalog.categories.length > 0 && (
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+          <button
+            onClick={() => setCategoryFilter('all')}
+            className={`px-2.5 py-1 text-[11px] rounded border whitespace-nowrap transition-colors flex-shrink-0 ${
+              categoryFilter === 'all'
+                ? 'bg-slate-700 border-slate-600 text-slate-100'
+                : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300'
+            }`}
+          >
+            {t('store.filter_all')} ({catalog.total})
+          </button>
+          {catalog.categories.map(cat => (
+            <button
+              key={cat.name}
+              onClick={() => setCategoryFilter(cat.name)}
+              className={`px-2.5 py-1 text-[11px] rounded border whitespace-nowrap transition-colors flex-shrink-0 ${
+                categoryFilter === cat.name
+                  ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300'
+                  : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              {cat.name} ({cat.count})
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {filtered.map(skill => (
@@ -224,6 +255,9 @@ export function StorePanel({ onOpenSkills: _onOpenSkills }: Props) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-semibold text-slate-100 truncate">{skill.name}</h3>
+                  <span className="px-1.5 py-0.5 text-[10px] rounded bg-slate-800 text-slate-400 whitespace-nowrap">
+                    {skill.category}
+                  </span>
                   {skill.installed && (
                     <span className="px-1.5 py-0.5 text-[10px] rounded bg-emerald-500/20 text-emerald-300">
                       {t('store.installed')}
