@@ -124,11 +124,17 @@ export interface StoreSkill {
   name: string;
   description: string;
   assets: string[];
+  category: string;
   installed: boolean;
+}
+export interface CategoryCount {
+  name: string;
+  count: number;
 }
 export interface StoreCatalog {
   skills: StoreSkill[];
   total: number;
+  categories: CategoryCount[];
   source: string;
   last_updated: string | null;
   commit_sha: string | null;

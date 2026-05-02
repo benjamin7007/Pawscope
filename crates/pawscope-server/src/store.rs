@@ -19,6 +19,7 @@ pub struct StoreSkill {
     pub name: String,
     pub description: String,
     pub assets: Vec<String>,
+    pub category: String,
     pub installed: bool,
 }
 
@@ -26,9 +27,16 @@ pub struct StoreSkill {
 pub struct StoreCatalog {
     pub skills: Vec<StoreSkill>,
     pub total: usize,
+    pub categories: Vec<CategoryCount>,
     pub source: String,
     pub last_updated: Option<String>,
     pub commit_sha: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CategoryCount {
+    pub name: String,
+    pub count: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -71,6 +79,7 @@ struct SkillEntry {
     name: String,
     description: String,
     assets: Vec<String>,
+    category: String,
 }
 
 static CATALOG_CACHE: OnceLock<RwLock<Option<CachedCatalog>>> = OnceLock::new();
@@ -127,6 +136,98 @@ fn http_client() -> &'static reqwest::Client {
 // Parsing
 // ---------------------------------------------------------------------------
 
+fn infer_category(desc: &str) -> &'static str {
+    let d = desc.to_lowercase();
+    if ["security", "owasp", "vulnerability", "threat", "supply chain", "audit"]
+        .iter()
+        .any(|k| d.contains(k))
+    {
+        "🔒 Security"
+    } else if ["test", "tdd", "coverage", "spec", "eval", "benchmark"]
+        .iter()
+        .any(|k| d.contains(k))
+    {
+        "🧪 Testing"
+    } else if [
+        "docker",
+        "kubernetes",
+        "ci/cd",
+        "pipeline",
+        "deploy",
+        "devops",
+        "infrastructure",
+        "terraform",
+    ]
+    .iter()
+    .any(|k| d.contains(k))
+    {
+        "🚀 DevOps"
+    } else if [
+        "react", "vue", "angular", "css", "frontend", "ui", "ux", "html", "tailwind", "next.js",
+    ]
+    .iter()
+    .any(|k| d.contains(k))
+    {
+        "🎨 Frontend"
+    } else if ["api", "rest", "graphql", "backend", "server", "database", "sql"]
+        .iter()
+        .any(|k| d.contains(k))
+    {
+        "⚙️ Backend"
+    } else if [
+        "documentation",
+        "readme",
+        "docs",
+        "comment",
+        "changelog",
+        "document",
+    ]
+    .iter()
+    .any(|k| d.contains(k))
+    {
+        "📝 Documentation"
+    } else if ["agent", "ai", "llm", "prompt", "copilot", "model"]
+        .iter()
+        .any(|k| d.contains(k))
+    {
+        "🤖 AI & Agents"
+    } else if [
+        "codebase",
+        "refactor",
+        "code review",
+        "code quality",
+        "lint",
+        "clean code",
+    ]
+    .iter()
+    .any(|k| d.contains(k))
+    {
+        "🔧 Code Quality"
+    } else if ["azure", "aws", "gcp", "cloud"]
+        .iter()
+        .any(|k| d.contains(k))
+    {
+        "☁️ Cloud"
+    } else if ["git", "github", "pull request", "branch", "commit"]
+        .iter()
+        .any(|k| d.contains(k))
+    {
+        "🔀 Git & GitHub"
+    } else if ["mobile", "ios", "android", "flutter", "react native", "swift", "kotlin"]
+        .iter()
+        .any(|k| d.contains(k))
+    {
+        "📱 Mobile"
+    } else if ["data", "analytics", "visualization"]
+        .iter()
+        .any(|k| d.contains(k))
+    {
+        "📊 Data"
+    } else {
+        "📦 Other"
+    }
+}
+
 fn parse_skills_index(md: &str) -> Vec<SkillEntry> {
     let mut skills = Vec::new();
     let re = Regex::new(
@@ -149,8 +250,9 @@ fn parse_skills_index(md: &str) -> Vec<SkillEntry> {
             };
             skills.push(SkillEntry {
                 name,
-                description: desc,
+                description: desc.clone(),
                 assets,
+                category: infer_category(&desc).to_string(),
             });
         }
     }
@@ -176,6 +278,43 @@ fn validate_skill_name(name: &str) -> bool {
     re.is_match(name) && !name.contains("..")
 }
 
+fn build_catalog_response(
+    entries: &[SkillEntry],
+    fetched_at: &str,
+    commit_sha: &Option<String>,
+) -> StoreCatalog {
+    let skills: Vec<StoreSkill> = entries
+        .iter()
+        .map(|e| StoreSkill {
+            name: e.name.clone(),
+            description: e.description.clone(),
+            assets: e.assets.clone(),
+            category: e.category.clone(),
+            installed: is_installed(&e.name),
+        })
+        .collect();
+    let total = skills.len();
+
+    let mut cat_map = std::collections::HashMap::<String, usize>::new();
+    for s in &skills {
+        *cat_map.entry(s.category.clone()).or_default() += 1;
+    }
+    let mut categories: Vec<CategoryCount> = cat_map
+        .into_iter()
+        .map(|(name, count)| CategoryCount { name, count })
+        .collect();
+    categories.sort_by(|a, b| b.count.cmp(&a.count));
+
+    StoreCatalog {
+        skills,
+        total,
+        categories,
+        source: "github/awesome-copilot".into(),
+        last_updated: Some(fetched_at.to_string()),
+        commit_sha: commit_sha.clone(),
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Handlers
 // ---------------------------------------------------------------------------
@@ -187,24 +326,11 @@ pub async fn store_catalog(State(_s): State<AppState>) -> impl IntoResponse {
         let guard = cache_lock().read().await;
         if let Some(ref cached) = *guard {
             if is_cache_fresh(cached) {
-                let skills: Vec<StoreSkill> = cached
-                    .skills
-                    .iter()
-                    .map(|e| StoreSkill {
-                        name: e.name.clone(),
-                        description: e.description.clone(),
-                        assets: e.assets.clone(),
-                        installed: is_installed(&e.name),
-                    })
-                    .collect();
-                let total = skills.len();
-                return Json(StoreCatalog {
-                    skills,
-                    total,
-                    source: "github/awesome-copilot".into(),
-                    last_updated: Some(cached.fetched_at.clone()),
-                    commit_sha: cached.commit_sha.clone(),
-                })
+                return Json(build_catalog_response(
+                    &cached.skills,
+                    &cached.fetched_at,
+                    &cached.commit_sha,
+                ))
                 .into_response();
             }
         }
@@ -213,29 +339,15 @@ pub async fn store_catalog(State(_s): State<AppState>) -> impl IntoResponse {
     // 2. Try disk cache
     if let Some(disk) = load_disk_cache() {
         if is_cache_fresh(&disk) {
-            let skills: Vec<StoreSkill> = disk
-                .skills
-                .iter()
-                .map(|e| StoreSkill {
-                    name: e.name.clone(),
-                    description: e.description.clone(),
-                    assets: e.assets.clone(),
-                    installed: is_installed(&e.name),
-                })
-                .collect();
-            let total = skills.len();
-            // populate in-memory
             {
                 let mut guard = cache_lock().write().await;
                 *guard = Some(disk.clone());
             }
-            return Json(StoreCatalog {
-                skills,
-                total,
-                source: "github/awesome-copilot".into(),
-                last_updated: Some(disk.fetched_at.clone()),
-                commit_sha: disk.commit_sha.clone(),
-            })
+            return Json(build_catalog_response(
+                &disk.skills,
+                &disk.fetched_at,
+                &disk.commit_sha,
+            ))
             .into_response();
         }
     }
@@ -287,25 +399,7 @@ pub async fn store_catalog(State(_s): State<AppState>) -> impl IntoResponse {
         *guard = Some(cached);
     }
 
-    let skills: Vec<StoreSkill> = entries
-        .iter()
-        .map(|e| StoreSkill {
-            name: e.name.clone(),
-            description: e.description.clone(),
-            assets: e.assets.clone(),
-            installed: is_installed(&e.name),
-        })
-        .collect();
-    let total = skills.len();
-
-    Json(StoreCatalog {
-        skills,
-        total,
-        source: "github/awesome-copilot".into(),
-        last_updated: Some(now),
-        commit_sha: sha,
-    })
-    .into_response()
+    Json(build_catalog_response(&entries, &now, &sha)).into_response()
 }
 
 /// GET /api/store/skill/{name}
