@@ -176,8 +176,8 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
         />
         <span className="font-mono text-[10px] text-slate-500">{s.id.slice(0, 8)}</span>
         {s.model && (
-          <span className="text-[10px] px-1 rounded bg-violet-500/10 text-violet-300 truncate max-w-[90px]" title={s.model}>
-            {s.model.replace(/^claude-/, '').replace(/^gpt-/, '')}
+          <span className="text-[10px] px-1 rounded bg-violet-500/10 text-violet-300 truncate max-w-[120px]" title={s.model}>
+            {s.model}
           </span>
         )}
         {onToggleCompare && (
