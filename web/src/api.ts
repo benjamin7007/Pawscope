@@ -116,6 +116,70 @@ export function connectWs(onEvent: (ev: any) => void): WebSocket {
   return ws;
 }
 
+// ---------------------------------------------------------------------------
+// Skill Store
+// ---------------------------------------------------------------------------
+
+export interface StoreSkill {
+  name: string;
+  description: string;
+  assets: string[];
+  installed: boolean;
+}
+export interface StoreCatalog {
+  skills: StoreSkill[];
+  total: number;
+  source: string;
+  last_updated: string | null;
+  commit_sha: string | null;
+}
+export async function fetchStoreCatalog(): Promise<StoreCatalog> {
+  const r = await fetch('/api/store/catalog');
+  if (!r.ok) throw new Error(`store catalog ${r.status}`);
+  return r.json();
+}
+
+export interface SkillDetail {
+  name: string;
+  description: string;
+  content: string;
+  files: string[];
+}
+export async function fetchStoreSkillDetail(name: string): Promise<SkillDetail> {
+  const r = await fetch(`/api/store/skill/${encodeURIComponent(name)}`);
+  if (!r.ok) throw new Error(`skill detail ${r.status}`);
+  return r.json();
+}
+
+export async function installStoreSkill(name: string): Promise<{ installed: boolean; path: string }> {
+  const r = await fetch('/api/store/install', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+  if (!r.ok) throw new Error(`install ${r.status}`);
+  return r.json();
+}
+
+export async function uninstallStoreSkill(name: string): Promise<{ uninstalled: boolean }> {
+  const r = await fetch('/api/store/uninstall', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+  if (!r.ok) throw new Error(`uninstall ${r.status}`);
+  return r.json();
+}
+
+export async function refreshStoreCatalog(): Promise<void> {
+  const r = await fetch('/api/store/refresh', { method: 'POST' });
+  if (!r.ok) throw new Error(`refresh ${r.status}`);
+}
+
+// ---------------------------------------------------------------------------
+// Copilot Config
+// ---------------------------------------------------------------------------
+
 export interface CopilotPlugin {
   name: string;
   version: string;
