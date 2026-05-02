@@ -1339,17 +1339,20 @@ checksum = "df94ce210e5bc13cb6651479fa48d14f601d9858cfe0467f43ae157023b938d3"
 
 [[package]]
 name = "pawscope"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "anyhow",
  "axum",
  "chrono",
  "clap",
  "open",
+ "pawscope-aider",
  "pawscope-claude",
  "pawscope-codex",
  "pawscope-copilot",
  "pawscope-core",
+ "pawscope-gemini",
+ "pawscope-opencode",
  "pawscope-server",
  "rusqlite",
  "serde_json",
@@ -1360,8 +1363,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "pawscope-aider"
+version = "1.2.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "dirs",
+ "pawscope-core",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "pawscope-claude"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1378,7 +1397,7 @@ dependencies = [
 
 [[package]]
 name = "pawscope-codex"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1395,7 +1414,7 @@ dependencies = [
 
 [[package]]
 name = "pawscope-copilot"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1415,7 +1434,7 @@ dependencies = [
 
 [[package]]
 name = "pawscope-core"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1426,8 +1445,41 @@ dependencies = [
 ]
 
 [[package]]
+name = "pawscope-gemini"
+version = "1.2.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "dirs",
+ "pawscope-core",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "pawscope-opencode"
+version = "1.2.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "dirs",
+ "pawscope-core",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "pawscope-server"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "anyhow",
  "async-trait",

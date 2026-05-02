@@ -196,6 +196,9 @@ const AGENT_COLORS: Record<string, string> = {
   copilot: '#34d399',
   claude: '#a78bfa',
   codex: '#f59e0b',
+  opencode: '#22d3ee',
+  gemini: '#60a5fa',
+  aider: '#fb7185',
 };
 
 function AgentDonut({ entries }: { entries: [string, number][] }) {

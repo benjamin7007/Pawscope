@@ -38,6 +38,18 @@ async fn main() -> Result<()> {
                 Ok(a) => adapters.push(Arc::new(a)),
                 Err(e) => tracing::warn!("codex adapter disabled: {e}"),
             }
+            match pawscope_opencode::OpenCodeAdapter::new() {
+                Ok(a) => adapters.push(Arc::new(a)),
+                Err(e) => tracing::warn!("opencode adapter disabled: {e}"),
+            }
+            match pawscope_gemini::GeminiAdapter::new() {
+                Ok(a) => adapters.push(Arc::new(a)),
+                Err(e) => tracing::warn!("gemini adapter disabled: {e}"),
+            }
+            match pawscope_aider::AiderAdapter::new() {
+                Ok(a) => adapters.push(Arc::new(a)),
+                Err(e) => tracing::warn!("aider adapter disabled: {e}"),
+            }
             tracing::info!("active adapters: {}", adapters.len());
             let adapter: Arc<dyn pawscope_core::AgentAdapter> =
                 Arc::new(pawscope_server::MultiAdapter::new(adapters));
