@@ -136,14 +136,13 @@ export default function App() {
   const toggleCompareId = (id: string) => {
     setCompareIds(prev => {
       if (prev.includes(id)) return prev.filter(x => x !== id);
-      // Cap at 2; if already 2, replace the oldest.
-      if (prev.length >= 2) return [prev[1], id];
+      if (prev.length >= 5) return [...prev.slice(1), id];
       return [...prev, id];
     });
   };
   const clearCompare = () => setCompareIds([]);
   const openCompare = () => {
-    if (compareIds.length === 2) navigate({ view: 'compare' });
+    if (compareIds.length >= 2) navigate({ view: 'compare' });
   };
 
   const activeCount = sessions.filter(s => s.status === 'active').length;
@@ -332,10 +331,10 @@ export default function App() {
             <ErrorBoundary scope="Config">
               <ConfigPanel onOpenSkills={() => navigate({ view: 'skills' })} />
             </ErrorBoundary>
-          ) : view === 'compare' && compareIds.length === 2 ? (
+          ) : view === 'compare' && compareIds.length >= 2 ? (
             <ErrorBoundary scope="Compare">
               <CompareView
-                ids={[compareIds[0], compareIds[1]]}
+                ids={compareIds}
                 sessions={sessions}
                 onClose={() => { clearCompare(); navigate({ view: 'overview' }); }}
                 onOpenSession={selectSession}
@@ -376,7 +375,7 @@ export default function App() {
       {compareIds.length > 0 && view !== 'compare' && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-slate-900/95 backdrop-blur border border-emerald-500/40 rounded-full px-4 py-2 shadow-2xl shadow-emerald-500/10">
           <span className="text-xs text-slate-300">
-            {t('compare.bar_label')} <span className="text-emerald-300 font-semibold">{compareIds.length}/2</span>
+            {t('compare.bar_label')} <span className="text-emerald-300 font-semibold">{compareIds.length}/5</span>
           </span>
           <div className="flex items-center gap-1">
             {compareIds.map(id => {
@@ -394,7 +393,7 @@ export default function App() {
           </div>
           <button
             onClick={openCompare}
-            disabled={compareIds.length !== 2}
+            disabled={compareIds.length < 2}
             className="text-xs px-3 py-1 rounded bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-medium"
           >
             {t('compare.bar_compare')}
