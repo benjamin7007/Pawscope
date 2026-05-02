@@ -59,6 +59,8 @@ type Overview = {
   tokens_by_agent?: Record<string, { in: number; out: number }>;
   tokens_daily7_in?: number[];
   tokens_daily7_out?: number[];
+  tokens_daily30_in?: number[];
+  tokens_daily30_out?: number[];
   tools_used: Record<string, number>;
   skills_invoked: Record<string, number>;
   subagent_count?: number;
@@ -1057,24 +1059,31 @@ function TokenUsageSection({
   byAgent,
   daily7In,
   daily7Out,
+  daily30In,
+  daily30Out,
 }: {
   tokensIn: number;
   tokensOut: number;
   byAgent: Record<string, { in: number; out: number }>;
   daily7In: number[];
   daily7Out: number[];
+  daily30In: number[];
+  daily30Out: number[];
 }) {
   const { t } = useT();
   const total = tokensIn + tokensOut;
+  const [range, setRange] = useState<7 | 30>(7);
   const entries = Object.entries(byAgent)
     .map(([name, v]) => ({ name, total: v.in + v.out, in: v.in, out: v.out }))
     .filter((e) => e.total > 0)
     .sort((a, b) => b.total - a.total);
 
-  const days = Math.max(daily7In.length, daily7Out.length);
+  const activeIn = range === 30 ? daily30In : daily7In;
+  const activeOut = range === 30 ? daily30Out : daily7Out;
+  const days = Math.max(activeIn.length, activeOut.length);
   const dayMax = Math.max(
     1,
-    ...Array.from({ length: days }, (_, i) => (daily7In[i] ?? 0) + (daily7Out[i] ?? 0)),
+    ...Array.from({ length: days }, (_, i) => (activeIn[i] ?? 0) + (activeOut[i] ?? 0)),
   );
   const dayLabels = Array.from({ length: days }, (_, i) => {
     const d = new Date();
@@ -1124,11 +1133,29 @@ function TokenUsageSection({
             );
           })}
         </div>
-        {/* 7-day trend (input bottom, output top, stacked) */}
+        {/* Token trend chart with range toggle */}
         {days > 0 && (
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] uppercase tracking-wider text-slate-500">{t('sec.token_trend7')}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] uppercase tracking-wider text-slate-500">{t('sec.token_trend7')}</span>
+                <div className="flex rounded overflow-hidden border border-slate-700">
+                  <button
+                    type="button"
+                    onClick={() => setRange(7)}
+                    className={`px-1.5 py-0.5 text-[9px] font-medium transition-colors ${
+                      range === 7 ? 'bg-emerald-500/20 text-emerald-300' : 'text-slate-500 hover:text-slate-300'
+                    }`}
+                  >7D</button>
+                  <button
+                    type="button"
+                    onClick={() => setRange(30)}
+                    className={`px-1.5 py-0.5 text-[9px] font-medium transition-colors border-l border-slate-700 ${
+                      range === 30 ? 'bg-emerald-500/20 text-emerald-300' : 'text-slate-500 hover:text-slate-300'
+                    }`}
+                  >30D</button>
+                </div>
+              </div>
               <span className="text-[10px] text-slate-600 flex items-center gap-3">
                 <span className="flex items-center gap-1">
                   <span className="inline-block w-2 h-2 rounded-sm bg-emerald-500/70" />
@@ -1140,10 +1167,10 @@ function TokenUsageSection({
                 </span>
               </span>
             </div>
-            <div className="flex items-end gap-1.5 h-24">
+            <div className={`flex items-end ${range === 30 ? 'gap-0.5' : 'gap-1.5'} h-24`}>
               {Array.from({ length: days }).map((_, i) => {
-                const inv = daily7In[i] ?? 0;
-                const outv = daily7Out[i] ?? 0;
+                const inv = activeIn[i] ?? 0;
+                const outv = activeOut[i] ?? 0;
                 const tot = inv + outv;
                 const inPct = tot === 0 ? 0 : (inv / dayMax) * 100;
                 const outPct = tot === 0 ? 0 : (outv / dayMax) * 100;
@@ -1164,7 +1191,9 @@ function TokenUsageSection({
                         </div>
                       )}
                     </div>
-                    <div className="text-[9px] text-slate-500 tabular-nums">{dayLabels[i]}</div>
+                    <div className="text-[9px] text-slate-500 tabular-nums">
+                      {range === 30 ? (i % 5 === 0 ? dayLabels[i] : '') : dayLabels[i]}
+                    </div>
                   </div>
                 );
               })}
@@ -1520,6 +1549,8 @@ export function OverviewPanel({
             byAgent={data.tokens_by_agent ?? {}}
             daily7In={data.tokens_daily7_in ?? []}
             daily7Out={data.tokens_daily7_out ?? []}
+            daily30In={data.tokens_daily30_in ?? []}
+            daily30Out={data.tokens_daily30_out ?? []}
           />
         )}
 
