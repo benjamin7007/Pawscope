@@ -178,9 +178,12 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
           s.agent === 'copilot' ? 'bg-emerald-500/15 text-emerald-300' :
           s.agent === 'claude' ? 'bg-violet-500/15 text-violet-300' :
           s.agent === 'codex' ? 'bg-amber-500/15 text-amber-300' :
+          s.agent === 'opencode' ? 'bg-cyan-500/15 text-cyan-300' :
+          s.agent === 'gemini' ? 'bg-blue-500/15 text-blue-300' :
+          s.agent === 'aider' ? 'bg-rose-500/15 text-rose-300' :
           'bg-slate-700 text-slate-400'
         }`} title={s.agent}>
-          {s.agent === 'copilot' ? '✦' : s.agent === 'claude' ? '◈' : s.agent === 'codex' ? '⬡' : '●'}
+          {s.agent === 'copilot' ? '✦' : s.agent === 'claude' ? '◈' : s.agent === 'codex' ? '⬡' : s.agent === 'opencode' ? '⊙' : s.agent === 'gemini' ? '◆' : s.agent === 'aider' ? '▣' : '●'}
         </span>
         <span className="font-mono text-[10px] text-slate-500">{s.id.slice(0, 8)}</span>
         {s.model && (
@@ -408,7 +411,7 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
           >
             <option value="all">{t('list.all_agents')}</option>
             {agents.map(a => (
-              <option key={a} value={a}>{a === 'copilot' ? '✦ Copilot' : a === 'claude' ? '◈ Claude' : a === 'codex' ? '⬡ Codex' : a}</option>
+              <option key={a} value={a}>{a === 'copilot' ? '✦ Copilot' : a === 'claude' ? '◈ Claude' : a === 'codex' ? '⬡ Codex' : a === 'opencode' ? '⊙ OpenCode' : a === 'gemini' ? '◆ Gemini' : a === 'aider' ? '▣ Aider' : a}</option>
             ))}
           </select>
           <select

@@ -17,6 +17,9 @@ pub enum AgentKind {
     Copilot,
     Claude,
     Codex,
+    OpenCode,
+    Gemini,
+    Aider,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
