@@ -20,8 +20,9 @@ type Props = {
   selected: string | null;
   realmFilter?: string | null;
   onClearRealmFilter?: () => void;
-  labels?: Record<string, { starred: boolean; tags: string[]; note?: string | null }>;
+  labels?: Record<string, { starred: boolean; tags: string[]; note?: string | null; custom_name?: string | null }>;
   onToggleStar?: (id: string) => void;
+  onRename?: (id: string, name: string) => void;
   tokensMap?: Record<string, { in: number; out: number }>;
   pulseMap?: Record<string, { bins: number[]; events: number }>;
   compareIds?: string[];
@@ -60,7 +61,7 @@ function sessionRealmKey(s: Session): string {
 
 type SortMode = 'recent' | 'oldest' | 'repo' | 'tokens';
 
-export function SessionList({ items, onSelect, selected, realmFilter, onClearRealmFilter, labels, onToggleStar, tokensMap, pulseMap, compareIds, onToggleCompare, onHide, onUnhide, onDelete, hiddenIds, showHidden, onToggleShowHidden }: Props) {
+export function SessionList({ items, onSelect, selected, realmFilter, onClearRealmFilter, labels, onToggleStar, onRename, tokensMap, pulseMap, compareIds, onToggleCompare, onHide, onUnhide, onDelete, hiddenIds, showHidden, onToggleShowHidden }: Props) {
   const { t } = useT();
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -69,6 +70,8 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
   const [starredOnly, setStarredOnly] = useState(false);
   const [tagFilter, setTagFilter] = useState<string>('all');
   const [sortMode, setSortMode] = useState<SortMode>('recent');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
 
   const allTags = useMemo(() => {
     const set = new Set<string>();
@@ -96,7 +99,8 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
         (s.repo?.toLowerCase().includes(q)) ||
         (s.summary?.toLowerCase().includes(q)) ||
         (s.branch?.toLowerCase().includes(q)) ||
-        (lbl?.note?.toLowerCase().includes(q) ?? false)
+        (lbl?.note?.toLowerCase().includes(q) ?? false) ||
+        (lbl?.custom_name?.toLowerCase().includes(q) ?? false)
       );
     });
 
@@ -235,6 +239,18 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
               title="Hide"
             >🙈</span>
           )}
+          {onRename && (
+            <span
+              role="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditingId(s.id);
+                setEditValue(lbl?.custom_name || s.summary || '');
+              }}
+              className="text-[11px] text-slate-500 hover:text-blue-300 cursor-pointer"
+              title="Rename"
+            >✏️</span>
+          )}
           <span
             role="button"
             onClick={(e) => {
@@ -249,7 +265,45 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
         </span>
       </div>
       <div className="text-sm mt-0.5 truncate text-slate-200">
-        {s.summary || <span className="text-slate-500 italic">(no summary)</span>}
+        {editingId === s.id ? (
+          <input
+            autoFocus
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === 'Enter') {
+                const trimmed = editValue.trim();
+                if (trimmed && onRename) onRename(s.id, trimmed);
+                setEditingId(null);
+              } else if (e.key === 'Escape') {
+                setEditingId(null);
+              }
+            }}
+            onBlur={() => {
+              const trimmed = editValue.trim();
+              if (trimmed && onRename) onRename(s.id, trimmed);
+              setEditingId(null);
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full text-sm bg-slate-900 border border-slate-600 rounded px-1 py-0 text-slate-200 focus:outline-none focus:border-blue-400"
+          />
+        ) : (
+          <span
+            onDoubleClick={(e) => {
+              if (!onRename) return;
+              e.stopPropagation();
+              setEditingId(s.id);
+              setEditValue(lbl?.custom_name || s.summary || '');
+            }}
+            title={onRename ? 'Double-click to rename' : undefined}
+          >
+            {lbl?.custom_name || s.summary || <span className="text-slate-500 italic">(no summary)</span>}
+            {lbl?.custom_name && s.summary && (
+              <span className="text-[10px] text-slate-600 ml-1" title={s.summary}>({s.summary})</span>
+            )}
+          </span>
+        )}
       </div>
       {lbl?.note && (
         <div className="text-[11px] mt-0.5 truncate text-amber-300/80 italic" title={lbl.note}>

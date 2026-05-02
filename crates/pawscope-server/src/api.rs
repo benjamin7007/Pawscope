@@ -1546,6 +1546,14 @@ pub async fn set_label(
                 })
             }
         }),
+        custom_name: label.custom_name.and_then(|n| {
+            let trimmed = n.trim();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.chars().take(200).collect())
+            }
+        }),
     };
     match s.labels.set(&id, normalized.clone()).await {
         Ok(()) => Json(normalized).into_response(),

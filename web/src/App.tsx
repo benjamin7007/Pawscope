@@ -64,13 +64,17 @@ export default function App() {
     fetchHidden().then(r => setHiddenIds(new Set(r.hidden))).catch(() => {});
   }, []);
 
-  const updateLabel = (id: string, label: { starred: boolean; tags: string[]; note?: string | null }) => {
+  const updateLabel = (id: string, label: { starred: boolean; tags: string[]; note?: string | null; custom_name?: string | null }) => {
     setLabels((prev) => ({ ...prev, [id]: label }));
     apiSetLabel(id, label).catch(() => toast.error('Failed to save label'));
   };
   const toggleStar = (id: string) => {
     const cur = labels[id] ?? { starred: false, tags: [], note: null };
     updateLabel(id, { ...cur, starred: !cur.starred });
+  };
+  const handleRename = (id: string, name: string) => {
+    const cur = labels[id] ?? { starred: false, tags: [], note: null };
+    updateLabel(id, { ...cur, custom_name: name });
   };
 
   const handleHide = (id: string) => {
@@ -323,6 +327,7 @@ export default function App() {
           onClearRealmFilter={() => setRealmFilter(null)}
           labels={labels}
           onToggleStar={toggleStar}
+          onRename={handleRename}
           tokensMap={tokensMap}
           pulseMap={pulseMap}
           compareIds={compareIds}
