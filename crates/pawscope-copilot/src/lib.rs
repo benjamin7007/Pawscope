@@ -45,6 +45,7 @@ impl CopilotAdapter {
             _ => SessionStatus::Closed,
         };
         let pid = lock::find_lock_pid(dir);
+        let model = Self::extract_model(dir);
         Some(SessionMeta {
             id: ws.id,
             agent: AgentKind::Copilot,
@@ -52,12 +53,33 @@ impl CopilotAdapter {
             repo: ws.repository,
             branch: ws.branch,
             summary: ws.summary,
-            model: None,
+            model,
             status,
             pid,
             started_at: ws.created_at,
             last_event_at: ws.updated_at,
         })
+    }
+
+    /// Quickly extract the last model name from events.jsonl without full parsing.
+    fn extract_model(dir: &Path) -> Option<String> {
+        let events_path = dir.join("events.jsonl");
+        let content = std::fs::read_to_string(&events_path).ok()?;
+        let mut model = None;
+        for line in content.lines() {
+            if line.contains("session.model_change") {
+                if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
+                    if let Some(m) = v
+                        .get("data")
+                        .and_then(|d| d.get("newModel"))
+                        .and_then(|m| m.as_str())
+                    {
+                        model = Some(m.to_string());
+                    }
+                }
+            }
+        }
+        model
     }
 }
 
