@@ -287,6 +287,7 @@ export interface Label {
   starred: boolean;
   tags: string[];
   note?: string | null;
+  custom_name?: string | null;
 }
 export type LabelMap = Record<string, Label>;
 

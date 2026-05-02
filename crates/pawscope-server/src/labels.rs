@@ -12,12 +12,16 @@ pub struct Label {
     pub tags: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub custom_name: Option<String>,
 }
 
 impl Label {
     pub fn is_empty(&self) -> bool {
-        !self.starred && self.tags.is_empty()
+        !self.starred
+            && self.tags.is_empty()
             && self.note.as_deref().map(str::is_empty).unwrap_or(true)
+            && self.custom_name.as_deref().map(str::is_empty).unwrap_or(true)
     }
 }
 
