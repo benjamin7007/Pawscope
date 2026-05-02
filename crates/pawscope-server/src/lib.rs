@@ -9,6 +9,7 @@ use tokio::sync::broadcast;
 pub mod api;
 pub mod assets;
 pub mod cache;
+pub mod hidden;
 pub mod labels;
 pub mod multi;
 pub mod skills;
@@ -24,22 +25,31 @@ pub struct AppState {
     pub events: broadcast::Sender<pawscope_core::SessionEvent>,
     pub detail_cache: cache::DetailCache,
     pub labels: labels::LabelStore,
+    pub hidden: hidden::HiddenStore,
 }
 
 pub fn build_app(adapter: Arc<dyn AgentAdapter>) -> (Router, AppState) {
     let (tx, _) = broadcast::channel(256);
     let labels = futures::executor::block_on(labels::LabelStore::load());
+    let hidden = futures::executor::block_on(hidden::HiddenStore::load());
     let state = AppState {
         adapter,
         events: tx,
         detail_cache: cache::DetailCache::new(),
         labels,
+        hidden,
     };
     let router = Router::new()
         .route("/api/sessions", get(api::list_sessions))
         .route("/api/sessions/tokens", get(api::sessions_tokens))
         .route("/api/sessions/pulse", get(api::sessions_pulse))
-        .route("/api/sessions/{id}", get(api::get_detail))
+        .route("/api/sessions/hidden", get(api::list_hidden))
+        .route(
+            "/api/sessions/{id}",
+            get(api::get_detail).delete(api::delete_session),
+        )
+        .route("/api/sessions/{id}/hide", post(api::hide_session))
+        .route("/api/sessions/{id}/unhide", post(api::unhide_session))
         .route(
             "/api/sessions/{id}/conversation",
             get(api::get_conversation),

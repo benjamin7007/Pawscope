@@ -304,3 +304,31 @@ export async function setLabel(id: string, label: Label): Promise<Label> {
   if (!r.ok) throw new Error(`set label ${r.status}`);
   return r.json();
 }
+
+// ---------------------------------------------------------------------------
+// Session hide / delete
+// ---------------------------------------------------------------------------
+
+export async function hideSession(id: string): Promise<{ hidden: boolean; id: string }> {
+  const r = await fetch(`/api/sessions/${encodeURIComponent(id)}/hide`, { method: 'POST' });
+  if (!r.ok) throw new Error(`hide ${r.status}`);
+  return r.json();
+}
+
+export async function unhideSession(id: string): Promise<{ hidden: boolean; id: string }> {
+  const r = await fetch(`/api/sessions/${encodeURIComponent(id)}/unhide`, { method: 'POST' });
+  if (!r.ok) throw new Error(`unhide ${r.status}`);
+  return r.json();
+}
+
+export async function deleteSession(id: string): Promise<{ deleted: boolean; id: string; trash_path: string }> {
+  const r = await fetch(`/api/sessions/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  if (!r.ok) throw new Error(`delete ${r.status}`);
+  return r.json();
+}
+
+export async function fetchHidden(): Promise<{ hidden: string[] }> {
+  const r = await fetch('/api/sessions/hidden');
+  if (!r.ok) return { hidden: [] };
+  return r.json();
+}
