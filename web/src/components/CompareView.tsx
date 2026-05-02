@@ -30,7 +30,7 @@ type Detail = {
 };
 
 interface Props {
-  ids: [string, string];
+  ids: string[];
   sessions: Session[];
   onClose: () => void;
   onOpenSession: (id: string) => void;
@@ -66,9 +66,6 @@ function jaccard(a: Set<string>, b: Set<string>): number {
   return inter / (a.size + b.size - inter);
 }
 
-// Compute prompt-overlap diff between the two sessions: list prompts
-// that share token-set similarity ≥ 0.3 with the other side, plus
-// top "unique" prompts on each side (no strong match).
 function comparePrompts(
   a: { ts: string; text: string }[] | undefined,
   b: { ts: string; text: string }[] | undefined,
@@ -100,40 +97,91 @@ function comparePrompts(
   return { shared: shared.slice(0, 6), uniqueA, uniqueB };
 }
 
+function TokenCompareChart({ details, metas }: { details: (Detail | null)[]; metas: (Session | undefined)[] }) {
+  const { fmt } = useT();
+  const maxVal = Math.max(1, ...details.map(d => Math.max(d?.tokens_in ?? 0, d?.tokens_out ?? 0)));
+  const fmtK = (n: number) => n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${(n / 1000).toFixed(0)}k` : `${n}`;
+
+  return (
+    <section className="bg-slate-900/30 border border-slate-800 rounded-lg p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-xs uppercase tracking-wider text-slate-400">Token 用量对比</h3>
+        <div className="flex items-center gap-3 text-[10px]">
+          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-cyan-400/70" /> Input</span>
+          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-violet-400/70" /> Output</span>
+        </div>
+      </div>
+      <div className="flex items-end gap-4 justify-center" style={{ height: 160 }}>
+        {details.map((d, i) => {
+          const tin = d?.tokens_in ?? 0;
+          const tout = d?.tokens_out ?? 0;
+          const hIn = maxVal > 0 ? (tin / maxVal) * 140 : 0;
+          const hOut = maxVal > 0 ? (tout / maxVal) * 140 : 0;
+          const m = metas[i];
+          const cost = estimateCostUsd(m?.model ?? null, tin, tout);
+          return (
+            <div key={i} className="flex flex-col items-center gap-1 min-w-[60px] max-w-[120px]">
+              <div className="flex items-end gap-1" style={{ height: 140 }}>
+                <div className="w-6 rounded-t bg-cyan-400/70 transition-all" style={{ height: Math.max(2, hIn) }} title={`Input: ${fmt(tin)}`} />
+                <div className="w-6 rounded-t bg-violet-400/70 transition-all" style={{ height: Math.max(2, hOut) }} title={`Output: ${fmt(tout)}`} />
+              </div>
+              <div className="text-[10px] text-slate-300 tabular-nums">{fmtK(tin + tout)}</div>
+              {cost != null && <div className="text-[10px] text-amber-300 tabular-nums">{formatUsd(cost)}</div>}
+              <div className="text-[10px] text-slate-500 truncate max-w-[100px] text-center" title={m?.summary || m?.id}>
+                {m?.summary?.slice(0, 20) || m?.id?.slice(0, 8) || `#${i + 1}`}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="text-center text-[10px] text-slate-600 mt-1">max: {fmtK(maxVal)}</div>
+    </section>
+  );
+}
+
 export function CompareView({ ids, sessions, onClose, onOpenSession }: Props) {
   const { t, fmt } = useT();
-  const [details, setDetails] = useState<[Detail | null, Detail | null]>([null, null]);
+  const [details, setDetails] = useState<(Detail | null)[]>(() => ids.map(() => null));
   const [err, setErr] = useState<string | null>(null);
 
-  const meta: [Session | undefined, Session | undefined] = [
-    sessions.find(s => s.id === ids[0]),
-    sessions.find(s => s.id === ids[1]),
-  ];
+  const metas = useMemo(() => ids.map(id => sessions.find(s => s.id === id)), [ids, sessions]);
 
   useEffect(() => {
     let cancelled = false;
+    setDetails(ids.map(() => null));
     Promise.all(ids.map(id => fetchDetail(id)))
-      .then(([a, b]) => { if (!cancelled) setDetails([a, b]); })
+      .then(results => { if (!cancelled) setDetails(results); })
       .catch(e => { if (!cancelled) setErr(String(e)); });
     return () => { cancelled = true; };
-  }, [ids[0], ids[1]]);
+  }, [ids.join(',')]);
 
   const promptDiff = useMemo(
-    () => comparePrompts(details[0]?.prompts, details[1]?.prompts),
-    [details],
+    () => ids.length === 2 ? comparePrompts(details[0]?.prompts, details[1]?.prompts) : null,
+    [details, ids.length],
   );
 
-  // Top-tools / top-skills overlap
-  const toolsOverlap = useMemo(() => {
-    const a = new Set(Object.keys(details[0]?.tools_used || {}));
-    const b = new Set(Object.keys(details[1]?.tools_used || {}));
-    const both: string[] = [];
-    a.forEach(x => { if (b.has(x)) both.push(x); });
-    return { shared: both, onlyA: [...a].filter(x => !b.has(x)), onlyB: [...b].filter(x => !a.has(x)) };
+  const toolFreq = useMemo(() => {
+    const freq = new Map<string, number>();
+    const n = details.filter(Boolean).length;
+    details.forEach(d => {
+      Object.keys(d?.tools_used || {}).forEach(tool => freq.set(tool, (freq.get(tool) || 0) + 1));
+    });
+    const all: string[] = [];
+    const some: { name: string; count: number }[] = [];
+    const unique: string[] = [];
+    for (const [name, count] of freq) {
+      if (count === n) all.push(name);
+      else if (count > 1) some.push({ name, count });
+      else unique.push(name);
+    }
+    some.sort((a, b) => b.count - a.count);
+    return { all, some, unique, total: n };
   }, [details]);
 
-  const renderColumn = (idx: 0 | 1) => {
-    const m = meta[idx];
+  const gridCols = ids.length <= 2 ? 'grid-cols-2' : ids.length === 3 ? 'grid-cols-3' : ids.length === 4 ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-2 lg:grid-cols-5';
+
+  const renderCard = (idx: number) => {
+    const m = metas[idx];
     const d = details[idx];
     if (!m) return <div className="text-rose-300 text-sm">Session not found</div>;
     const tools = topN(d?.tools_used);
@@ -143,7 +191,7 @@ export function CompareView({ ids, sessions, onClose, onOpenSession }: Props) {
     const cost = estimateCostUsd(m.model ?? null, tin, tout);
     const dur = fmtDuration(m.started_at, m.last_event_at);
     return (
-      <section className="flex-1 min-w-0 bg-slate-900/30 border border-slate-800 rounded-lg p-4 space-y-3">
+      <section className="min-w-0 bg-slate-900/30 border border-slate-800 rounded-lg p-4 space-y-3">
         <div className="flex items-start gap-2">
           <div className="flex-1 min-w-0">
             <div className="text-[10px] uppercase tracking-wider text-slate-500">{m.agent}</div>
@@ -219,40 +267,61 @@ export function CompareView({ ids, sessions, onClose, onOpenSession }: Props) {
         </button>
       </header>
 
-      <div className="flex gap-4 items-stretch">
-        {renderColumn(0)}
-        {renderColumn(1)}
+      <TokenCompareChart details={details} metas={metas} />
+
+      <div className={`grid ${gridCols} gap-4`}>
+        {ids.map((_, idx) => (
+          <div key={ids[idx]}>{renderCard(idx)}</div>
+        ))}
       </div>
 
       <section className="bg-slate-900/30 border border-slate-800 rounded-lg p-4">
         <h3 className="text-xs uppercase tracking-wider text-slate-400 mb-3">{t('compare.tool_overlap')}</h3>
         <div className="grid grid-cols-3 gap-3 text-xs">
-          <OverlapCol label={`${t('compare.shared')} (${toolsOverlap.shared.length})`} items={toolsOverlap.shared} accent="emerald" />
-          <OverlapCol label={`${t('compare.only_left')} (${toolsOverlap.onlyA.length})`} items={toolsOverlap.onlyA} accent="cyan" />
-          <OverlapCol label={`${t('compare.only_right')} (${toolsOverlap.onlyB.length})`} items={toolsOverlap.onlyB} accent="violet" />
+          <OverlapCol
+            label={`${t('compare.tool_shared_all')} (${toolFreq.all.length})`}
+            items={toolFreq.all.map(n => ({ name: n }))}
+            accent="emerald"
+          />
+          <OverlapCol
+            label={`${t('compare.tool_shared_some')} (${toolFreq.some.length})`}
+            items={toolFreq.some.map(s => ({ name: s.name, badge: `${s.count}/${toolFreq.total}` }))}
+            accent="cyan"
+          />
+          <OverlapCol
+            label={`${t('compare.tool_unique')} (${toolFreq.unique.length})`}
+            items={toolFreq.unique.map(n => ({ name: n }))}
+            accent="violet"
+          />
         </div>
       </section>
 
       <section className="bg-slate-900/30 border border-slate-800 rounded-lg p-4">
         <h3 className="text-xs uppercase tracking-wider text-slate-400 mb-3">{t('compare.prompt_diff')}</h3>
-        {promptDiff.shared.length > 0 && (
-          <div className="mb-3">
-            <div className="text-[11px] text-emerald-300 mb-1.5">≈ {t('compare.shared_prompts')}</div>
-            <ul className="space-y-2">
-              {promptDiff.shared.map((s, i) => (
-                <li key={i} className="grid grid-cols-2 gap-3 text-[11px] border-l-2 border-emerald-500/40 pl-2">
-                  <div className="text-slate-300 line-clamp-2 break-words">{s.left_text}</div>
-                  <div className="text-slate-300 line-clamp-2 break-words">{s.right_text}</div>
-                  <div className="col-span-2 text-[10px] text-slate-500">jaccard ≈ {s.sim.toFixed(2)}</div>
-                </li>
-              ))}
-            </ul>
-          </div>
+        {ids.length === 2 && promptDiff ? (
+          <>
+            {promptDiff.shared.length > 0 && (
+              <div className="mb-3">
+                <div className="text-[11px] text-emerald-300 mb-1.5">≈ {t('compare.shared_prompts')}</div>
+                <ul className="space-y-2">
+                  {promptDiff.shared.map((s, i) => (
+                    <li key={i} className="grid grid-cols-2 gap-3 text-[11px] border-l-2 border-emerald-500/40 pl-2">
+                      <div className="text-slate-300 line-clamp-2 break-words">{s.left_text}</div>
+                      <div className="text-slate-300 line-clamp-2 break-words">{s.right_text}</div>
+                      <div className="col-span-2 text-[10px] text-slate-500">jaccard ≈ {s.sim.toFixed(2)}</div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <UniqueCol label={t('compare.unique_left')} items={promptDiff.uniqueA} />
+              <UniqueCol label={t('compare.unique_right')} items={promptDiff.uniqueB} />
+            </div>
+          </>
+        ) : (
+          <div className="text-xs text-slate-500 italic">{t('compare.prompt_diff_2only')}</div>
         )}
-        <div className="grid grid-cols-2 gap-3">
-          <UniqueCol label={t('compare.unique_left')} items={promptDiff.uniqueA} />
-          <UniqueCol label={t('compare.unique_right')} items={promptDiff.uniqueB} />
-        </div>
       </section>
     </main>
   );
@@ -267,7 +336,7 @@ function Stat({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-function OverlapCol({ label, items, accent }: { label: string; items: string[]; accent: 'emerald' | 'cyan' | 'violet' }) {
+function OverlapCol({ label, items, accent }: { label: string; items: { name: string; badge?: string }[]; accent: 'emerald' | 'cyan' | 'violet' }) {
   const tone = {
     emerald: 'text-emerald-300',
     cyan: 'text-cyan-300',
@@ -280,7 +349,12 @@ function OverlapCol({ label, items, accent }: { label: string; items: string[]; 
         ? <div className="text-slate-600">—</div>
         : (
           <ul className="space-y-0.5 font-mono text-slate-300">
-            {items.slice(0, 12).map(i => <li key={i} className="truncate">{i}</li>)}
+            {items.slice(0, 12).map(i => (
+              <li key={i.name} className="flex items-center justify-between truncate">
+                <span className="truncate">{i.name}</span>
+                {i.badge && <span className="text-[10px] text-slate-500 ml-1 shrink-0">{i.badge}</span>}
+              </li>
+            ))}
             {items.length > 12 && <li className="text-slate-600">+{items.length - 12} more</li>}
           </ul>
         )}
