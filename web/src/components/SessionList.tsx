@@ -174,6 +174,14 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
             s.status === 'active' ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]' : 'bg-slate-600'
           }`}
         />
+        <span className={`text-[10px] px-1 rounded font-medium flex-shrink-0 ${
+          s.agent === 'copilot' ? 'bg-emerald-500/15 text-emerald-300' :
+          s.agent === 'claude' ? 'bg-violet-500/15 text-violet-300' :
+          s.agent === 'codex' ? 'bg-amber-500/15 text-amber-300' :
+          'bg-slate-700 text-slate-400'
+        }`} title={s.agent}>
+          {s.agent === 'copilot' ? '✦' : s.agent === 'claude' ? '◈' : s.agent === 'codex' ? '⬡' : '●'}
+        </span>
         <span className="font-mono text-[10px] text-slate-500">{s.id.slice(0, 8)}</span>
         {s.model && (
           <span className="text-[10px] px-1 rounded bg-violet-500/10 text-violet-300 truncate max-w-[120px]" title={s.model}>
@@ -400,7 +408,7 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
           >
             <option value="all">{t('list.all_agents')}</option>
             {agents.map(a => (
-              <option key={a} value={a}>{a}</option>
+              <option key={a} value={a}>{a === 'copilot' ? '✦ Copilot' : a === 'claude' ? '◈ Claude' : a === 'codex' ? '⬡ Codex' : a}</option>
             ))}
           </select>
           <select
