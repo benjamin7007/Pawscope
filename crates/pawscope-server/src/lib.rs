@@ -13,6 +13,7 @@ pub mod labels;
 pub mod multi;
 pub mod skills;
 pub mod sse;
+pub mod store;
 pub mod ws;
 
 pub use multi::MultiAdapter;
@@ -65,6 +66,11 @@ pub fn build_app(adapter: Arc<dyn AgentAdapter>) -> (Router, AppState) {
         .route("/api/skills/reveal", post(skills::skill_reveal))
         .route("/api/sessions/{id}/skills", get(skills::session_skills))
         .route("/api/config/copilot", get(api::copilot_config))
+        .route("/api/store/catalog", get(store::store_catalog))
+        .route("/api/store/skill/{name}", get(store::store_skill_detail))
+        .route("/api/store/install", post(store::store_install))
+        .route("/api/store/uninstall", post(store::store_uninstall))
+        .route("/api/store/refresh", post(store::store_refresh))
         .route("/api/events", get(sse::sse_handler))
         .route("/ws", get(ws::ws_handler))
         .fallback(assets::static_handler)

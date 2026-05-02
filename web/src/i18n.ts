@@ -361,6 +361,28 @@ const dict: Record<string, { en: string; zh: string }> = {
   'compare.bar_label': { en: 'Compare:', zh: '对比:' },
   'compare.bar_compare': { en: 'Compare →', zh: '对比 →' },
   'compare.bar_clear': { en: 'Clear', zh: '清空' },
+
+  // Skill Store
+  'nav.store': { en: '📦 Store', zh: '📦 商店' },
+  'crumbs.store': { en: 'Store', zh: '技能商店' },
+  'store.kicker': { en: 'Community Skills', zh: '社区技能' },
+  'store.title': { en: 'Skill Store', zh: '技能商店' },
+  'store.search_ph': { en: 'Search skills...', zh: '搜索技能...' },
+  'store.refresh': { en: 'Refresh', zh: '刷新' },
+  'store.last_updated': { en: 'Updated', zh: '更新时间' },
+  'store.source': { en: 'Source', zh: '来源' },
+  'store.installed': { en: 'Installed', zh: '已安装' },
+  'store.install': { en: 'Install', zh: '安装' },
+  'store.uninstall': { en: 'Uninstall', zh: '卸载' },
+  'store.assets': { en: 'assets', zh: '个资源文件' },
+  'store.installed_label': { en: 'installed', zh: '已安装' },
+  'store.filter_all': { en: 'All', zh: '全部' },
+  'store.filter_installed': { en: 'Installed', zh: '已安装' },
+  'store.filter_not_installed': { en: 'Available', zh: '可安装' },
+  'store.loading_detail': { en: 'Loading...', zh: '加载中...' },
+  'store.no_results': { en: 'No skills match your search', zh: '没有匹配的技能' },
+  'store.empty': { en: 'No skills available', zh: '暂无可用技能' },
+  'store.error': { en: 'Failed to load store', zh: '加载商店失败' },
 };
 
 function readLang(): Lang {
