@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import './styles.css';
-import { fetchSessions, fetchDetail, connectWs, fetchLabels, setLabel as apiSetLabel, type LabelMap } from './api';
+import { fetchSessions, fetchDetail, connectWs, fetchLabels, setLabel as apiSetLabel, fetchHidden, hideSession as apiHide, unhideSession as apiUnhide, deleteSession as apiDelete, type LabelMap } from './api';
 import { estimateCostUsd, formatUsd } from './pricing';
 import { toast } from './toast';
 import { SessionList } from './components/SessionList';
@@ -48,6 +48,8 @@ export default function App() {
   const [tokensMap, setTokensMap] = useState<Record<string, { in: number; out: number }>>({});
   const [pulseMap, setPulseMap] = useState<Record<string, { bins: number[]; events: number }>>({});
   const [compareIds, setCompareIds] = useState<string[]>([]);
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+  const [showHidden, setShowHidden] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
     const v = parseInt(localStorage.getItem('pawscope.sidebarWidth') ?? '', 10);
     return Number.isFinite(v) && v >= 280 && v <= 720 ? v : 384;
@@ -59,6 +61,7 @@ export default function App() {
 
   useEffect(() => {
     fetchLabels().then(setLabels).catch(() => setLabels({}));
+    fetchHidden().then(r => setHiddenIds(new Set(r.hidden))).catch(() => {});
   }, []);
 
   const updateLabel = (id: string, label: { starred: boolean; tags: string[]; note?: string | null }) => {
@@ -68,6 +71,29 @@ export default function App() {
   const toggleStar = (id: string) => {
     const cur = labels[id] ?? { starred: false, tags: [], note: null };
     updateLabel(id, { ...cur, starred: !cur.starred });
+  };
+
+  const handleHide = (id: string) => {
+    setHiddenIds(prev => new Set(prev).add(id));
+    apiHide(id).catch(() => {
+      toast.error('Failed to hide session');
+      setHiddenIds(prev => { const n = new Set(prev); n.delete(id); return n; });
+    });
+  };
+  const handleUnhide = (id: string) => {
+    setHiddenIds(prev => { const n = new Set(prev); n.delete(id); return n; });
+    apiUnhide(id).catch(() => {
+      toast.error('Failed to unhide session');
+      setHiddenIds(prev => new Set(prev).add(id));
+    });
+  };
+  const handleDelete = (id: string) => {
+    apiDelete(id).then(() => {
+      setSessions(prev => prev.filter(s => s.id !== id));
+      setHiddenIds(prev => { const n = new Set(prev); n.delete(id); return n; });
+      if (selected === id) setSelected(null);
+      toast.success('Session moved to trash');
+    }).catch(() => toast.error('Failed to delete session'));
   };
 
   useEffect(() => {
@@ -147,6 +173,11 @@ export default function App() {
   };
 
   const activeCount = sessions.filter(s => s.status === 'active').length;
+
+  const visibleSessions = useMemo(() => {
+    if (showHidden) return sessions;
+    return sessions.filter(s => !hiddenIds.has(s.id));
+  }, [sessions, hiddenIds, showHidden]);
 
   // Prev/next session navigation, sorted by last_event_at desc (matches default list order).
   const sortedSessions = useMemo(() => {
@@ -285,7 +316,7 @@ export default function App() {
           </div>
         </nav>
         <SessionList
-          items={sessions}
+          items={visibleSessions}
           onSelect={selectSession}
           selected={selected}
           realmFilter={realmFilter}
@@ -296,6 +327,12 @@ export default function App() {
           pulseMap={pulseMap}
           compareIds={compareIds}
           onToggleCompare={toggleCompareId}
+          onHide={handleHide}
+          onUnhide={handleUnhide}
+          onDelete={handleDelete}
+          hiddenIds={hiddenIds}
+          showHidden={showHidden}
+          onToggleShowHidden={() => setShowHidden(v => !v)}
         />
       </div>
       <SidebarResizer onResize={setSidebarWidth} />

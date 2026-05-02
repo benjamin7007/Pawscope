@@ -134,6 +134,40 @@ impl AgentAdapter for CopilotAdapter {
         watcher::run(self.root.clone(), self.state.clone(), tx).await
     }
 
+    fn supports_delete(&self) -> bool {
+        true
+    }
+
+    async fn delete_session(&self, session_id: &str) -> Result<String> {
+        let src = self.root.join(session_id);
+        if !src.is_dir() {
+            return Err(CoreError::NotFound(session_id.to_string()));
+        }
+        // Path-traversal guard: ensure src is under self.root
+        let canon_root = std::fs::canonicalize(&self.root)
+            .map_err(|e| CoreError::Other(format!("canonicalize root: {e}")))?;
+        let canon_src = std::fs::canonicalize(&src)
+            .map_err(|e| CoreError::Other(format!("canonicalize src: {e}")))?;
+        if !canon_src.starts_with(&canon_root) {
+            return Err(CoreError::Other("path traversal denied".into()));
+        }
+        let trash = dirs::home_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join(".pawscope/trash/copilot")
+            .join(session_id);
+        if let Some(parent) = trash.parent() {
+            tokio::fs::create_dir_all(parent).await?;
+        }
+        // Try rename (same filesystem = instant); fall back to copy+delete
+        if tokio::fs::rename(&src, &trash).await.is_err() {
+            copy_dir_recursive(&src, &trash).await?;
+            tokio::fs::remove_dir_all(&src).await?;
+        }
+        // Purge from state cache
+        self.state.write().unwrap().remove(session_id);
+        Ok(trash.to_string_lossy().into_owned())
+    }
+
     async fn activity_hourly(&self, hours: u32) -> Result<Vec<u64>> {
         use chrono::{DateTime, Utc};
         let hours = hours.max(1) as usize;
@@ -254,6 +288,21 @@ impl AgentAdapter for CopilotAdapter {
         }
         Ok(grid)
     }
+}
+
+async fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> std::io::Result<()> {
+    tokio::fs::create_dir_all(dst).await?;
+    let mut rd = tokio::fs::read_dir(src).await?;
+    while let Some(entry) = rd.next_entry().await? {
+        let ty = entry.file_type().await?;
+        let dest = dst.join(entry.file_name());
+        if ty.is_dir() {
+            Box::pin(copy_dir_recursive(&entry.path(), &dest)).await?;
+        } else {
+            tokio::fs::copy(entry.path(), &dest).await?;
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]

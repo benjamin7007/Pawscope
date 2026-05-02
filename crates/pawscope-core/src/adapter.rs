@@ -68,4 +68,15 @@ pub trait AgentAdapter: Send + Sync + 'static {
     async fn get_conversation(&self, _session_id: &str) -> Result<Option<ConversationLog>> {
         Ok(None)
     }
+
+    /// Whether this adapter supports deleting (moving to trash) sessions.
+    fn supports_delete(&self) -> bool {
+        false
+    }
+
+    /// Delete a session by moving its data to the trash directory.
+    /// Returns the trash path as a string.
+    async fn delete_session(&self, _session_id: &str) -> Result<String> {
+        Err(crate::CoreError::NotFound("delete not supported".into()))
+    }
 }

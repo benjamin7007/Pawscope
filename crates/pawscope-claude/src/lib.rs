@@ -746,6 +746,56 @@ impl AgentAdapter for ClaudeAdapter {
         }
     }
 
+    fn supports_delete(&self) -> bool {
+        true
+    }
+
+    async fn delete_session(&self, session_id: &str) -> Result<String> {
+        // Find the session file
+        let files = self.iter_session_files();
+        let entry = files.iter().find(|(_path, id)| id == session_id);
+        let (src, _) = entry.ok_or_else(|| CoreError::NotFound(session_id.to_string()))?;
+        let src = src.clone();
+        // Path-traversal guard
+        let canon_root = std::fs::canonicalize(&self.root)
+            .map_err(|e| CoreError::Other(format!("canonicalize root: {e}")))?;
+        let canon_src = std::fs::canonicalize(&src)
+            .map_err(|e| CoreError::Other(format!("canonicalize src: {e}")))?;
+        if !canon_src.starts_with(&canon_root) {
+            return Err(CoreError::Other("path traversal denied".into()));
+        }
+        let filename = src
+            .file_name()
+            .ok_or_else(|| CoreError::Other("no filename".into()))?;
+        let trash = dirs::home_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join(".pawscope/trash/claude")
+            .join(filename);
+        if let Some(parent) = trash.parent() {
+            tokio::fs::create_dir_all(parent).await?;
+        }
+        if tokio::fs::rename(&src, &trash).await.is_err() {
+            tokio::fs::copy(&src, &trash).await?;
+            tokio::fs::remove_file(&src).await?;
+        }
+        // Also try to move the subagents directory if it exists
+        let sub_dir = src.parent().map(|p| p.join(session_id).join("subagents"));
+        if let Some(ref sd) = sub_dir {
+            if sd.is_dir() {
+                let trash_sub = dirs::home_dir()
+                    .unwrap_or_else(|| PathBuf::from("."))
+                    .join(".pawscope/trash/claude")
+                    .join(session_id)
+                    .join("subagents");
+                tokio::fs::create_dir_all(&trash_sub).await?;
+                let _ = tokio::fs::rename(sd, &trash_sub).await;
+            }
+        }
+        // Purge from state cache
+        self.state.write().unwrap().remove(session_id);
+        Ok(trash.to_string_lossy().into_owned())
+    }
+
     async fn activity_hourly(&self, hours: u32) -> Result<Vec<u64>> {
         let hours = hours.max(1) as usize;
         let now = Utc::now();

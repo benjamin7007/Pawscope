@@ -26,6 +26,12 @@ type Props = {
   pulseMap?: Record<string, { bins: number[]; events: number }>;
   compareIds?: string[];
   onToggleCompare?: (id: string) => void;
+  onHide?: (id: string) => void;
+  onUnhide?: (id: string) => void;
+  onDelete?: (id: string) => void;
+  hiddenIds?: Set<string>;
+  showHidden?: boolean;
+  onToggleShowHidden?: () => void;
 };
 
 function timeAgo(iso?: string | null): string {
@@ -54,7 +60,7 @@ function sessionRealmKey(s: Session): string {
 
 type SortMode = 'recent' | 'oldest' | 'repo' | 'tokens';
 
-export function SessionList({ items, onSelect, selected, realmFilter, onClearRealmFilter, labels, onToggleStar, tokensMap, pulseMap, compareIds, onToggleCompare }: Props) {
+export function SessionList({ items, onSelect, selected, realmFilter, onClearRealmFilter, labels, onToggleStar, tokensMap, pulseMap, compareIds, onToggleCompare, onHide, onUnhide, onDelete, hiddenIds, showHidden, onToggleShowHidden }: Props) {
   const { t } = useT();
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -147,6 +153,7 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
     const fmtK = (n: number) => n >= 1_000_000 ? `${(n/1_000_000).toFixed(1)}M` : n >= 1000 ? `${(n/1000).toFixed(1)}k` : `${n}`;
     const pulse = pulseMap?.[s.id];
     const inCompare = !!compareIds?.includes(s.id);
+    const isHidden = hiddenIds?.has(s.id);
     return (
     <button
       key={s.id}
@@ -160,7 +167,7 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
         onSelect(s.id);
       }}
       title={onToggleCompare ? 'Click to open · Shift+click to add to compare' : undefined}
-      className={`group block w-full text-left px-3 py-2 border-l-2 transition-colors ${
+      className={`group block w-full text-left px-3 py-2 border-l-2 transition-colors ${isHidden ? 'opacity-40' : ''} ${
         selected === s.id
           ? 'bg-slate-800/80 border-emerald-400'
           : inCompare
@@ -212,6 +219,34 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
           </span>
         )}
         <span className="text-[10px] text-slate-500 ml-auto">{timeAgo(s.last_event_at)}</span>
+        <span className="hidden group-hover:inline-flex items-center gap-1 ml-1">
+          {isHidden ? (
+            <span
+              role="button"
+              onClick={(e) => { e.stopPropagation(); onUnhide?.(s.id); }}
+              className="text-[11px] text-slate-500 hover:text-emerald-300 cursor-pointer"
+              title="Unhide"
+            >👁</span>
+          ) : (
+            <span
+              role="button"
+              onClick={(e) => { e.stopPropagation(); onHide?.(s.id); }}
+              className="text-[11px] text-slate-500 hover:text-amber-300 cursor-pointer"
+              title="Hide"
+            >🙈</span>
+          )}
+          <span
+            role="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (confirm('Delete this session? Data will be moved to ~/.pawscope/trash/')) {
+                onDelete?.(s.id);
+              }
+            }}
+            className="text-[11px] text-slate-500 hover:text-red-400 cursor-pointer"
+            title="Delete (move to trash)"
+          >🗑</span>
+        </span>
       </div>
       <div className="text-sm mt-0.5 truncate text-slate-200">
         {s.summary || <span className="text-slate-500 italic">(no summary)</span>}
@@ -447,6 +482,19 @@ export function SessionList({ items, onSelect, selected, realmFilter, onClearRea
           >
             ★
           </button>
+          {onToggleShowHidden && (
+            <button
+              onClick={() => onToggleShowHidden()}
+              title={showHidden ? 'Hide hidden sessions' : 'Show hidden sessions'}
+              className={`px-2 py-1 text-[11px] rounded border transition-colors flex-shrink-0 ${
+                showHidden
+                  ? 'bg-slate-500/10 border-slate-500/40 text-slate-300'
+                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              👁
+            </button>
+          )}
         </div>
         {allTags.length > 0 && (
           <div className="flex items-center gap-1.5 mt-1.5 overflow-x-auto">

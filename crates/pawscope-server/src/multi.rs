@@ -66,6 +66,24 @@ impl AgentAdapter for MultiAdapter {
         Ok(())
     }
 
+    fn supports_delete(&self) -> bool {
+        self.adapters.iter().any(|a| a.supports_delete())
+    }
+
+    async fn delete_session(&self, session_id: &str) -> Result<String> {
+        for a in &self.adapters {
+            if a.supports_delete() {
+                match a.delete_session(session_id).await {
+                    Ok(p) => return Ok(p),
+                    Err(_) => continue,
+                }
+            }
+        }
+        Err(pawscope_core::CoreError::NotFound(
+            "no adapter can delete this session".into(),
+        ))
+    }
+
     async fn activity_hourly(&self, hours: u32) -> Result<Vec<u64>> {
         let mut combined: Vec<u64> = vec![0; hours as usize];
         for a in &self.adapters {

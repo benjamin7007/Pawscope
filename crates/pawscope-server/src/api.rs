@@ -10,9 +10,26 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-pub async fn list_sessions(State(s): State<AppState>) -> impl IntoResponse {
+#[derive(Deserialize)]
+pub struct ListSessionsQuery {
+    #[serde(default)]
+    pub show_hidden: Option<bool>,
+}
+
+pub async fn list_sessions(
+    Query(q): Query<ListSessionsQuery>,
+    State(s): State<AppState>,
+) -> impl IntoResponse {
     match s.adapter.list_sessions().await {
-        Ok(v) => Json(v).into_response(),
+        Ok(v) => {
+            if q.show_hidden.unwrap_or(false) {
+                Json(v).into_response()
+            } else {
+                let hidden = s.hidden.snapshot().await;
+                let filtered: Vec<_> = v.into_iter().filter(|m| !hidden.contains(&m.id)).collect();
+                Json(filtered).into_response()
+            }
+        }
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
 }
@@ -1743,4 +1760,45 @@ fn scan_agents_dir(dir: &std::path::Path, source: &str) -> Vec<AgentEntry> {
         }
     }
     agents
+}
+
+pub async fn list_hidden(State(s): State<AppState>) -> impl IntoResponse {
+    let hidden = s.hidden.snapshot().await;
+    Json(serde_json::json!({ "hidden": hidden })).into_response()
+}
+
+pub async fn hide_session(Path(id): Path<String>, State(s): State<AppState>) -> impl IntoResponse {
+    match s.hidden.hide(&id).await {
+        Ok(()) => Json(serde_json::json!({ "hidden": true, "id": id })).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+pub async fn unhide_session(
+    Path(id): Path<String>,
+    State(s): State<AppState>,
+) -> impl IntoResponse {
+    match s.hidden.unhide(&id).await {
+        Ok(()) => Json(serde_json::json!({ "hidden": false, "id": id })).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+pub async fn delete_session(
+    Path(id): Path<String>,
+    State(s): State<AppState>,
+) -> impl IntoResponse {
+    match s.adapter.delete_session(&id).await {
+        Ok(trash_path) => {
+            let _ = s.hidden.unhide(&id).await;
+            s.detail_cache.invalidate(&id).await;
+            Json(serde_json::json!({
+                "deleted": true,
+                "id": id,
+                "trash_path": trash_path,
+            }))
+            .into_response()
+        }
+        Err(e) => (StatusCode::BAD_REQUEST, e.to_string()).into_response(),
+    }
 }
