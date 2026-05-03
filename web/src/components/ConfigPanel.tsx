@@ -122,7 +122,9 @@ export function ConfigPanel({ onOpenSkills, sessions = [], tokensMap = {} }: Con
           const stats = agentStats[ac.agent];
           const hasInstructions = !!ac.instructions;
           const isInstructionsOpen = expandedInstructions === ac.agent;
-          const settingsEntries = Object.entries(ac.settings ?? {});
+          const settingsEntries = Object.entries(ac.settings ?? {}).filter(
+            ([k]) => k !== 'extraKnownMarketplaces',
+          );
 
           return (
             <div
@@ -171,7 +173,9 @@ export function ConfigPanel({ onOpenSkills, sessions = [], tokensMap = {} }: Con
                           : key}
                       </span>
                       <p className="text-slate-300 font-mono text-[11px] mt-0.5 truncate">
-                        {Array.isArray(val) ? val.join(', ') : String(val)}
+                        {Array.isArray(val) ? val.join(', ')
+                          : typeof val === 'object' && val !== null ? Object.keys(val as Record<string, unknown>).join(', ')
+                          : String(val)}
                       </p>
                     </div>
                   ))}
