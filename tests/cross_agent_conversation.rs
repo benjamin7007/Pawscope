@@ -117,7 +117,11 @@ async fn multi_adapter_routes_conversation_to_claude() {
         .unwrap()
         .expect("claude conversation should be present");
 
-    assert_eq!(log.interactions.len(), 1, "one user prompt → one interaction");
+    assert_eq!(
+        log.interactions.len(),
+        1,
+        "one user prompt → one interaction"
+    );
     let i0 = &log.interactions[0];
     assert_eq!(i0.user_message_raw.as_deref(), Some("explain the codebase"));
     assert_eq!(i0.turns.len(), 1);
@@ -194,5 +198,8 @@ async fn multi_adapter_returns_none_for_unknown_session() {
     let multi = MultiAdapter::new(vec![claude, codex]);
 
     let log = multi.get_conversation("does-not-exist").await.unwrap();
-    assert!(log.is_none(), "missing session should return Ok(None), not error");
+    assert!(
+        log.is_none(),
+        "missing session should return Ok(None), not error"
+    );
 }

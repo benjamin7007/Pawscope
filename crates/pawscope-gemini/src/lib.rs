@@ -4,9 +4,7 @@
 //! ships a stable session format, this adapter will be fleshed out.
 
 use async_trait::async_trait;
-use pawscope_core::{
-    AgentAdapter, CoreError, Result, SessionDetail, SessionEvent, SessionMeta,
-};
+use pawscope_core::{AgentAdapter, CoreError, Result, SessionDetail, SessionEvent, SessionMeta};
 use std::path::PathBuf;
 use tokio::sync::mpsc;
 

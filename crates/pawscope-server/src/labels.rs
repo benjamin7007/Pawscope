@@ -21,7 +21,11 @@ impl Label {
         !self.starred
             && self.tags.is_empty()
             && self.note.as_deref().map(str::is_empty).unwrap_or(true)
-            && self.custom_name.as_deref().map(str::is_empty).unwrap_or(true)
+            && self
+                .custom_name
+                .as_deref()
+                .map(str::is_empty)
+                .unwrap_or(true)
     }
 }
 

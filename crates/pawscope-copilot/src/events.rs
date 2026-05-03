@@ -1,6 +1,6 @@
 use pawscope_core::types::{
-    AssistantTurn, CompactionMarker, ConversationLog, Interaction, SessionDetail,
-    SubagentScope, SystemPromptMarker, ToolCall, TurnItem, TurnToolCall, UserMessageKind,
+    AssistantTurn, CompactionMarker, ConversationLog, Interaction, SessionDetail, SubagentScope,
+    SystemPromptMarker, ToolCall, TurnItem, TurnToolCall, UserMessageKind,
 };
 use serde::Deserialize;
 use std::io::{BufRead, BufReader, Seek, SeekFrom};
@@ -21,7 +21,10 @@ struct Event<'a> {
 /// subagent scope inside that turn.
 #[derive(Debug, Clone)]
 enum ScopeRef {
-    Turn { interaction: usize, turn: usize },
+    Turn {
+        interaction: usize,
+        turn: usize,
+    },
     Subagent {
         interaction: usize,
         turn: usize,
@@ -94,10 +97,9 @@ pub fn parse_incremental(path: &Path, state: &mut ParseState) -> anyhow::Result<
         let ts = parse_ts(ev.timestamp.as_deref());
         match ev.kind {
             "system.message" => {
-                if let (Some(at), Some(content)) = (
-                    ts,
-                    ev.data.get("content").and_then(|v| v.as_str()),
-                ) {
+                if let (Some(at), Some(content)) =
+                    (ts, ev.data.get("content").and_then(|v| v.as_str()))
+                {
                     state.conversation.system_prompts.push(SystemPromptMarker {
                         at,
                         content: content.to_string(),
@@ -108,11 +110,15 @@ pub fn parse_incremental(path: &Path, state: &mut ParseState) -> anyhow::Result<
             }
             "session.compaction_start" => {
                 if let Some(at) = ts {
-                    state.conversation.compaction_markers.push(CompactionMarker {
-                        started_at: at,
-                        completed_at: None,
-                    });
-                    state.current_compaction = Some(state.conversation.compaction_markers.len() - 1);
+                    state
+                        .conversation
+                        .compaction_markers
+                        .push(CompactionMarker {
+                            started_at: at,
+                            completed_at: None,
+                        });
+                    state.current_compaction =
+                        Some(state.conversation.compaction_markers.len() - 1);
                     // Compaction closes the current interaction context.
                     state.current_interaction = None;
                     state.current_scope = None;
@@ -128,13 +134,14 @@ pub fn parse_incremental(path: &Path, state: &mut ParseState) -> anyhow::Result<
                 }
             }
             "user.message" => {
-                let content = ev.data.get("content").and_then(|v| v.as_str()).unwrap_or("");
+                let content = ev
+                    .data
+                    .get("content")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
                 let kind = classify_user_message(content);
                 let is_human = kind == UserMessageKind::Human;
-                let transformed = ev
-                    .data
-                    .get("transformedContent")
-                    .and_then(|v| v.as_str());
+                let transformed = ev.data.get("transformedContent").and_then(|v| v.as_str());
                 let interaction_id = ev
                     .data
                     .get("interactionId")
@@ -181,10 +188,9 @@ pub fn parse_incremental(path: &Path, state: &mut ParseState) -> anyhow::Result<
             "assistant.message" => {
                 state.detail.assistant_messages += 1;
                 let out_tokens = ev.data.get("outputTokens").and_then(|v| v.as_u64());
-                if let (Some(at), Some(content)) = (
-                    ts,
-                    ev.data.get("content").and_then(|v| v.as_str()),
-                ) {
+                if let (Some(at), Some(content)) =
+                    (ts, ev.data.get("content").and_then(|v| v.as_str()))
+                {
                     let scope = state.ensure_active_turn(at);
                     if let Some(items) = state.scope_items_mut(&scope) {
                         items.push(TurnItem::AssistantMessage {
@@ -208,20 +214,17 @@ pub fn parse_incremental(path: &Path, state: &mut ParseState) -> anyhow::Result<
                                 .get_mut(*interaction)
                                 .and_then(|i| i.turns.get_mut(*turn))
                             {
-                                let model = state
-                                    .model
-                                    .clone()
-                                    .unwrap_or_else(|| "gpt-5".to_string());
-                                let mut tu = t.usage.clone().unwrap_or_else(|| {
-                                    pawscope_core::TurnUsage {
+                                let model =
+                                    state.model.clone().unwrap_or_else(|| "gpt-5".to_string());
+                                let mut tu =
+                                    t.usage.clone().unwrap_or_else(|| pawscope_core::TurnUsage {
                                         model: model.clone(),
                                         input_tokens: None,
                                         output_tokens: Some(0),
                                         cache_read_tokens: None,
                                         cache_write_tokens: None,
                                         cost_usd: None,
-                                    }
-                                });
+                                    });
                                 tu.model = model;
                                 tu.output_tokens = Some(tu.output_tokens.unwrap_or(0) + out);
                                 tu.cost_usd = pawscope_core::pricing::compute_cost(&tu);
@@ -379,7 +382,12 @@ pub fn parse_incremental(path: &Path, state: &mut ParseState) -> anyhow::Result<
             }
             "subagent.completed" => {
                 if let Some(scope) = state.current_scope.clone() {
-                    if let ScopeRef::Subagent { interaction, turn, mut path } = scope {
+                    if let ScopeRef::Subagent {
+                        interaction,
+                        turn,
+                        mut path,
+                    } = scope
+                    {
                         if let Some(last_idx) = path.last().copied() {
                             // Mark completed_at on the deepest subagent.
                             let parent_path = path[..path.len() - 1].to_vec();
@@ -402,7 +410,11 @@ pub fn parse_incremental(path: &Path, state: &mut ParseState) -> anyhow::Result<
                             state.current_scope = Some(if path.is_empty() {
                                 ScopeRef::Turn { interaction, turn }
                             } else {
-                                ScopeRef::Subagent { interaction, turn, path }
+                                ScopeRef::Subagent {
+                                    interaction,
+                                    turn,
+                                    path,
+                                }
                             });
                             state.conversation.version += 1;
                         }
@@ -610,7 +622,9 @@ impl ParseState {
 
 /// Truncate a string at a char boundary (not a byte boundary, to be safe with multibyte text).
 fn truncate_str(s: &str, max_chars: usize) -> String {
-    if s.chars().count() <= max_chars { return s.to_string(); }
+    if s.chars().count() <= max_chars {
+        return s.to_string();
+    }
     let mut out: String = s.chars().take(max_chars).collect();
     out.push('…');
     out

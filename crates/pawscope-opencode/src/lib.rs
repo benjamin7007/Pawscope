@@ -257,12 +257,10 @@ impl AgentAdapter for OpenCodeAdapter {
                         .and_then(|s| s.get("status"))
                         .and_then(|s| s.as_str())
                         .map(|s| s == "completed");
-                    let args_summary = state
-                        .and_then(|s| s.get("input"))
-                        .map(|inp| {
-                            let s = inp.to_string();
-                            s.chars().take(300).collect::<String>()
-                        });
+                    let args_summary = state.and_then(|s| s.get("input")).map(|inp| {
+                        let s = inp.to_string();
+                        s.chars().take(300).collect::<String>()
+                    });
                     let result_snippet = state
                         .and_then(|s| s.get("output"))
                         .and_then(|o| o.as_str())
@@ -309,8 +307,7 @@ impl AgentAdapter for OpenCodeAdapter {
         let buckets = tokio::task::spawn_blocking(move || -> Result<Vec<u64>> {
             let guard = conn.lock().unwrap();
             let now = Utc::now();
-            let cutoff_ms =
-                (now - chrono::Duration::hours(hours_usize as i64)).timestamp_millis();
+            let cutoff_ms = (now - chrono::Duration::hours(hours_usize as i64)).timestamp_millis();
             let mut stmt = guard
                 .prepare(
                     "SELECT time_created FROM message
@@ -345,8 +342,7 @@ impl AgentAdapter for OpenCodeAdapter {
         let buckets = tokio::task::spawn_blocking(move || -> Result<Vec<u64>> {
             let guard = conn.lock().unwrap();
             let now = Utc::now();
-            let cutoff_ms =
-                (now - chrono::Duration::hours(hours_usize as i64)).timestamp_millis();
+            let cutoff_ms = (now - chrono::Duration::hours(hours_usize as i64)).timestamp_millis();
             let mut stmt = guard
                 .prepare(
                     "SELECT time_created FROM message
@@ -450,7 +446,14 @@ mod tests {
         conn.execute(
             "INSERT INTO session (id, project_id, directory, title, time_created, time_updated)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            rusqlite::params!["s1", "p1", "/tmp/project", "Test Session", now_ms - 60000, now_ms],
+            rusqlite::params![
+                "s1",
+                "p1",
+                "/tmp/project",
+                "Test Session",
+                now_ms - 60000,
+                now_ms
+            ],
         )
         .unwrap();
 

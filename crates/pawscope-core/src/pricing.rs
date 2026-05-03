@@ -153,7 +153,10 @@ mod tests {
 
     #[test]
     fn normalize_strips_date_suffix() {
-        assert_eq!(normalize_model("claude-sonnet-4-5-20250929"), "claude-sonnet-4-5");
+        assert_eq!(
+            normalize_model("claude-sonnet-4-5-20250929"),
+            "claude-sonnet-4-5"
+        );
         assert_eq!(normalize_model("Claude-Opus-4-1"), "claude-opus-4-1");
         assert_eq!(normalize_model("gpt-5-latest"), "gpt-5");
         assert_eq!(normalize_model("gpt-5-codex"), "gpt-5-codex");

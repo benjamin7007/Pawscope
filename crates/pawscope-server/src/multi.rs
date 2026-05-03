@@ -1,7 +1,9 @@
 //! Fan-out adapter that combines multiple `AgentAdapter`s into one.
 
 use async_trait::async_trait;
-use pawscope_core::{AgentAdapter, ConversationLog, Result, SessionDetail, SessionEvent, SessionMeta};
+use pawscope_core::{
+    AgentAdapter, ConversationLog, Result, SessionDetail, SessionEvent, SessionMeta,
+};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::mpsc;

@@ -335,8 +335,10 @@ fn parse_incremental(path: &Path, st: &mut ParseState) {
                         }
                     }
                     if let Some(usage) = msg.get("usage") {
-                        let ti =
-                            usage.get("input_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
+                        let ti = usage
+                            .get("input_tokens")
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or(0);
                         let to_ = usage
                             .get("output_tokens")
                             .and_then(|v| v.as_u64())
@@ -348,8 +350,7 @@ fn parse_incremental(path: &Path, st: &mut ParseState) {
                         for it in arr {
                             if it.get("type").and_then(|t| t.as_str()) == Some("tool_use") {
                                 if let Some(name) = it.get("name").and_then(|n| n.as_str()) {
-                                    *st.detail.tools_used.entry(name.to_string()).or_default() +=
-                                        1;
+                                    *st.detail.tools_used.entry(name.to_string()).or_default() += 1;
                                     if let Some(ts) = st.last_event_at {
                                         let args_summary = it.get("input").map(|v| {
                                             let s = match v {
@@ -425,10 +426,7 @@ fn apply_user_event(st: &mut ParseState, v: &serde_json::Value, full_text: &str)
     if let Some(arr) = content.and_then(|c| c.as_array()) {
         for it in arr {
             if it.get("type").and_then(|t| t.as_str()) == Some("tool_result") {
-                let id = it
-                    .get("tool_use_id")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("");
+                let id = it.get("tool_use_id").and_then(|v| v.as_str()).unwrap_or("");
                 let is_error = it
                     .get("is_error")
                     .and_then(|v| v.as_bool())
@@ -554,7 +552,9 @@ fn apply_assistant_event(st: &mut ParseState, msg: &serde_json::Value) {
                 model: model.to_string(),
                 input_tokens: usage.get("input_tokens").and_then(|v| v.as_u64()),
                 output_tokens: usage.get("output_tokens").and_then(|v| v.as_u64()),
-                cache_read_tokens: usage.get("cache_read_input_tokens").and_then(|v| v.as_u64()),
+                cache_read_tokens: usage
+                    .get("cache_read_input_tokens")
+                    .and_then(|v| v.as_u64()),
                 cache_write_tokens: usage
                     .get("cache_creation_input_tokens")
                     .and_then(|v| v.as_u64()),

@@ -116,7 +116,10 @@ fn save_disk_cache(catalog: &CachedCatalog) {
         if let Some(parent) = path.parent() {
             let _ = std::fs::create_dir_all(parent);
         }
-        let _ = std::fs::write(&path, serde_json::to_string_pretty(catalog).unwrap_or_default());
+        let _ = std::fs::write(
+            &path,
+            serde_json::to_string_pretty(catalog).unwrap_or_default(),
+        );
     }
 }
 
@@ -149,9 +152,16 @@ fn http_client() -> &'static reqwest::Client {
 
 fn infer_category(desc: &str) -> &'static str {
     let d = desc.to_lowercase();
-    if ["security", "owasp", "vulnerability", "threat", "supply chain", "audit"]
-        .iter()
-        .any(|k| d.contains(k))
+    if [
+        "security",
+        "owasp",
+        "vulnerability",
+        "threat",
+        "supply chain",
+        "audit",
+    ]
+    .iter()
+    .any(|k| d.contains(k))
     {
         "🔒 Security"
     } else if ["test", "tdd", "coverage", "spec", "eval", "benchmark"]
@@ -180,9 +190,11 @@ fn infer_category(desc: &str) -> &'static str {
     .any(|k| d.contains(k))
     {
         "🎨 Frontend"
-    } else if ["api", "rest", "graphql", "backend", "server", "database", "sql"]
-        .iter()
-        .any(|k| d.contains(k))
+    } else if [
+        "api", "rest", "graphql", "backend", "server", "database", "sql",
+    ]
+    .iter()
+    .any(|k| d.contains(k))
     {
         "⚙️ Backend"
     } else if [
@@ -224,9 +236,17 @@ fn infer_category(desc: &str) -> &'static str {
         .any(|k| d.contains(k))
     {
         "🔀 Git & GitHub"
-    } else if ["mobile", "ios", "android", "flutter", "react native", "swift", "kotlin"]
-        .iter()
-        .any(|k| d.contains(k))
+    } else if [
+        "mobile",
+        "ios",
+        "android",
+        "flutter",
+        "react native",
+        "swift",
+        "kotlin",
+    ]
+    .iter()
+    .any(|k| d.contains(k))
     {
         "📱 Mobile"
     } else if ["data", "analytics", "visualization"]
@@ -241,10 +261,8 @@ fn infer_category(desc: &str) -> &'static str {
 
 fn parse_skills_index(md: &str) -> Vec<SkillEntry> {
     let mut skills = Vec::new();
-    let re = Regex::new(
-        r#"^\| \[([^\]]+)\]\([^\)]+\)(?:<br />.*?)? \| (.*?) \| (.*?) \|$"#,
-    )
-    .unwrap();
+    let re =
+        Regex::new(r#"^\| \[([^\]]+)\]\([^\)]+\)(?:<br />.*?)? \| (.*?) \| (.*?) \|$"#).unwrap();
     for line in md.lines() {
         if let Some(caps) = re.captures(line.trim()) {
             let name = caps[1].to_string();
@@ -433,9 +451,7 @@ pub async fn store_catalog(
         .await
         .ok()
         .and_then(|r| {
-            futures::executor::block_on(async {
-                r.json::<serde_json::Value>().await.ok()
-            })
+            futures::executor::block_on(async { r.json::<serde_json::Value>().await.ok() })
         })
         .and_then(|v| v.get("sha")?.as_str().map(String::from));
 
@@ -615,9 +631,7 @@ pub async fn store_install(
     // Write manifest
     let sha = {
         let guard = cache_lock().read().await;
-        guard
-            .as_ref()
-            .and_then(|c| c.commit_sha.clone())
+        guard.as_ref().and_then(|c| c.commit_sha.clone())
     };
     let manifest = serde_json::json!({
         "source": "github/awesome-copilot",
@@ -669,11 +683,7 @@ pub async fn store_uninstall(
 
     if skill_dir.exists() {
         if let Err(e) = std::fs::remove_dir_all(&skill_dir) {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("remove: {e}"),
-            )
-                .into_response();
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("remove: {e}")).into_response();
         }
     }
 

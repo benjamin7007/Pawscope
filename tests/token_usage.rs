@@ -131,7 +131,10 @@ async fn claude_per_turn_usage_and_rollup() {
     assert_eq!(u.output_tokens, Some(480));
     assert_eq!(u.cache_read_tokens, Some(800));
     assert_eq!(u.cache_write_tokens, Some(400));
-    assert!(u.cost_usd.unwrap() > 0.0, "claude cost must resolve from dated model");
+    assert!(
+        u.cost_usd.unwrap() > 0.0,
+        "claude cost must resolve from dated model"
+    );
     assert!(u.model.contains("claude-sonnet-4-5"));
 
     // Rollup: single Claude turn → totals match per-turn values.
@@ -141,7 +144,10 @@ async fn claude_per_turn_usage_and_rollup() {
     assert_eq!(s.total_output_tokens, 480);
     assert_eq!(s.total_cache_read_tokens, 800);
     assert_eq!(s.total_cache_write_tokens, 400);
-    assert_eq!(s.turns_with_known_model, 1, "dated suffix should still resolve");
+    assert_eq!(
+        s.turns_with_known_model, 1,
+        "dated suffix should still resolve"
+    );
     assert!(s.by_model.contains_key("claude-sonnet-4-5"));
     assert!(s.total_cost_usd.unwrap() > 0.0);
 }
@@ -186,7 +192,10 @@ async fn codex_token_deltas_and_rollup() {
 
     let s = log.tokens.as_ref().expect("codex rollup must be Some");
     assert_eq!(s.turn_count, 2);
-    assert_eq!(s.total_input_tokens, 350, "matches latest cumulative input total");
+    assert_eq!(
+        s.total_input_tokens, 350,
+        "matches latest cumulative input total"
+    );
     assert_eq!(s.total_output_tokens, 170);
     assert_eq!(s.turns_with_known_model, 2);
     assert!(s.by_model.contains_key("gpt-5-codex"));

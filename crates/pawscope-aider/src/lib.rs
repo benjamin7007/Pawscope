@@ -5,9 +5,7 @@
 //! roots. This stub returns empty results until the scanner is implemented.
 
 use async_trait::async_trait;
-use pawscope_core::{
-    AgentAdapter, CoreError, Result, SessionDetail, SessionEvent, SessionMeta,
-};
+use pawscope_core::{AgentAdapter, CoreError, Result, SessionDetail, SessionEvent, SessionMeta};
 use std::path::PathBuf;
 use tokio::sync::mpsc;
 

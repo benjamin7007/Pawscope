@@ -49,7 +49,10 @@ pub fn recompute_token_summary(log: &mut types::ConversationLog) {
                     summary.turns_with_known_model += 1;
                 }
 
-                let entry = summary.by_model.entry(normalized).or_insert_with(ModelUsage::default);
+                let entry = summary
+                    .by_model
+                    .entry(normalized)
+                    .or_insert_with(ModelUsage::default);
                 entry.input_tokens += usage.input_tokens.unwrap_or(0);
                 entry.output_tokens += usage.output_tokens.unwrap_or(0);
                 entry.cache_read_tokens += usage.cache_read_tokens.unwrap_or(0);
@@ -64,8 +67,16 @@ pub fn recompute_token_summary(log: &mut types::ConversationLog) {
         }
     }
 
-    summary.total_cost_usd = if have_any_cost { Some(total_cost) } else { None };
-    log.tokens = if summary.turn_count == 0 { None } else { Some(summary) };
+    summary.total_cost_usd = if have_any_cost {
+        Some(total_cost)
+    } else {
+        None
+    };
+    log.tokens = if summary.turn_count == 0 {
+        None
+    } else {
+        Some(summary)
+    };
 }
 
 #[cfg(test)]
@@ -129,4 +140,3 @@ mod rollup_tests {
         assert!(log.tokens.is_none());
     }
 }
-

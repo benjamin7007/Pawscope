@@ -153,7 +153,9 @@ pub enum UserMessageKind {
 }
 
 impl Default for UserMessageKind {
-    fn default() -> Self { Self::Human }
+    fn default() -> Self {
+        Self::Human
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -251,10 +253,7 @@ pub struct TokenSummary {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum TurnItem {
-    AssistantMessage {
-        at: DateTime<Utc>,
-        content: String,
-    },
+    AssistantMessage { at: DateTime<Utc>, content: String },
     Tool(TurnToolCall),
     Subagent(SubagentScope),
 }

@@ -236,8 +236,7 @@ impl AgentAdapter for CodexAdapter {
                     let mut rows = stmt
                         .query([&id])
                         .map_err(|e| CoreError::Other(e.to_string()))?;
-                    let Some(row) =
-                        rows.next().map_err(|e| CoreError::Other(e.to_string()))?
+                    let Some(row) = rows.next().map_err(|e| CoreError::Other(e.to_string()))?
                     else {
                         return Ok(None);
                     };
@@ -659,18 +658,18 @@ fn parse_rollout_into_conversation(file: std::fs::File) -> pawscope_core::Conver
                     .and_then(|c| c.as_str())
                     .unwrap_or("")
                     .to_string();
-                let args_summary = p
-                    .get("action")
-                    .and_then(|a| a.get("command"))
-                    .map(|c| match c {
-                        serde_json::Value::Array(arr) => arr
-                            .iter()
-                            .filter_map(|i| i.as_str())
-                            .collect::<Vec<_>>()
-                            .join(" "),
-                        serde_json::Value::String(s) => s.clone(),
-                        other => serde_json::to_string(other).unwrap_or_default(),
-                    });
+                let args_summary =
+                    p.get("action")
+                        .and_then(|a| a.get("command"))
+                        .map(|c| match c {
+                            serde_json::Value::Array(arr) => arr
+                                .iter()
+                                .filter_map(|i| i.as_str())
+                                .collect::<Vec<_>>()
+                                .join(" "),
+                            serde_json::Value::String(s) => s.clone(),
+                            other => serde_json::to_string(other).unwrap_or_default(),
+                        });
                 attach_tool_item(
                     &mut log,
                     &mut current_interaction,
@@ -1245,7 +1244,11 @@ mod tests {
 
         let a = CodexAdapter::with_db(db).unwrap();
         let log = a.get_conversation("thread-conv").await.unwrap().unwrap();
-        assert_eq!(log.interactions.len(), 2, "two user prompts → two interactions");
+        assert_eq!(
+            log.interactions.len(),
+            2,
+            "two user prompts → two interactions"
+        );
         let i0 = &log.interactions[0];
         assert_eq!(i0.user_message_raw.as_deref(), Some("hello there"));
         assert_eq!(i0.turns.len(), 1);
@@ -1268,6 +1271,9 @@ mod tests {
         }
         let i1 = &log.interactions[1];
         assert_eq!(i1.user_message_raw.as_deref(), Some("second prompt"));
-        assert!(i1.turns.is_empty(), "second prompt has no assistant reply yet");
+        assert!(
+            i1.turns.is_empty(),
+            "second prompt has no assistant reply yet"
+        );
     }
 }

@@ -675,8 +675,15 @@ pub async fn prompts_length(State(s): State<AppState>) -> impl IntoResponse {
     }
     if lens.is_empty() {
         return Json(PromptLenStats {
-            total: 0, mean: 0.0, median: 0, p95: 0, p99: 0, max: 0, buckets: vec![],
-        }).into_response();
+            total: 0,
+            mean: 0.0,
+            median: 0,
+            p95: 0,
+            p99: 0,
+            max: 0,
+            buckets: vec![],
+        })
+        .into_response();
     }
     lens.sort_unstable();
     let total = lens.len() as u64;
@@ -701,9 +708,15 @@ pub async fn prompts_length(State(s): State<AppState>) -> impl IntoResponse {
         ("5k-10k", 5_000, 10_000),
         ("10k+", 10_000, u64::MAX),
     ];
-    let mut buckets: Vec<PromptLenBucket> = edges.iter().map(|(l, mn, mx)| PromptLenBucket {
-        label: (*l).to_string(), min: *mn, max: *mx, count: 0,
-    }).collect();
+    let mut buckets: Vec<PromptLenBucket> = edges
+        .iter()
+        .map(|(l, mn, mx)| PromptLenBucket {
+            label: (*l).to_string(),
+            min: *mn,
+            max: *mx,
+            count: 0,
+        })
+        .collect();
     for &len in &lens {
         for b in buckets.iter_mut() {
             if len >= b.min && len < b.max {
@@ -712,7 +725,16 @@ pub async fn prompts_length(State(s): State<AppState>) -> impl IntoResponse {
             }
         }
     }
-    Json(PromptLenStats { total, mean, median, p95, p99, max: max_v, buckets }).into_response()
+    Json(PromptLenStats {
+        total,
+        mean,
+        median,
+        p95,
+        p99,
+        max: max_v,
+        buckets,
+    })
+    .into_response()
 }
 
 #[derive(Debug, Serialize)]
@@ -732,34 +754,135 @@ struct TechStackStats {
     per_session: HashMap<String, Vec<String>>,
 }
 
-fn tech_patterns() -> &'static [(&'static str, &'static str, &'static str, &'static [&'static str])] {
+fn tech_patterns() -> &'static [(
+    &'static str,
+    &'static str,
+    &'static str,
+    &'static [&'static str],
+)] {
     &[
-        ("rust",       "Rust",       "🦀", &["rust", "cargo", "rustc", "clippy", "tokio", "serde", "axum", "actix"]),
-        ("python",     "Python",     "🐍", &["python", "pip ", "pip3", "django", "flask", "fastapi", "pandas", "numpy", "pytorch", ".py"]),
-        ("typescript", "TypeScript", "🔷", &["typescript", "tsconfig", " tsc ", ".ts", ".tsx"]),
-        ("javascript", "JavaScript", "🟨", &["javascript", "node.js", " npm ", "yarn", "pnpm", ".js", ".jsx"]),
-        ("react",      "React",      "⚛️", &["react", "jsx", "tsx", "useState", "useEffect", "next.js", "vite"]),
-        ("vue",        "Vue",        "💚", &["vue.js", "vuejs", "nuxt"]),
-        ("go",         "Go",         "🐹", &["golang", " go ", " go.mod", "goroutine", ".go "]),
-        ("java",       "Java",       "☕", &["java ", "maven", "gradle", "spring", "kotlin"]),
-        ("swift",      "Swift",      "🦅", &["swift", "swiftui", "xcode", ".swift"]),
-        ("ruby",       "Ruby",       "💎", &["ruby", "rails", "gemfile"]),
-        ("php",        "PHP",        "🐘", &["php ", "laravel", "composer", ".php"]),
-        ("cpp",        "C/C++",      "⚙️", &["c++", "cpp", "cmake", " gcc ", " clang "]),
-        ("csharp",     "C#",         "🎯", &["c#", "csharp", ".net ", "dotnet", ".cs "]),
-        ("docker",     "Docker",     "🐳", &["docker", "dockerfile", "compose.yml", "compose.yaml"]),
-        ("k8s",        "Kubernetes", "☸️", &["kubernetes", "k8s", "kubectl", "helm"]),
-        ("postgres",   "Postgres",   "🐘", &["postgres", "postgresql", "psql"]),
-        ("mysql",      "MySQL",      "🐬", &["mysql", "mariadb"]),
-        ("sqlite",     "SQLite",     "📦", &["sqlite", ".db "]),
-        ("mongo",      "MongoDB",    "🍃", &["mongodb", "mongo "]),
-        ("redis",      "Redis",      "🔴", &["redis", "valkey"]),
-        ("aws",        "AWS",        "☁️", &["aws ", "amazon web", " s3 ", "ec2", "lambda"]),
-        ("git",        "Git",        "🔧", &["git ", "github", "gitlab", "merge request", "pull request"]),
-        ("tailwind",   "Tailwind",   "💨", &["tailwind", "tailwindcss"]),
-        ("nginx",      "Nginx",      "🟢", &["nginx"]),
-        ("graphql",    "GraphQL",    "🔺", &["graphql", "apollo"]),
-        ("terraform",  "Terraform",  "🌍", &["terraform", "hcl"]),
+        (
+            "rust",
+            "Rust",
+            "🦀",
+            &[
+                "rust", "cargo", "rustc", "clippy", "tokio", "serde", "axum", "actix",
+            ],
+        ),
+        (
+            "python",
+            "Python",
+            "🐍",
+            &[
+                "python", "pip ", "pip3", "django", "flask", "fastapi", "pandas", "numpy",
+                "pytorch", ".py",
+            ],
+        ),
+        (
+            "typescript",
+            "TypeScript",
+            "🔷",
+            &["typescript", "tsconfig", " tsc ", ".ts", ".tsx"],
+        ),
+        (
+            "javascript",
+            "JavaScript",
+            "🟨",
+            &[
+                "javascript",
+                "node.js",
+                " npm ",
+                "yarn",
+                "pnpm",
+                ".js",
+                ".jsx",
+            ],
+        ),
+        (
+            "react",
+            "React",
+            "⚛️",
+            &[
+                "react",
+                "jsx",
+                "tsx",
+                "useState",
+                "useEffect",
+                "next.js",
+                "vite",
+            ],
+        ),
+        ("vue", "Vue", "💚", &["vue.js", "vuejs", "nuxt"]),
+        (
+            "go",
+            "Go",
+            "🐹",
+            &["golang", " go ", " go.mod", "goroutine", ".go "],
+        ),
+        (
+            "java",
+            "Java",
+            "☕",
+            &["java ", "maven", "gradle", "spring", "kotlin"],
+        ),
+        (
+            "swift",
+            "Swift",
+            "🦅",
+            &["swift", "swiftui", "xcode", ".swift"],
+        ),
+        ("ruby", "Ruby", "💎", &["ruby", "rails", "gemfile"]),
+        ("php", "PHP", "🐘", &["php ", "laravel", "composer", ".php"]),
+        (
+            "cpp",
+            "C/C++",
+            "⚙️",
+            &["c++", "cpp", "cmake", " gcc ", " clang "],
+        ),
+        (
+            "csharp",
+            "C#",
+            "🎯",
+            &["c#", "csharp", ".net ", "dotnet", ".cs "],
+        ),
+        (
+            "docker",
+            "Docker",
+            "🐳",
+            &["docker", "dockerfile", "compose.yml", "compose.yaml"],
+        ),
+        (
+            "k8s",
+            "Kubernetes",
+            "☸️",
+            &["kubernetes", "k8s", "kubectl", "helm"],
+        ),
+        (
+            "postgres",
+            "Postgres",
+            "🐘",
+            &["postgres", "postgresql", "psql"],
+        ),
+        ("mysql", "MySQL", "🐬", &["mysql", "mariadb"]),
+        ("sqlite", "SQLite", "📦", &["sqlite", ".db "]),
+        ("mongo", "MongoDB", "🍃", &["mongodb", "mongo "]),
+        ("redis", "Redis", "🔴", &["redis", "valkey"]),
+        (
+            "aws",
+            "AWS",
+            "☁️",
+            &["aws ", "amazon web", " s3 ", "ec2", "lambda"],
+        ),
+        (
+            "git",
+            "Git",
+            "🔧",
+            &["git ", "github", "gitlab", "merge request", "pull request"],
+        ),
+        ("tailwind", "Tailwind", "💨", &["tailwind", "tailwindcss"]),
+        ("nginx", "Nginx", "🟢", &["nginx"]),
+        ("graphql", "GraphQL", "🔺", &["graphql", "apollo"]),
+        ("terraform", "Terraform", "🌍", &["terraform", "hcl"]),
     ]
 }
 
@@ -804,22 +927,36 @@ pub async fn techstack(State(s): State<AppState>) -> impl IntoResponse {
             for k in &local {
                 *sess_count.entry(*k).or_insert(0) += 1;
             }
-            per_session.insert(meta.id.clone(), local.iter().map(|s| s.to_string()).collect());
+            per_session.insert(
+                meta.id.clone(),
+                local.iter().map(|s| s.to_string()).collect(),
+            );
         }
     }
-    let mut entries: Vec<TechEntry> = pats.iter().filter_map(|(key, label, icon, _)| {
-        let h = *hits.get(key).unwrap_or(&0);
-        if h == 0 { return None; }
-        Some(TechEntry {
-            key: key.to_string(),
-            label: label.to_string(),
-            icon: icon.to_string(),
-            hits: h,
-            sessions: *sess_count.get(key).unwrap_or(&0),
+    let mut entries: Vec<TechEntry> = pats
+        .iter()
+        .filter_map(|(key, label, icon, _)| {
+            let h = *hits.get(key).unwrap_or(&0);
+            if h == 0 {
+                return None;
+            }
+            Some(TechEntry {
+                key: key.to_string(),
+                label: label.to_string(),
+                icon: icon.to_string(),
+                hits: h,
+                sessions: *sess_count.get(key).unwrap_or(&0),
+            })
         })
-    }).collect();
+        .collect();
     entries.sort_by(|a, b| b.sessions.cmp(&a.sessions).then(b.hits.cmp(&a.hits)));
-    Json(TechStackStats { total_sessions, sessions_with_tech, entries, per_session }).into_response()
+    Json(TechStackStats {
+        total_sessions,
+        sessions_with_tech,
+        entries,
+        per_session,
+    })
+    .into_response()
 }
 
 #[derive(Debug, Deserialize)]
@@ -997,17 +1134,31 @@ pub async fn activity_heartbeat(State(s): State<AppState>) -> impl IntoResponse 
             }
         }
     }
-    let peak_hour = by_hour.iter().enumerate().max_by_key(|(_, c)| **c).map(|(i, _)| i as u32).unwrap_or(0);
-    let peak_dow = by_dow.iter().enumerate().max_by_key(|(_, c)| **c).map(|(i, _)| i as u32).unwrap_or(0);
+    let peak_hour = by_hour
+        .iter()
+        .enumerate()
+        .max_by_key(|(_, c)| **c)
+        .map(|(i, _)| i as u32)
+        .unwrap_or(0);
+    let peak_dow = by_dow
+        .iter()
+        .enumerate()
+        .max_by_key(|(_, c)| **c)
+        .map(|(i, _)| i as u32)
+        .unwrap_or(0);
     Json(HeartbeatStats {
         grid,
-        days: vec!["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].iter().map(|s| s.to_string()).collect(),
+        days: vec!["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect(),
         by_hour,
         by_dow,
         peak_hour,
         peak_dow,
         total,
-    }).into_response()
+    })
+    .into_response()
 }
 
 #[derive(Debug, Serialize)]
@@ -1029,20 +1180,54 @@ struct DangerStats {
 fn danger_severity(name: &str) -> Option<&'static str> {
     let n = name.to_lowercase();
     let high = [
-        "run_in_terminal", "execute_command", "shell", "bash", "powershell",
-        "delete_file", "rm_file", "remove_file", "delete", "drop_table",
-        "git_push", "force_push", "rebase",
+        "run_in_terminal",
+        "execute_command",
+        "shell",
+        "bash",
+        "powershell",
+        "delete_file",
+        "rm_file",
+        "remove_file",
+        "delete",
+        "drop_table",
+        "git_push",
+        "force_push",
+        "rebase",
     ];
     let medium = [
-        "write_file", "create_file", "edit_file", "edit", "replace_string_in_file",
-        "create", "patch", "apply_patch", "modify",
+        "write_file",
+        "create_file",
+        "edit_file",
+        "edit",
+        "replace_string_in_file",
+        "create",
+        "patch",
+        "apply_patch",
+        "modify",
     ];
     let low = [
-        "fetch_webpage", "open_url", "browser", "web_search", "curl", "http_request",
+        "fetch_webpage",
+        "open_url",
+        "browser",
+        "web_search",
+        "curl",
+        "http_request",
     ];
-    for k in &high { if n == *k || n.contains(k) { return Some("high"); } }
-    for k in &medium { if n == *k || n.contains(k) { return Some("medium"); } }
-    for k in &low { if n == *k || n.contains(k) { return Some("low"); } }
+    for k in &high {
+        if n == *k || n.contains(k) {
+            return Some("high");
+        }
+    }
+    for k in &medium {
+        if n == *k || n.contains(k) {
+            return Some("medium");
+        }
+    }
+    for k in &low {
+        if n == *k || n.contains(k) {
+            return Some("low");
+        }
+    }
     None
 }
 
@@ -1052,13 +1237,18 @@ pub async fn tools_dangerous(State(s): State<AppState>) -> impl IntoResponse {
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     };
     let pairs = s.detail_cache.fan_out(&s.adapter, &sessions).await;
-    let mut counts: HashMap<String, (u64, std::collections::HashSet<String>, &'static str)> = HashMap::new();
+    let mut counts: HashMap<String, (u64, std::collections::HashSet<String>, &'static str)> =
+        HashMap::new();
     let mut affected: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut total: u64 = 0;
     for (meta, detail) in pairs {
         for c in &detail.tool_calls {
             if let Some(sev) = danger_severity(&c.name) {
-                let entry = counts.entry(c.name.clone()).or_insert((0, std::collections::HashSet::new(), sev));
+                let entry = counts.entry(c.name.clone()).or_insert((
+                    0,
+                    std::collections::HashSet::new(),
+                    sev,
+                ));
                 entry.0 += 1;
                 entry.1.insert(meta.id.clone());
                 affected.insert(meta.id.clone());
@@ -1066,18 +1256,41 @@ pub async fn tools_dangerous(State(s): State<AppState>) -> impl IntoResponse {
             }
         }
     }
-    let mut entries: Vec<DangerEntry> = counts.into_iter().map(|(name, (count, sess, sev))| {
-        let total_sess = sess.len() as u64;
-        let mut ids: Vec<String> = sess.into_iter().collect();
-        ids.sort();
-        ids.truncate(20);
-        DangerEntry {
-            name, severity: sev.to_string(), count, sessions: total_sess, session_ids: ids,
+    let mut entries: Vec<DangerEntry> = counts
+        .into_iter()
+        .map(|(name, (count, sess, sev))| {
+            let total_sess = sess.len() as u64;
+            let mut ids: Vec<String> = sess.into_iter().collect();
+            ids.sort();
+            ids.truncate(20);
+            DangerEntry {
+                name,
+                severity: sev.to_string(),
+                count,
+                sessions: total_sess,
+                session_ids: ids,
+            }
+        })
+        .collect();
+    let sev_rank = |s: &str| -> u8 {
+        match s {
+            "high" => 0,
+            "medium" => 1,
+            "low" => 2,
+            _ => 3,
         }
-    }).collect();
-    let sev_rank = |s: &str| -> u8 { match s { "high" => 0, "medium" => 1, "low" => 2, _ => 3 } };
-    entries.sort_by(|a, b| sev_rank(&a.severity).cmp(&sev_rank(&b.severity)).then(b.count.cmp(&a.count)));
-    Json(DangerStats { entries, total_calls: total, sessions_affected: affected.len() as u64 }).into_response()
+    };
+    entries.sort_by(|a, b| {
+        sev_rank(&a.severity)
+            .cmp(&sev_rank(&b.severity))
+            .then(b.count.cmp(&a.count))
+    });
+    Json(DangerStats {
+        entries,
+        total_calls: total,
+        sessions_affected: affected.len() as u64,
+    })
+    .into_response()
 }
 
 #[derive(Debug, Serialize)]
@@ -1105,24 +1318,43 @@ pub async fn files_hot(State(s): State<AppState>) -> impl IntoResponse {
         Ok(r) => r,
         Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "regex").into_response(),
     };
-    let stop_ext: std::collections::HashSet<&str> = [
-        "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
-    ].iter().copied().collect();
-    let mut counts: HashMap<String, (u64, std::collections::HashSet<String>, Vec<HotFileSample>)> = HashMap::new();
+    let stop_ext: std::collections::HashSet<&str> =
+        ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+            .iter()
+            .copied()
+            .collect();
+    let mut counts: HashMap<String, (u64, std::collections::HashSet<String>, Vec<HotFileSample>)> =
+        HashMap::new();
     for (meta, detail) in pairs {
-        let mut seen_in_session: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let mut seen_in_session: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
         for p in &detail.prompts {
             for m in re.find_iter(&p.text) {
                 let raw = m.as_str();
-                if raw.len() < 4 || raw.len() > 80 { continue; }
+                if raw.len() < 4 || raw.len() > 80 {
+                    continue;
+                }
                 let after_dot = raw.rsplit('.').next().unwrap_or("");
-                if stop_ext.contains(after_dot) { continue; }
-                if !after_dot.chars().all(|c| c.is_ascii_alphabetic()) { continue; }
-                if !raw.chars().any(|c| c == '/' || c == '.') { continue; }
-                let mut normed = raw.trim_matches(|c: char| c == '.' || c == ',' || c == ')' || c == '(').to_string();
-                if normed.is_empty() { continue; }
+                if stop_ext.contains(after_dot) {
+                    continue;
+                }
+                if !after_dot.chars().all(|c| c.is_ascii_alphabetic()) {
+                    continue;
+                }
+                if !raw.chars().any(|c| c == '/' || c == '.') {
+                    continue;
+                }
+                let mut normed = raw
+                    .trim_matches(|c: char| c == '.' || c == ',' || c == ')' || c == '(')
+                    .to_string();
+                if normed.is_empty() {
+                    continue;
+                }
                 // Strip URL schemes and host prefixes: http://example.com/foo.js → foo.js
-                if let Some(rest) = normed.strip_prefix("http://").or_else(|| normed.strip_prefix("https://")) {
+                if let Some(rest) = normed
+                    .strip_prefix("http://")
+                    .or_else(|| normed.strip_prefix("https://"))
+                {
                     normed = rest.to_string();
                 }
                 if let Some(rest) = normed.strip_prefix("//") {
@@ -1132,7 +1364,9 @@ pub async fn files_hot(State(s): State<AppState>) -> impl IntoResponse {
                     let head = &normed[..idx];
                     if head.contains('.') && head.chars().any(|c| c.is_ascii_alphabetic()) {
                         let tail = &normed[idx + 1..];
-                        if !tail.is_empty() { normed = tail.to_string(); }
+                        if !tail.is_empty() {
+                            normed = tail.to_string();
+                        }
                     }
                 }
                 // Strip user home prefixes: /Users/<name>/foo.rs → foo.rs, /home/<name>/... → ...
@@ -1146,17 +1380,34 @@ pub async fn files_hot(State(s): State<AppState>) -> impl IntoResponse {
                         }
                     }
                 }
-                if normed.is_empty() { continue; }
+                if normed.is_empty() {
+                    continue;
+                }
                 // Drop pure hostname leftovers (no slash, no real ext like ".com" / ".io")
                 if !normed.contains('/') {
                     let ext_after = normed.rsplit('.').next().unwrap_or("");
-                    let host_tlds = ["com", "io", "org", "net", "dev", "ai", "co", "app", "xyz", "me"];
-                    if host_tlds.contains(&ext_after) { continue; }
+                    let host_tlds = [
+                        "com", "io", "org", "net", "dev", "ai", "co", "app", "xyz", "me",
+                    ];
+                    if host_tlds.contains(&ext_after) {
+                        continue;
+                    }
                     // Reject "extensions" that start with uppercase — likely proper nouns (e.g. Anbei.Yuan).
-                    if ext_after.chars().next().map(|c| c.is_ascii_uppercase()).unwrap_or(false) { continue; }
+                    if ext_after
+                        .chars()
+                        .next()
+                        .map(|c| c.is_ascii_uppercase())
+                        .unwrap_or(false)
+                    {
+                        continue;
+                    }
                 }
-                if normed.is_empty() || normed.len() < 3 { continue; }
-                let entry = counts.entry(normed.clone()).or_insert_with(|| (0, std::collections::HashSet::new(), Vec::new()));
+                if normed.is_empty() || normed.len() < 3 {
+                    continue;
+                }
+                let entry = counts
+                    .entry(normed.clone())
+                    .or_insert_with(|| (0, std::collections::HashSet::new(), Vec::new()));
                 entry.0 += 1;
                 if !seen_in_session.contains(&normed) {
                     entry.1.insert(meta.id.clone());
@@ -1164,17 +1415,30 @@ pub async fn files_hot(State(s): State<AppState>) -> impl IntoResponse {
                     // Capture up to 5 sample snippets per file (one per distinct session).
                     if entry.2.len() < 5 {
                         let snippet = make_prompt_snippet(&p.text, raw, 140);
-                        entry.2.push(HotFileSample { session_id: meta.id.clone(), snippet });
+                        entry.2.push(HotFileSample {
+                            session_id: meta.id.clone(),
+                            snippet,
+                        });
                     }
                 }
             }
         }
     }
-    let mut entries: Vec<HotFile> = counts.into_iter().map(|(path, (m, sess, samples))| HotFile {
-        path, mentions: m, sessions: sess.len() as u64, samples,
-    }).collect();
+    let mut entries: Vec<HotFile> = counts
+        .into_iter()
+        .map(|(path, (m, sess, samples))| HotFile {
+            path,
+            mentions: m,
+            sessions: sess.len() as u64,
+            samples,
+        })
+        .collect();
     entries.retain(|e| e.mentions >= 2);
-    entries.sort_by(|a, b| b.sessions.cmp(&a.sessions).then(b.mentions.cmp(&a.mentions)));
+    entries.sort_by(|a, b| {
+        b.sessions
+            .cmp(&a.sessions)
+            .then(b.mentions.cmp(&a.mentions))
+    });
     entries.truncate(40);
     Json(entries).into_response()
 }
@@ -1202,9 +1466,13 @@ fn make_prompt_snippet(text: &str, needle: &str, max_len: usize) -> String {
             .unwrap_or(text.len())
     };
     let mut snippet = String::new();
-    if start_byte > 0 { snippet.push('…'); }
+    if start_byte > 0 {
+        snippet.push('…');
+    }
     snippet.push_str(text[start_byte..end_byte].trim());
-    if end_byte < text.len() { snippet.push('…'); }
+    if end_byte < text.len() {
+        snippet.push('…');
+    }
     snippet.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
@@ -1219,17 +1487,21 @@ fn stopwords_en() -> &'static std::collections::HashSet<&'static str> {
     static SW: OnceLock<std::collections::HashSet<&'static str>> = OnceLock::new();
     SW.get_or_init(|| {
         [
-            "the","a","an","and","or","but","if","then","else","for","to","of","in","on","at","by",
-            "is","are","was","were","be","been","being","do","does","did","done","have","has","had",
-            "this","that","these","those","it","its","as","with","from","about","into","over","up",
-            "you","your","my","me","we","us","our","they","them","their","i","he","she","his","her",
-            "can","could","should","would","may","might","will","shall","just","not","no","yes",
-            "what","which","who","when","where","why","how","there","here","than","also","very",
-            "want","need","make","made","get","got","use","used","using","help","please","thanks",
-            "all","any","some","one","two","three","more","most","much","many","few","other",
-            "let","like","etc","via","per","each","both","only","own","same","such","too","off",
-            "out","over","under","again","further","once","cant","dont","wont","im","ive","its",
-        ].into_iter().collect()
+            "the", "a", "an", "and", "or", "but", "if", "then", "else", "for", "to", "of", "in",
+            "on", "at", "by", "is", "are", "was", "were", "be", "been", "being", "do", "does",
+            "did", "done", "have", "has", "had", "this", "that", "these", "those", "it", "its",
+            "as", "with", "from", "about", "into", "over", "up", "you", "your", "my", "me", "we",
+            "us", "our", "they", "them", "their", "i", "he", "she", "his", "her", "can", "could",
+            "should", "would", "may", "might", "will", "shall", "just", "not", "no", "yes", "what",
+            "which", "who", "when", "where", "why", "how", "there", "here", "than", "also", "very",
+            "want", "need", "make", "made", "get", "got", "use", "used", "using", "help", "please",
+            "thanks", "all", "any", "some", "one", "two", "three", "more", "most", "much", "many",
+            "few", "other", "let", "like", "etc", "via", "per", "each", "both", "only", "own",
+            "same", "such", "too", "off", "out", "over", "under", "again", "further", "once",
+            "cant", "dont", "wont", "im", "ive", "its",
+        ]
+        .into_iter()
+        .collect()
     })
 }
 
@@ -1238,12 +1510,73 @@ fn stopwords_cjk() -> &'static std::collections::HashSet<&'static str> {
     static SW: OnceLock<std::collections::HashSet<&'static str>> = OnceLock::new();
     SW.get_or_init(|| {
         [
-            "的","了","和","是","我","你","他","她","它","们","在","有","就","都","也","还","要",
-            "一个","什么","怎么","可以","这个","那个","如何","为什么","或者","但是","因为","所以",
-            "需要","使用","帮我","请帮","一下","现在","已经","没有","我们","他们","这里","那里",
-            "可能","应该","不是","就是","然后","然而","并且","或是","以及","之后","之前","直接",
-            "麻烦","谢谢","好的","不要","出来","起来","上去","下去","进去","出去","进来",
-        ].into_iter().collect()
+            "的",
+            "了",
+            "和",
+            "是",
+            "我",
+            "你",
+            "他",
+            "她",
+            "它",
+            "们",
+            "在",
+            "有",
+            "就",
+            "都",
+            "也",
+            "还",
+            "要",
+            "一个",
+            "什么",
+            "怎么",
+            "可以",
+            "这个",
+            "那个",
+            "如何",
+            "为什么",
+            "或者",
+            "但是",
+            "因为",
+            "所以",
+            "需要",
+            "使用",
+            "帮我",
+            "请帮",
+            "一下",
+            "现在",
+            "已经",
+            "没有",
+            "我们",
+            "他们",
+            "这里",
+            "那里",
+            "可能",
+            "应该",
+            "不是",
+            "就是",
+            "然后",
+            "然而",
+            "并且",
+            "或是",
+            "以及",
+            "之后",
+            "之前",
+            "直接",
+            "麻烦",
+            "谢谢",
+            "好的",
+            "不要",
+            "出来",
+            "起来",
+            "上去",
+            "下去",
+            "进去",
+            "出去",
+            "进来",
+        ]
+        .into_iter()
+        .collect()
     })
 }
 
@@ -1255,8 +1588,10 @@ fn tokenize(text: &str) -> Vec<String> {
             if !buf.is_empty() {
                 for w in buf.split(|c: char| !c.is_alphanumeric()) {
                     let w = w.trim().to_lowercase();
-                    if w.len() >= 3 && !w.chars().all(|c| c.is_ascii_digit())
-                        && !stopwords_en().contains(w.as_str()) {
+                    if w.len() >= 3
+                        && !w.chars().all(|c| c.is_ascii_digit())
+                        && !stopwords_en().contains(w.as_str())
+                    {
                         out.push(w);
                     }
                 }
@@ -1275,8 +1610,10 @@ fn tokenize(text: &str) -> Vec<String> {
     if !buf.is_empty() {
         for w in buf.split(|c: char| !c.is_alphanumeric()) {
             let w = w.trim().to_lowercase();
-            if w.len() >= 3 && !w.chars().all(|c| c.is_ascii_digit())
-                && !stopwords_en().contains(w.as_str()) {
+            if w.len() >= 3
+                && !w.chars().all(|c| c.is_ascii_digit())
+                && !stopwords_en().contains(w.as_str())
+            {
                 out.push(w);
             }
         }
@@ -1287,7 +1624,9 @@ fn tokenize(text: &str) -> Vec<String> {
     while i < chars.len() {
         if is_cjk(chars[i]) {
             let start = i;
-            while i < chars.len() && is_cjk(chars[i]) { i += 1; }
+            while i < chars.len() && is_cjk(chars[i]) {
+                i += 1;
+            }
             let run = &chars[start..i];
             if run.len() >= 2 {
                 for w in run.windows(2) {
@@ -1317,7 +1656,9 @@ pub async fn prompts_wordcloud(
     sessions.retain(|sess| {
         if let Some(af) = &agent_filter {
             let ak = serde_json::to_value(sess.agent)
-                .ok().and_then(|v| v.as_str().map(str::to_string)).unwrap_or_default();
+                .ok()
+                .and_then(|v| v.as_str().map(str::to_string))
+                .unwrap_or_default();
             return &ak == af;
         }
         true
@@ -1330,16 +1671,23 @@ pub async fn prompts_wordcloud(
             let mut seen_in_prompt = std::collections::HashSet::new();
             for t in toks {
                 if seen_in_prompt.insert(t.clone()) {
-                    let entry = counts.entry(t).or_insert_with(|| (0, std::collections::HashSet::new()));
+                    let entry = counts
+                        .entry(t)
+                        .or_insert_with(|| (0, std::collections::HashSet::new()));
                     entry.0 += 1;
                     entry.1.insert(sess.id.clone());
                 }
             }
         }
     }
-    let mut entries: Vec<WordcloudEntry> = counts.into_iter()
+    let mut entries: Vec<WordcloudEntry> = counts
+        .into_iter()
         .filter(|(_, (c, _))| *c >= 2)
-        .map(|(word, (count, sids))| WordcloudEntry { word, count, sessions: sids.len() as u64 })
+        .map(|(word, (count, sids))| WordcloudEntry {
+            word,
+            count,
+            sessions: sids.len() as u64,
+        })
         .collect();
     entries.sort_by(|a, b| b.count.cmp(&a.count).then(b.sessions.cmp(&a.sessions)));
     entries.truncate(top);
@@ -1591,7 +1939,9 @@ pub struct CopilotConfigResponse {
 pub async fn copilot_config(State(_state): State<AppState>) -> impl IntoResponse {
     let home = match dirs::home_dir() {
         Some(h) => h,
-        None => return (StatusCode::INTERNAL_SERVER_ERROR, "cannot resolve home dir").into_response(),
+        None => {
+            return (StatusCode::INTERNAL_SERVER_ERROR, "cannot resolve home dir").into_response();
+        }
     };
 
     let copilot_dir = home.join(".copilot");
@@ -1606,7 +1956,10 @@ pub async fn copilot_config(State(_state): State<AppState>) -> impl IntoResponse
         Ok(raw) => {
             let v: serde_json::Value = serde_json::from_str(&raw).unwrap_or_default();
             let model = v.get("model").and_then(|m| m.as_str()).map(String::from);
-            let effort_level = v.get("effortLevel").and_then(|e| e.as_str()).map(String::from);
+            let effort_level = v
+                .get("effortLevel")
+                .and_then(|e| e.as_str())
+                .map(String::from);
             let plugins = v
                 .get("installedPlugins")
                 .and_then(|p| p.as_array())
@@ -1624,7 +1977,11 @@ pub async fn copilot_config(State(_state): State<AppState>) -> impl IntoResponse
                                 .and_then(|v| v.as_str())
                                 .unwrap_or("")
                                 .to_string();
-                            Some(CopilotPlugin { name, version, marketplace })
+                            Some(CopilotPlugin {
+                                name,
+                                version,
+                                marketplace,
+                            })
                         })
                         .collect::<Vec<_>>()
                 })
@@ -1770,15 +2127,13 @@ pub async fn get_session_instructions(
     }
 
     // Global instructions from home dir
-    let global_instructions = dirs::home_dir().and_then(|home| {
-        match meta.agent {
-            AgentKind::Copilot => {
-                std::fs::read_to_string(home.join(".copilot/copilot-instructions.md")).ok()
-            }
-            AgentKind::Claude => std::fs::read_to_string(home.join(".claude/CLAUDE.md")).ok(),
-            AgentKind::Codex => std::fs::read_to_string(home.join(".codex/instructions.md")).ok(),
-            _ => None,
+    let global_instructions = dirs::home_dir().and_then(|home| match meta.agent {
+        AgentKind::Copilot => {
+            std::fs::read_to_string(home.join(".copilot/copilot-instructions.md")).ok()
         }
+        AgentKind::Claude => std::fs::read_to_string(home.join(".claude/CLAUDE.md")).ok(),
+        AgentKind::Codex => std::fs::read_to_string(home.join(".codex/instructions.md")).ok(),
+        _ => None,
     });
 
     Json(SessionInstructions {
@@ -1812,7 +2167,7 @@ pub async fn all_agents_config(State(_state): State<AppState>) -> impl IntoRespo
     let home = match dirs::home_dir() {
         Some(h) => h,
         None => {
-            return (StatusCode::INTERNAL_SERVER_ERROR, "cannot resolve home dir").into_response()
+            return (StatusCode::INTERNAL_SERVER_ERROR, "cannot resolve home dir").into_response();
         }
     };
 
@@ -1954,11 +2309,7 @@ pub async fn all_agents_config(State(_state): State<AppState>) -> impl IntoRespo
                 .lines()
                 .map(|l| {
                     let trimmed = l.trim_start();
-                    if trimmed.starts_with("//") {
-                        ""
-                    } else {
-                        l
-                    }
+                    if trimmed.starts_with("//") { "" } else { l }
                 })
                 .collect::<Vec<_>>()
                 .join("\n");
@@ -2113,7 +2464,8 @@ fn scan_agents_dir(dir: &std::path::Path, source: &str) -> Vec<AgentEntry> {
                 let v = v.trim();
                 if v.starts_with('|') {
                     // Multi-line YAML — take next lines until a non-indented line
-                    let after_pipe = &frontmatter[line.as_ptr() as usize - frontmatter.as_ptr() as usize + line.len()..];
+                    let after_pipe = &frontmatter
+                        [line.as_ptr() as usize - frontmatter.as_ptr() as usize + line.len()..];
                     let desc_lines: Vec<&str> = after_pipe
                         .lines()
                         .take_while(|l| l.starts_with(' ') || l.starts_with('\t') || l.is_empty())

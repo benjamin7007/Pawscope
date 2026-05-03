@@ -528,11 +528,7 @@ pub async fn session_skills(
             });
         }
     }
-    skills.sort_by(|a, b| {
-        b.invoked
-            .cmp(&a.invoked)
-            .then_with(|| a.name.cmp(&b.name))
-    });
+    skills.sort_by(|a, b| b.invoked.cmp(&a.invoked).then_with(|| a.name.cmp(&b.name)));
 
     let total = skills.len();
     Ok(Json(SessionSkillsResponse {
