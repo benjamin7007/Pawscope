@@ -112,7 +112,7 @@ Hide, delete (move to trash), rename, star, tag sessions. Compare 2–5 sessions
 <td width="50%"><a href="./docs/screenshots/03-flow.png"><img src="./docs/screenshots/03-flow.png" alt="Conversation flow"/></a></td>
 </tr>
 <tr>
-<td align="center"><sub><b>Session detail</b> — turns, messages, tool histogram, token budget</sub></td>
+<td align="center"><sub><b>Session detail</b> — turns, messages, tool histogram, instructions & system prompts</sub></td>
 <td align="center"><sub><b>Conversation flow</b> — full prompt / response / tool-call timeline</sub></td>
 </tr>
 <tr>
@@ -128,8 +128,14 @@ Hide, delete (move to trash), rename, star, tag sessions. Compare 2–5 sessions
 <td width="50%"><a href="./docs/screenshots/07-store.png"><img src="./docs/screenshots/07-store.png" alt="Skill Store"/></a></td>
 </tr>
 <tr>
-<td align="center"><sub><b>Config</b> — persona, agents, installed skills, 30-day token trend</sub></td>
+<td align="center"><sub><b>Config</b> — 6-agent cards, settings, global instructions, session stats</sub></td>
 <td align="center"><sub><b>Skill Store</b> — 328+ community skills, 13 categories, project/global install</sub></td>
+</tr>
+<tr>
+<td width="50%" colspan="2" align="center"><a href="./docs/screenshots/08-instructions.png"><img src="./docs/screenshots/08-instructions.png" alt="Session instructions" width="50%"/></a></td>
+</tr>
+<tr>
+<td align="center" colspan="2"><sub><b>Instructions</b> — project-level instruction files & system prompts per session</sub></td>
 </tr>
 </table>
 
