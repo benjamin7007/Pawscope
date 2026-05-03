@@ -236,6 +236,7 @@ pawscope serve                  # opens http://127.0.0.1:7777 in your browser
 | v1.1 | Config page · 30-day token trend · multi-session compare (2–5) | ✅ |
 | v1.2 | Skill Store (328+ skills, 13 categories) · agent type icons | ✅ |
 | **v1.3** | **Session management (hide/delete/rename) · 6-agent support · project-level skill install** | ✅ |
+| **v1.4** | **Session instructions & persona · multi-agent config cards · system prompt display** | ✅ |
 
 ---
 
