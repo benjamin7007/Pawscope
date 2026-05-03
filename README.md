@@ -23,13 +23,15 @@ One panel. Read-only. No daemon. Local by default.
 ## What it does
 
 Pawscope reads the state your CLI agents already write to disk
-(`~/.copilot/session-state/`, `~/.claude/projects/`, `~/.codex/state_*.sqlite`)
+(`~/.copilot/session-state/`, `~/.claude/projects/`, `~/.codex/state_*.sqlite`, `~/.local/share/opencode/`)
 and renders it as a single, live-updating dashboard:
 
-- **See what's running.** Every active session, every conversation, in one place.
+- **See what's running.** Every active session, every conversation, in one place — across **6 agents**.
 - **See what it cost.** Per-turn token usage, model-aware USD estimates, daily budget tracking.
 - **See what it touched.** Tools called, skills loaded, files mentioned, prompts asked.
 - **Catch problems early.** Hot files, dangerous tools, dormant sessions, peak hours, cost outliers.
+- **Manage your skills.** Browse 328+ community skills, install per-project or globally, with categories.
+- **Organize sessions.** Hide, delete (trash), rename, star, tag, and compare sessions.
 
 No telemetry. No cloud. No login. The binary boots, scans your home directory, opens your browser. That's it.
 
@@ -75,6 +77,26 @@ Shift+click two sessions in the sidebar → instant diff: stats, top tools, top 
 
 ### 📥 Daily / weekly digests
 One click exports a Markdown digest for the last 24h or 7d — activity, cost, hot files, dangerous tool calls, top tools/skills, peak hours.
+
+</td>
+</tr>
+<tr>
+<td width="33%" valign="top">
+
+### 🏪 Skill Store
+Browse **328+ community skills** from [awesome-copilot](https://github.com/github/awesome-copilot). **13 categories**, install per-project (`.github/skills/`) or globally. Search, filter, preview SKILL.md inline.
+
+</td>
+<td width="33%" valign="top">
+
+### 🤖 6-Agent support
+Copilot ✦ · Claude ◈ · Codex ⬡ · OpenCode ⊙ · Gemini ◆ · Aider ▣ — unified view with color-coded icons, agent filter, and distribution donut chart.
+
+</td>
+<td width="33%" valign="top">
+
+### 🗂 Session management
+Hide, delete (move to trash), rename, star, tag sessions. Compare 2–5 sessions side-by-side with token bar chart, tool overlap, and prompt diff.
 
 </td>
 </tr>
@@ -176,10 +198,10 @@ pawscope serve                  # opens http://127.0.0.1:7777 in your browser
 
 ![Pawscope architecture](./docs/architecture.png)
 
-- **Adapter trait** — `AgentAdapter` in `pawscope-core` makes new CLIs pure additions: implement the trait, register the adapter. Claude / Copilot / Codex are the three built-ins.
+- **Adapter trait** — `AgentAdapter` in `pawscope-core` makes new CLIs pure additions: implement the trait, register the adapter. Six built-in adapters: Copilot, Claude, Codex, OpenCode, Gemini, Aider.
 - **Single binary** — `pawscope-server` (axum) embeds the React 19 SPA via `rust-embed` at build time; no separate static-file step at runtime.
 - **No daemon** — `pawscope serve` is a regular CLI process; close the terminal and it's gone.
-- **Local only** — binds `127.0.0.1` by default. No auth, no telemetry, no outbound calls.
+- **Local only** — binds `127.0.0.1` by default. No auth, no telemetry, no outbound calls (except optional Skill Store fetch from GitHub).
 
 ---
 
@@ -191,12 +213,15 @@ pawscope serve                  # opens http://127.0.0.1:7777 in your browser
 | v0.2 | Claude Code adapter · multi-adapter fan-out · activity heatmap | ✅ |
 | v0.3 | Codex CLI adapter (`~/.codex/state_*.sqlite`) | ✅ |
 | v0.4 | Skills coverage · prompts search · tool-call drilldown · star+tag · UI polish | ✅ |
-| v0.5 | Cost estimation · model pricing · cost analytics · 6 power features (replay etc.) | ✅ |
+| v0.5 | Cost estimation · model pricing · cost analytics · 6 power features | ✅ |
 | v0.6 | Conversation flow visualization · cross-agent unified timeline | ✅ |
 | v0.7 | Skills taxonomy (244 entries) · project-local skill discovery | ✅ |
 | v0.8 | Per-turn token tracking · session rollup · model-aware cost | ✅ |
 | v0.9 | Digest export · prompt clustering · side-by-side session compare | ✅ |
-| **v1.0** | **API freeze · documentation · public release** | 🚧 |
+| **v1.0** | **API freeze · documentation · public release** | ✅ |
+| v1.1 | Config page · 30-day token trend · multi-session compare (2–5) | ✅ |
+| v1.2 | Skill Store (328+ skills, 13 categories) · agent type icons | ✅ |
+| **v1.3** | **Session management (hide/delete/rename) · 6-agent support · project-level skill install** | ✅ |
 
 ---
 
@@ -208,7 +233,10 @@ crates/
   pawscope-copilot/   # Copilot CLI session-state reader
   pawscope-claude/    # Claude Code session reader
   pawscope-codex/     # Codex CLI sqlite + rollout reader
-  pawscope-server/    # axum REST + WebSocket + embedded SPA
+  pawscope-opencode/  # OpenCode sqlite reader
+  pawscope-gemini/    # Gemini CLI adapter (stub)
+  pawscope-aider/     # Aider adapter (stub)
+  pawscope-server/    # axum REST + WebSocket + Skill Store + embedded SPA
 src/main.rs           # CLI entrypoint
 web/                  # React 19 + Vite + Tailwind 4 dashboard
 e2e/                  # Playwright smoke tests + screenshot capture
@@ -219,7 +247,7 @@ tests/                # Cross-adapter integration tests
 
 ## Privacy
 
-Everything runs on your machine. Pawscope reads from `~/.copilot/`, `~/.claude/`, `~/.codex/` and similar local paths only. There is no analytics endpoint, no update check, and the server binds to loopback by default. Bind it elsewhere at your own risk.
+Everything runs on your machine. Pawscope reads from `~/.copilot/`, `~/.claude/`, `~/.codex/`, `~/.local/share/opencode/` and similar local paths only. The Skill Store optionally fetches from `github.com/github/awesome-copilot` — no other outbound calls. There is no analytics endpoint, no update check, and the server binds to loopback by default. Bind it elsewhere at your own risk.
 
 ---
 

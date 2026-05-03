@@ -23,13 +23,15 @@
 ## 它做什么
 
 Pawscope 直接读取本地 CLI Agent 已经写到磁盘上的状态
-（`~/.copilot/session-state/`、`~/.claude/projects/`、`~/.codex/state_*.sqlite`），
+（`~/.copilot/session-state/`、`~/.claude/projects/`、`~/.codex/state_*.sqlite`、`~/.local/share/opencode/`），
 渲染成一个实时刷新的统一面板：
 
-- **看进度** —— 所有正在跑的会话、所有对话，集中在一个页面。
+- **看进度** —— 所有正在跑的会话、所有对话，**6 个 Agent** 集中在一个页面。
 - **看花费** —— 每轮 token 用量、按模型估算的 USD、每日预算追踪。
 - **看动作** —— 调过哪些 Tool、加载了哪些 Skill、提到了哪些文件、问了哪些 Prompt。
 - **看异常** —— 高频文件、危险工具、僵尸会话、活跃时段、成本离群点。
+- **管 Skill** —— 浏览 328+ 社区技能，按项目或全局安装，13 个自动分类。
+- **管会话** —— 隐藏、删除（回收站）、重命名、收藏、标签、多会话对比。
 
 无遥测、无云端、无登录。启动二进制 → 扫描家目录 → 打开浏览器，就这些。
 
@@ -75,6 +77,26 @@ Pawscope 直接读取本地 CLI Agent 已经写到磁盘上的状态
 
 ### 📥 日报 / 周报导出
 一键导出最近 24 小时或 7 天的 Markdown 摘要 —— 活跃度、花费、高频文件、危险工具调用、Top Tools/Skills、活跃时段。
+
+</td>
+</tr>
+<tr>
+<td width="33%" valign="top">
+
+### 🏪 技能商店
+浏览 **328+ 社区技能**，来自 [awesome-copilot](https://github.com/github/awesome-copilot)。**13 个自动分类**，一键安装到项目目录（`.github/skills/`）或全局安装（`~/.copilot/skills/`）。支持搜索、分类过滤、在线预览 SKILL.md。
+
+</td>
+<td width="33%" valign="top">
+
+### 🤖 6 Agent 支持
+Copilot ✦ · Claude ◈ · Codex ⬡ · OpenCode ⊙ · Gemini ◆ · Aider ▣ —— 统一视图，彩色图标、Agent 过滤器、分布甜甜圈图。
+
+</td>
+<td width="33%" valign="top">
+
+### 🗂 会话管理
+隐藏、删除（移到回收站）、重命名、收藏、标签。支持 2–5 个会话并排对比，Token 柱状图、工具重叠、Prompt 差异分析。
 
 </td>
 </tr>
@@ -176,10 +198,10 @@ pawscope serve                  # 自动打开 http://127.0.0.1:7777
 
 ![Pawscope 架构](./docs/architecture.png)
 
-- **Adapter Trait** —— `pawscope-core` 中的 `AgentAdapter` 让接入新 CLI 变成纯增量工作：实现 trait → 注册 Adapter。Claude / Copilot / Codex 是内置三件套。
+- **Adapter Trait** —— `pawscope-core` 中的 `AgentAdapter` 让接入新 CLI 变成纯增量工作：实现 trait → 注册 Adapter。内置六个 Adapter：Copilot、Claude、Codex、OpenCode、Gemini、Aider。
 - **单一二进制** —— `pawscope-server`（axum）通过 `rust-embed` 在 build 阶段把 React 19 SPA 一并嵌入，运行时无需单独的静态文件目录。
 - **无守护进程** —— `pawscope serve` 就是一个普通 CLI 进程，关掉终端即结束。
-- **仅限本机** —— 默认绑定 `127.0.0.1`。无鉴权、无遥测、无外部调用。
+- **仅限本机** —— 默认绑定 `127.0.0.1`。无鉴权、无遥测、无外部调用（技能商店可选从 GitHub 拉取）。
 
 ---
 
@@ -191,12 +213,15 @@ pawscope serve                  # 自动打开 http://127.0.0.1:7777
 | v0.2 | Claude Code Adapter · 多 Adapter 聚合 · 活跃度热图 | ✅ |
 | v0.3 | Codex CLI Adapter（`~/.codex/state_*.sqlite`） | ✅ |
 | v0.4 | Skills 覆盖率 · Prompt 搜索 · 工具调用下钻 · 收藏+标签 · UI 打磨 | ✅ |
-| v0.5 | 成本估算 · 模型价目表 · 成本分析 · 6 项 Power Features（含 Replay） | ✅ |
+| v0.5 | 成本估算 · 模型价目表 · 成本分析 · 6 项 Power Features | ✅ |
 | v0.6 | 对话流可视化 · 跨 Agent 统一时间线 | ✅ |
 | v0.7 | Skills 分类法（244 条）· 项目内 Skill 发现 | ✅ |
 | v0.8 | 每轮 Token 追踪 · 会话级汇总 · 按模型估价 | ✅ |
 | v0.9 | 摘要导出 · Prompt 聚类 · 会话并排对比 | ✅ |
-| **v1.0** | **API 冻结 · 文档完善 · 公开发布** | 🚧 |
+| **v1.0** | **API 冻结 · 文档完善 · 公开发布** | ✅ |
+| v1.1 | 配置页 · 30 天 Token 趋势 · 多会话对比（2–5） | ✅ |
+| v1.2 | 技能商店（328+ 技能，13 分类）· Agent 类型图标 | ✅ |
+| **v1.3** | **会话管理（隐藏/删除/重命名）· 6 Agent 支持 · 项目级技能安装** | ✅ |
 
 ---
 
@@ -208,7 +233,10 @@ crates/
   pawscope-copilot/   # Copilot CLI session-state 读取器
   pawscope-claude/    # Claude Code 会话读取器
   pawscope-codex/     # Codex CLI sqlite + rollout 读取器
-  pawscope-server/    # axum REST + WebSocket + 内嵌 SPA
+  pawscope-opencode/  # OpenCode sqlite 读取器
+  pawscope-gemini/    # Gemini CLI Adapter（stub）
+  pawscope-aider/     # Aider Adapter（stub）
+  pawscope-server/    # axum REST + WebSocket + 技能商店 + 内嵌 SPA
 src/main.rs           # CLI 入口
 web/                  # React 19 + Vite + Tailwind 4 前端
 e2e/                  # Playwright 烟囱测试 + 截图脚本
@@ -219,7 +247,7 @@ tests/                # 跨 Adapter 集成测试
 
 ## 隐私
 
-所有逻辑都跑在你本机。Pawscope 只读 `~/.copilot/`、`~/.claude/`、`~/.codex/` 等本地目录，没有遥测端点、没有更新检查，server 默认绑定 loopback。如果你打算改绑外部地址，请自行评估风险。
+所有逻辑都跑在你本机。Pawscope 只读 `~/.copilot/`、`~/.claude/`、`~/.codex/`、`~/.local/share/opencode/` 等本地目录。技能商店可选从 `github.com/github/awesome-copilot` 拉取，除此之外没有任何外部调用。没有遥测端点、没有更新检查，server 默认绑定 loopback。如果你打算改绑外部地址，请自行评估风险。
 
 ---
 
