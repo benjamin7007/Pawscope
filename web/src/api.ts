@@ -366,3 +366,28 @@ export async function fetchHidden(): Promise<{ hidden: string[] }> {
   if (!r.ok) return { hidden: [] };
   return r.json();
 }
+
+// ---------------------------------------------------------------------------
+// Session instructions
+// ---------------------------------------------------------------------------
+
+export interface InstructionFile {
+  name: string;
+  rel_path: string;
+  content: string;
+  bytes: number;
+}
+
+export interface SessionInstructions {
+  session_id: string;
+  agent: string;
+  cwd: string;
+  project_files: InstructionFile[];
+  global_instructions: string | null;
+}
+
+export async function fetchSessionInstructions(id: string): Promise<SessionInstructions> {
+  const r = await fetch(`/api/sessions/${encodeURIComponent(id)}/instructions`);
+  if (!r.ok) throw new Error(`instructions fetch ${r.status}`);
+  return r.json();
+}

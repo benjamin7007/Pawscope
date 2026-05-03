@@ -3,6 +3,7 @@ import { useT } from '../i18n';
 import { SessionDetailSkeleton } from './Skeleton';
 import { estimateCostUsd, formatUsd, priceFor } from '../pricing';
 import { ConversationFlow } from './ConversationFlow';
+import { fetchSessionInstructions, type SessionInstructions } from '../api';
 
 type Meta = {
   id: string;
@@ -770,14 +771,25 @@ export function SessionDetail({ meta, detail, onOpenSkill, label, onSetLabel, on
   const { t, lang } = useT();
   const [tab, setTab] = useState<'summary' | 'conversation'>('summary');
   const [availSkills, setAvailSkills] = useState<{ name: string; description: string; source: string; path: string; invoked: boolean }[] | null>(null);
+  const [instructions, setInstructions] = useState<SessionInstructions | null>(null);
+  const [systemPrompts, setSystemPrompts] = useState<{ at: string; content: string }[]>([]);
   useEffect(() => {
     setAvailSkills(null);
+    setInstructions(null);
+    setSystemPrompts([]);
     setTab('summary');
     if (!meta?.id) return;
     let cancel = false;
     fetch(`/api/sessions/${encodeURIComponent(meta.id)}/skills`)
       .then(r => (r.ok ? r.json() : null))
       .then(d => { if (!cancel && d) setAvailSkills(d.skills || []); })
+      .catch(() => {});
+    fetchSessionInstructions(meta.id)
+      .then(d => { if (!cancel) setInstructions(d); })
+      .catch(() => {});
+    fetch(`/api/sessions/${encodeURIComponent(meta.id)}/conversation`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (!cancel && d?.system_prompts?.length) setSystemPrompts(d.system_prompts); })
       .catch(() => {});
     return () => { cancel = true; };
   }, [meta?.id]);
@@ -1047,6 +1059,65 @@ export function SessionDetail({ meta, detail, onOpenSkill, label, onSetLabel, on
               })()}
             </section>
           ) : null}
+
+          {/* Instructions / Persona section */}
+          {instructions && (instructions.project_files.length > 0 || instructions.global_instructions) && (
+            <section className="rounded-lg border border-slate-800 bg-slate-900/40">
+              <details>
+                <summary className="px-4 py-3 cursor-pointer text-sm font-semibold text-slate-200 hover:bg-slate-800/30">
+                  📜 {t('detail.instructions')} ({instructions.project_files.length} {lang === 'zh' ? '个文件' : 'files'})
+                </summary>
+                <div className="px-4 pb-4 space-y-3">
+                  {instructions.global_instructions && (
+                    <div>
+                      <div className="text-[11px] text-slate-500 mb-1">{t('detail.global_instructions')}</div>
+                      <pre className="text-[11px] bg-slate-950/60 border border-slate-800 rounded p-2 overflow-x-auto whitespace-pre-wrap break-words text-slate-300 max-h-60 overflow-y-auto">
+                        {instructions.global_instructions}
+                      </pre>
+                    </div>
+                  )}
+                  {instructions.project_files.map(f => (
+                    <div key={f.rel_path}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[11px] text-slate-400 font-mono">{f.rel_path}</span>
+                        <span className="text-[10px] text-slate-600">{f.bytes}B</span>
+                        <CopyButton text={f.content} />
+                      </div>
+                      <pre className="text-[11px] bg-slate-950/60 border border-slate-800 rounded p-2 overflow-x-auto whitespace-pre-wrap break-words text-slate-300 max-h-60 overflow-y-auto">
+                        {f.content}
+                      </pre>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            </section>
+          )}
+
+          {/* System Prompts section */}
+          {systemPrompts.length > 0 && (
+            <section className="rounded-lg border border-slate-800 bg-slate-900/40">
+              <details>
+                <summary className="px-4 py-3 cursor-pointer text-sm font-semibold text-slate-200 hover:bg-slate-800/30">
+                  ⚙ {t('detail.system_prompts')} ({systemPrompts.length})
+                </summary>
+                <div className="px-4 pb-4 space-y-3">
+                  {systemPrompts.map((p, i) => (
+                    <div key={i}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[11px] text-slate-500 font-mono">
+                          {new Date(p.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                        </span>
+                        <CopyButton text={p.content} />
+                      </div>
+                      <pre className="text-[11px] bg-slate-950/60 border border-slate-800 rounded p-2 overflow-x-auto whitespace-pre-wrap break-words text-slate-300 max-h-60 overflow-y-auto">
+                        {p.content}
+                      </pre>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            </section>
+          )}
 
           <ToolTimeline calls={detail.tool_calls ?? []} />
 

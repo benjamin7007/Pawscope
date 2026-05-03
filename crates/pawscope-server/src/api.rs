@@ -1667,6 +1667,130 @@ pub async fn copilot_config(State(_state): State<AppState>) -> impl IntoResponse
     .into_response()
 }
 
+// ── Session instructions ───────────────────────────────────────────────
+
+#[derive(Debug, Serialize)]
+pub struct InstructionFile {
+    pub name: String,
+    pub rel_path: String,
+    pub content: String,
+    pub bytes: usize,
+}
+
+#[derive(Debug, Serialize)]
+pub struct SessionInstructions {
+    pub session_id: String,
+    pub agent: String,
+    pub cwd: String,
+    pub project_files: Vec<InstructionFile>,
+    pub global_instructions: Option<String>,
+}
+
+const MAX_INSTRUCTION_BYTES: usize = 100 * 1024;
+
+fn try_read_instruction(base: &std::path::Path, rel: &str) -> Option<InstructionFile> {
+    let path = base.join(rel);
+    let content = std::fs::read_to_string(&path).ok()?;
+    let bytes = content.len();
+    let content = if bytes > MAX_INSTRUCTION_BYTES {
+        content[..MAX_INSTRUCTION_BYTES].to_string()
+    } else {
+        content
+    };
+    let name = path
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string();
+    Some(InstructionFile {
+        name,
+        rel_path: rel.to_string(),
+        content,
+        bytes,
+    })
+}
+
+pub async fn get_session_instructions(
+    Path(id): Path<String>,
+    State(s): State<AppState>,
+) -> impl IntoResponse {
+    let sessions = match s.adapter.list_sessions().await {
+        Ok(v) => v,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    };
+    let meta = match sessions.iter().find(|m| m.id == id) {
+        Some(m) => m,
+        None => return (StatusCode::NOT_FOUND, "session not found").into_response(),
+    };
+    let cwd = &meta.cwd;
+    let agent_str = serde_json::to_value(&meta.agent)
+        .ok()
+        .and_then(|v| v.as_str().map(String::from))
+        .unwrap_or_default();
+
+    let mut project_files = Vec::new();
+
+    // Agent-specific project-level instruction files
+    use pawscope_core::AgentKind;
+    match meta.agent {
+        AgentKind::Copilot => {
+            if let Some(f) = try_read_instruction(cwd, ".github/copilot-instructions.md") {
+                project_files.push(f);
+            }
+        }
+        AgentKind::Claude => {
+            if let Some(f) = try_read_instruction(cwd, "CLAUDE.md") {
+                project_files.push(f);
+            }
+        }
+        AgentKind::Codex => {
+            if let Some(f) = try_read_instruction(cwd, ".codex/AGENTS.md") {
+                project_files.push(f);
+            }
+            if let Some(f) = try_read_instruction(cwd, ".codex/instructions.md") {
+                project_files.push(f);
+            }
+        }
+        AgentKind::Gemini => {
+            if let Some(f) = try_read_instruction(cwd, "GEMINI.md") {
+                project_files.push(f);
+            }
+        }
+        AgentKind::Aider => {
+            if let Some(f) = try_read_instruction(cwd, ".aider.conf.yml") {
+                project_files.push(f);
+            }
+        }
+        AgentKind::OpenCode => {}
+    }
+
+    // Shared: AGENTS.md
+    if let Some(f) = try_read_instruction(cwd, "AGENTS.md") {
+        project_files.push(f);
+    }
+
+    // Global instructions from home dir
+    let global_instructions = dirs::home_dir().and_then(|home| {
+        match meta.agent {
+            AgentKind::Copilot => {
+                std::fs::read_to_string(home.join(".copilot/copilot-instructions.md")).ok()
+            }
+            AgentKind::Claude => std::fs::read_to_string(home.join(".claude/CLAUDE.md")).ok(),
+            AgentKind::Codex => std::fs::read_to_string(home.join(".codex/instructions.md")).ok(),
+            _ => None,
+        }
+    });
+
+    Json(SessionInstructions {
+        session_id: id,
+        agent: agent_str,
+        cwd: cwd.to_string_lossy().to_string(),
+        project_files,
+        global_instructions,
+    })
+    .into_response()
+}
+
 // ── All agents configuration ───────────────────────────────────────────
 
 #[derive(Debug, Serialize)]
@@ -1779,13 +1903,19 @@ pub async fn all_agents_config(State(_state): State<AppState>) -> impl IntoRespo
             }
         }
 
+        let instructions = if installed {
+            std::fs::read_to_string(dir.join("CLAUDE.md")).ok()
+        } else {
+            None
+        };
+
         agents.push(AgentConfigInfo {
             agent: "claude".into(),
             installed,
             data_path,
             model: None,
             settings,
-            instructions: None,
+            instructions,
         });
     }
 
@@ -1802,6 +1932,7 @@ pub async fn all_agents_config(State(_state): State<AppState>) -> impl IntoRespo
             None
         };
         let mut settings = serde_json::Value::Object(serde_json::Map::new());
+        let mut instructions: Option<String> = None;
 
         if let Ok(raw) = std::fs::read_to_string(config_dir.join("auth.json")) {
             if let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw) {
@@ -1816,13 +1947,41 @@ pub async fn all_agents_config(State(_state): State<AppState>) -> impl IntoRespo
             }
         }
 
+        // Read opencode.jsonc for plugins
+        if let Ok(raw) = std::fs::read_to_string(config_dir.join("opencode.jsonc")) {
+            // Strip single-line comments for JSON parsing
+            let stripped: String = raw
+                .lines()
+                .map(|l| {
+                    let trimmed = l.trim_start();
+                    if trimmed.starts_with("//") {
+                        ""
+                    } else {
+                        l
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
+            if let Ok(v) = serde_json::from_str::<serde_json::Value>(&stripped) {
+                if let Some(plugins) = v.get("plugin") {
+                    if let Some(map) = settings.as_object_mut() {
+                        map.insert("plugins".into(), plugins.clone());
+                    }
+                }
+                instructions = v
+                    .get("instructions")
+                    .and_then(|i| i.as_str())
+                    .map(String::from);
+            }
+        }
+
         agents.push(AgentConfigInfo {
             agent: "opencode".into(),
             installed,
             data_path,
             model: None,
             settings,
-            instructions: None,
+            instructions,
         });
     }
 
@@ -1836,13 +1995,19 @@ pub async fn all_agents_config(State(_state): State<AppState>) -> impl IntoRespo
             None
         };
 
+        let instructions = if installed {
+            std::fs::read_to_string(dir.join("instructions.md")).ok()
+        } else {
+            None
+        };
+
         agents.push(AgentConfigInfo {
             agent: "codex".into(),
             installed,
             data_path,
             model: None,
             settings: serde_json::Value::Object(serde_json::Map::new()),
-            instructions: None,
+            instructions,
         });
     }
 

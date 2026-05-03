@@ -279,6 +279,11 @@ const dict: Record<string, { en: string; zh: string }> = {
   'detail.no_tools': { en: 'No tool calls recorded.', zh: '尚无工具调用。' },
   'detail.no_skills': { en: 'No skills invoked.', zh: '尚未调用技能。' },
   'detail.subagents': { en: 'Subagents', zh: '子代理' },
+  'detail.instructions': { en: 'Instructions', zh: '指令文件' },
+  'detail.global_instructions': { en: 'Global Instructions', zh: '全局指令' },
+  'detail.project_instructions': { en: 'Project Instructions', zh: '项目级指令' },
+  'detail.no_instructions': { en: 'No instruction files found', zh: '未找到指令文件' },
+  'detail.system_prompts': { en: 'System Prompts', zh: '系统提示' },
 
   // Empty / misc
   'misc.none': { en: 'None.', zh: '无。' },
