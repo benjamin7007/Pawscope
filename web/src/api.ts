@@ -126,6 +126,7 @@ export interface StoreSkill {
   assets: string[];
   category: string;
   installed: boolean;
+  installed_scope: string;
 }
 export interface CategoryCount {
   name: string;
@@ -139,8 +140,11 @@ export interface StoreCatalog {
   last_updated: string | null;
   commit_sha: string | null;
 }
-export async function fetchStoreCatalog(): Promise<StoreCatalog> {
-  const r = await fetch('/api/store/catalog');
+export async function fetchStoreCatalog(projectPath?: string): Promise<StoreCatalog> {
+  const params = new URLSearchParams();
+  if (projectPath) params.set('project_path', projectPath);
+  const url = params.toString() ? `/api/store/catalog?${params}` : '/api/store/catalog';
+  const r = await fetch(url);
   if (!r.ok) throw new Error(`store catalog ${r.status}`);
   return r.json();
 }
@@ -157,21 +161,29 @@ export async function fetchStoreSkillDetail(name: string): Promise<SkillDetail> 
   return r.json();
 }
 
-export async function installStoreSkill(name: string): Promise<{ installed: boolean; path: string }> {
+export async function installStoreSkill(
+  name: string,
+  scope: 'project' | 'global' = 'project',
+  projectPath?: string,
+): Promise<{ installed: boolean; path: string }> {
   const r = await fetch('/api/store/install', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, scope, project_path: projectPath }),
   });
   if (!r.ok) throw new Error(`install ${r.status}`);
   return r.json();
 }
 
-export async function uninstallStoreSkill(name: string): Promise<{ uninstalled: boolean }> {
+export async function uninstallStoreSkill(
+  name: string,
+  scope: 'project' | 'global' = 'project',
+  projectPath?: string,
+): Promise<{ uninstalled: boolean }> {
   const r = await fetch('/api/store/uninstall', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, scope, project_path: projectPath }),
   });
   if (!r.ok) throw new Error(`uninstall ${r.status}`);
   return r.json();

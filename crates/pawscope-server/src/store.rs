@@ -21,6 +21,8 @@ pub struct StoreSkill {
     pub assets: Vec<String>,
     pub category: String,
     pub installed: bool,
+    /// "global", "project", or "none"
+    pub installed_scope: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -50,6 +52,15 @@ pub struct SkillDetail {
 #[derive(Debug, Deserialize)]
 pub struct InstallRequest {
     pub name: String,
+    /// "project" (default) or "global"
+    #[serde(default = "default_scope")]
+    pub scope: String,
+    /// Project root path (required when scope == "project")
+    pub project_path: Option<String>,
+}
+
+fn default_scope() -> String {
+    "project".to_string()
 }
 
 #[derive(Debug, Serialize)]
@@ -267,10 +278,37 @@ fn skills_dir() -> Option<std::path::PathBuf> {
     Some(dirs::home_dir()?.join(".copilot").join("skills"))
 }
 
+fn project_skills_dir(project_path: &str) -> std::path::PathBuf {
+    std::path::PathBuf::from(project_path)
+        .join(".github")
+        .join("skills")
+}
+
 fn is_installed(name: &str) -> bool {
     skills_dir()
         .map(|d| d.join(name).join("SKILL.md").exists())
         .unwrap_or(false)
+}
+
+/// Check if a skill is installed at project level
+fn is_installed_project(name: &str, project_path: &str) -> bool {
+    project_skills_dir(project_path)
+        .join(name)
+        .join("SKILL.md")
+        .exists()
+}
+
+/// Returns "global", "project", or "none"
+fn install_scope(name: &str, project_path: Option<&str>) -> &'static str {
+    if let Some(pp) = project_path {
+        if is_installed_project(name, pp) {
+            return "project";
+        }
+    }
+    if is_installed(name) {
+        return "global";
+    }
+    "none"
 }
 
 fn validate_skill_name(name: &str) -> bool {
@@ -282,15 +320,20 @@ fn build_catalog_response(
     entries: &[SkillEntry],
     fetched_at: &str,
     commit_sha: &Option<String>,
+    project_path: Option<&str>,
 ) -> StoreCatalog {
     let skills: Vec<StoreSkill> = entries
         .iter()
-        .map(|e| StoreSkill {
-            name: e.name.clone(),
-            description: e.description.clone(),
-            assets: e.assets.clone(),
-            category: e.category.clone(),
-            installed: is_installed(&e.name),
+        .map(|e| {
+            let scope = install_scope(&e.name, project_path);
+            StoreSkill {
+                name: e.name.clone(),
+                description: e.description.clone(),
+                assets: e.assets.clone(),
+                category: e.category.clone(),
+                installed: scope != "none",
+                installed_scope: scope.to_string(),
+            }
         })
         .collect();
     let total = skills.len();
@@ -319,8 +362,17 @@ fn build_catalog_response(
 // Handlers
 // ---------------------------------------------------------------------------
 
+#[derive(Debug, Deserialize)]
+pub struct CatalogQuery {
+    pub project_path: Option<String>,
+}
+
 /// GET /api/store/catalog
-pub async fn store_catalog(State(_s): State<AppState>) -> impl IntoResponse {
+pub async fn store_catalog(
+    State(_s): State<AppState>,
+    axum::extract::Query(q): axum::extract::Query<CatalogQuery>,
+) -> impl IntoResponse {
+    let pp = q.project_path.as_deref();
     // 1. Try in-memory cache
     {
         let guard = cache_lock().read().await;
@@ -330,6 +382,7 @@ pub async fn store_catalog(State(_s): State<AppState>) -> impl IntoResponse {
                     &cached.skills,
                     &cached.fetched_at,
                     &cached.commit_sha,
+                    pp,
                 ))
                 .into_response();
             }
@@ -347,6 +400,7 @@ pub async fn store_catalog(State(_s): State<AppState>) -> impl IntoResponse {
                 &disk.skills,
                 &disk.fetched_at,
                 &disk.commit_sha,
+                pp,
             ))
             .into_response();
         }
@@ -399,7 +453,7 @@ pub async fn store_catalog(State(_s): State<AppState>) -> impl IntoResponse {
         *guard = Some(cached);
     }
 
-    Json(build_catalog_response(&entries, &now, &sha)).into_response()
+    Json(build_catalog_response(&entries, &now, &sha, pp)).into_response()
 }
 
 /// GET /api/store/skill/{name}
@@ -480,13 +534,27 @@ pub async fn store_install(
         return (StatusCode::BAD_REQUEST, "invalid skill name").into_response();
     }
 
-    let base_dir = match skills_dir() {
-        Some(d) => d,
-        None => {
-            return (StatusCode::INTERNAL_SERVER_ERROR, "cannot resolve home dir").into_response();
+    // Resolve target directory based on scope
+    let skill_dir = if req.scope == "project" {
+        match &req.project_path {
+            Some(pp) if !pp.is_empty() => project_skills_dir(pp).join(&req.name),
+            _ => {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    "project_path required for project scope",
+                )
+                    .into_response();
+            }
+        }
+    } else {
+        match skills_dir() {
+            Some(d) => d.join(&req.name),
+            None => {
+                return (StatusCode::INTERNAL_SERVER_ERROR, "cannot resolve home dir")
+                    .into_response();
+            }
         }
     };
-    let skill_dir = base_dir.join(&req.name);
     let _ = std::fs::create_dir_all(&skill_dir);
 
     let client = http_client();
@@ -578,13 +646,26 @@ pub async fn store_uninstall(
         return (StatusCode::BAD_REQUEST, "invalid skill name").into_response();
     }
 
-    let base_dir = match skills_dir() {
-        Some(d) => d,
-        None => {
-            return (StatusCode::INTERNAL_SERVER_ERROR, "cannot resolve home dir").into_response();
+    let skill_dir = if req.scope == "project" {
+        match &req.project_path {
+            Some(pp) if !pp.is_empty() => project_skills_dir(pp).join(&req.name),
+            _ => {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    "project_path required for project scope",
+                )
+                    .into_response();
+            }
+        }
+    } else {
+        match skills_dir() {
+            Some(d) => d.join(&req.name),
+            None => {
+                return (StatusCode::INTERNAL_SERVER_ERROR, "cannot resolve home dir")
+                    .into_response();
+            }
         }
     };
-    let skill_dir = base_dir.join(&req.name);
 
     if skill_dir.exists() {
         if let Err(e) = std::fs::remove_dir_all(&skill_dir) {

@@ -388,7 +388,10 @@ export default function App() {
             </ErrorBoundary>
           ) : view === 'store' ? (
             <ErrorBoundary scope="Store">
-              <StorePanel onOpenSkills={() => navigate({ view: 'skills' })} />
+              <StorePanel
+                onOpenSkills={() => navigate({ view: 'skills' })}
+                projectPath={sessions.find((s: any) => s.id === selected)?.cwd ?? null}
+              />
             </ErrorBoundary>
           ) : view === 'compare' && compareIds.length >= 2 ? (
             <ErrorBoundary scope="Compare">

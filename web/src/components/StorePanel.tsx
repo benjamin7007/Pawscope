@@ -11,9 +11,10 @@ import { useT } from '../i18n';
 
 interface Props {
   onOpenSkills?: () => void;
+  projectPath?: string | null;
 }
 
-export function StorePanel({ onOpenSkills: _onOpenSkills }: Props) {
+export function StorePanel({ onOpenSkills: _onOpenSkills, projectPath }: Props) {
   const { t } = useT();
   const [catalog, setCatalog] = useState<StoreCatalog | null>(null);
   const [loading, setLoading] = useState(true);
@@ -27,11 +28,11 @@ export function StorePanel({ onOpenSkills: _onOpenSkills }: Props) {
 
   useEffect(() => {
     setLoading(true);
-    fetchStoreCatalog()
+    fetchStoreCatalog(projectPath ?? undefined)
       .then(setCatalog)
       .catch(e => setError(String(e)))
       .finally(() => setLoading(false));
-  }, []);
+  }, [projectPath]);
 
   const filtered = useMemo(() => {
     if (!catalog) return [];
@@ -47,15 +48,16 @@ export function StorePanel({ onOpenSkills: _onOpenSkills }: Props) {
 
   const installedCount = catalog?.skills.filter(s => s.installed).length ?? 0;
 
-  const handleInstall = async (name: string) => {
+  const handleInstall = async (name: string, scope?: 'project' | 'global') => {
+    const s = scope ?? (projectPath ? 'project' : 'global');
     setInstalling(name);
     try {
-      await installStoreSkill(name);
+      await installStoreSkill(name, s, projectPath ?? undefined);
       setCatalog(prev =>
         prev
           ? {
               ...prev,
-              skills: prev.skills.map(s => (s.name === name ? { ...s, installed: true } : s)),
+              skills: prev.skills.map(sk => (sk.name === name ? { ...sk, installed: true, installed_scope: s } : sk)),
             }
           : prev,
       );
@@ -66,15 +68,16 @@ export function StorePanel({ onOpenSkills: _onOpenSkills }: Props) {
     }
   };
 
-  const handleUninstall = async (name: string) => {
+  const handleUninstall = async (name: string, scope?: 'project' | 'global') => {
+    const s = scope ?? (projectPath ? 'project' : 'global');
     setInstalling(name);
     try {
-      await uninstallStoreSkill(name);
+      await uninstallStoreSkill(name, s, projectPath ?? undefined);
       setCatalog(prev =>
         prev
           ? {
               ...prev,
-              skills: prev.skills.map(s => (s.name === name ? { ...s, installed: false } : s)),
+              skills: prev.skills.map(sk => (sk.name === name ? { ...sk, installed: false, installed_scope: 'none' } : sk)),
             }
           : prev,
       );
@@ -194,7 +197,7 @@ export function StorePanel({ onOpenSkills: _onOpenSkills }: Props) {
         </div>
       </div>
 
-      {/* Source badge */}
+      {/* Source badge + project context */}
       <div className="flex items-center gap-2 text-[11px] text-slate-500">
         <span>📦 {t('store.source')}: </span>
         <a
@@ -207,6 +210,14 @@ export function StorePanel({ onOpenSkills: _onOpenSkills }: Props) {
         </a>
         {catalog?.commit_sha && (
           <span className="font-mono text-slate-600">@ {catalog.commit_sha.slice(0, 7)}</span>
+        )}
+        <span className="mx-1 text-slate-700">·</span>
+        {projectPath ? (
+          <span className="text-blue-300" title={projectPath}>
+            📁 {projectPath.split('/').slice(-2).join('/')}
+          </span>
+        ) : (
+          <span className="text-slate-600 italic">No project selected</span>
         )}
       </div>
 
@@ -259,8 +270,12 @@ export function StorePanel({ onOpenSkills: _onOpenSkills }: Props) {
                     {skill.category}
                   </span>
                   {skill.installed && (
-                    <span className="px-1.5 py-0.5 text-[10px] rounded bg-emerald-500/20 text-emerald-300">
-                      {t('store.installed')}
+                    <span className={`px-1.5 py-0.5 text-[10px] rounded ${
+                      skill.installed_scope === 'project'
+                        ? 'bg-blue-500/20 text-blue-300'
+                        : 'bg-emerald-500/20 text-emerald-300'
+                    }`}>
+                      {skill.installed_scope === 'project' ? '📁 Project' : '🌐 Global'}
                     </span>
                   )}
                 </div>
@@ -268,26 +283,59 @@ export function StorePanel({ onOpenSkills: _onOpenSkills }: Props) {
                   {skill.description}
                 </p>
               </div>
-              <button
-                onClick={e => {
-                  e.stopPropagation();
-                  skill.installed ? handleUninstall(skill.name) : handleInstall(skill.name);
-                }}
-                disabled={installing === skill.name}
-                className={`flex-shrink-0 px-2.5 py-1 text-[11px] rounded font-medium transition-colors ${
-                  installing === skill.name
-                    ? 'bg-slate-700 text-slate-500 cursor-wait'
-                    : skill.installed
-                      ? 'bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 border border-rose-500/30'
-                      : 'bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 border border-emerald-500/30'
-                }`}
-              >
-                {installing === skill.name
-                  ? '...'
-                  : skill.installed
-                    ? t('store.uninstall')
-                    : t('store.install')}
-              </button>
+              <div className="flex-shrink-0 flex items-center gap-1">
+                {skill.installed ? (
+                  <button
+                    onClick={e => {
+                      e.stopPropagation();
+                      handleUninstall(skill.name, skill.installed_scope as 'project' | 'global');
+                    }}
+                    disabled={installing === skill.name}
+                    className={`px-2.5 py-1 text-[11px] rounded font-medium transition-colors ${
+                      installing === skill.name
+                        ? 'bg-slate-700 text-slate-500 cursor-wait'
+                        : 'bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 border border-rose-500/30'
+                    }`}
+                  >
+                    {installing === skill.name ? '...' : t('store.uninstall')}
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={e => {
+                        e.stopPropagation();
+                        handleInstall(skill.name, 'project');
+                      }}
+                      disabled={installing === skill.name || !projectPath}
+                      title={projectPath ? `Install to ${projectPath}` : 'Select a session first'}
+                      className={`px-2 py-1 text-[11px] rounded font-medium transition-colors ${
+                        installing === skill.name
+                          ? 'bg-slate-700 text-slate-500 cursor-wait'
+                          : !projectPath
+                            ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
+                            : 'bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 border border-blue-500/30'
+                      }`}
+                    >
+                      {installing === skill.name ? '...' : '📁'}
+                    </button>
+                    <button
+                      onClick={e => {
+                        e.stopPropagation();
+                        handleInstall(skill.name, 'global');
+                      }}
+                      disabled={installing === skill.name}
+                      title="Install globally to ~/.copilot/skills/"
+                      className={`px-2 py-1 text-[11px] rounded font-medium transition-colors ${
+                        installing === skill.name
+                          ? 'bg-slate-700 text-slate-500 cursor-wait'
+                          : 'bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 border border-emerald-500/30'
+                      }`}
+                    >
+                      {installing === skill.name ? '...' : '🌐'}
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
             {skill.assets.length > 0 && (
               <div className="mt-1.5 flex items-center gap-1 text-[10px] text-slate-600">
