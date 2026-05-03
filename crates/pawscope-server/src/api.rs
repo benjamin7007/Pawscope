@@ -1667,6 +1667,228 @@ pub async fn copilot_config(State(_state): State<AppState>) -> impl IntoResponse
     .into_response()
 }
 
+// ── All agents configuration ───────────────────────────────────────────
+
+#[derive(Debug, Serialize)]
+pub struct AgentConfigInfo {
+    pub agent: String,
+    pub installed: bool,
+    pub data_path: Option<String>,
+    pub model: Option<String>,
+    pub settings: serde_json::Value,
+    pub instructions: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AllAgentsConfigResponse {
+    pub agents: Vec<AgentConfigInfo>,
+}
+
+pub async fn all_agents_config(State(_state): State<AppState>) -> impl IntoResponse {
+    let home = match dirs::home_dir() {
+        Some(h) => h,
+        None => {
+            return (StatusCode::INTERNAL_SERVER_ERROR, "cannot resolve home dir").into_response()
+        }
+    };
+
+    let mut agents = Vec::new();
+
+    // ── Copilot ──
+    {
+        let dir = home.join(".copilot");
+        let installed = dir.is_dir();
+        let data_path = if installed {
+            Some(dir.to_string_lossy().to_string())
+        } else {
+            None
+        };
+        let mut model: Option<String> = None;
+        let mut settings = serde_json::Value::Object(serde_json::Map::new());
+
+        if installed {
+            if let Ok(raw) = std::fs::read_to_string(dir.join("settings.json")) {
+                if let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw) {
+                    model = v.get("model").and_then(|m| m.as_str()).map(String::from);
+                    let effort = v
+                        .get("effortLevel")
+                        .and_then(|e| e.as_str())
+                        .map(String::from);
+                    let plugins: Vec<String> = v
+                        .get("installedPlugins")
+                        .and_then(|p| p.as_array())
+                        .map(|arr| {
+                            arr.iter()
+                                .filter_map(|p| p.get("name")?.as_str().map(String::from))
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    let mut map = serde_json::Map::new();
+                    if let Some(e) = effort {
+                        map.insert("effortLevel".into(), serde_json::Value::String(e));
+                    }
+                    if !plugins.is_empty() {
+                        map.insert("plugins".into(), serde_json::json!(plugins));
+                    }
+                    settings = serde_json::Value::Object(map);
+                }
+            }
+        }
+
+        let instructions = if installed {
+            std::fs::read_to_string(dir.join("copilot-instructions.md")).ok()
+        } else {
+            None
+        };
+
+        agents.push(AgentConfigInfo {
+            agent: "copilot".into(),
+            installed,
+            data_path,
+            model,
+            settings,
+            instructions,
+        });
+    }
+
+    // ── Claude ──
+    {
+        let dir = home.join(".claude");
+        let installed = dir.is_dir();
+        let data_path = if installed {
+            Some(dir.to_string_lossy().to_string())
+        } else {
+            None
+        };
+        let mut settings = serde_json::Value::Object(serde_json::Map::new());
+
+        if installed {
+            if let Ok(raw) = std::fs::read_to_string(dir.join("settings.json")) {
+                if let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw) {
+                    let mut map = serde_json::Map::new();
+                    if let Some(plugins) = v.get("enabledPlugins") {
+                        map.insert("enabledPlugins".into(), plugins.clone());
+                    }
+                    if let Some(mkts) = v.get("extraKnownMarketplaces") {
+                        map.insert("extraKnownMarketplaces".into(), mkts.clone());
+                    }
+                    if !map.is_empty() {
+                        settings = serde_json::Value::Object(map);
+                    }
+                }
+            }
+        }
+
+        agents.push(AgentConfigInfo {
+            agent: "claude".into(),
+            installed,
+            data_path,
+            model: None,
+            settings,
+            instructions: None,
+        });
+    }
+
+    // ── OpenCode ──
+    {
+        let data_dir = home.join(".local").join("share").join("opencode");
+        let config_dir = home.join(".config").join("opencode");
+        let installed = data_dir.is_dir() || config_dir.is_dir();
+        let data_path = if data_dir.is_dir() {
+            Some(data_dir.to_string_lossy().to_string())
+        } else if config_dir.is_dir() {
+            Some(config_dir.to_string_lossy().to_string())
+        } else {
+            None
+        };
+        let mut settings = serde_json::Value::Object(serde_json::Map::new());
+
+        if let Ok(raw) = std::fs::read_to_string(config_dir.join("auth.json")) {
+            if let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw) {
+                if let Some(obj) = v.as_object() {
+                    let providers: Vec<String> = obj.keys().cloned().collect();
+                    if !providers.is_empty() {
+                        let mut map = serde_json::Map::new();
+                        map.insert("providers".into(), serde_json::json!(providers));
+                        settings = serde_json::Value::Object(map);
+                    }
+                }
+            }
+        }
+
+        agents.push(AgentConfigInfo {
+            agent: "opencode".into(),
+            installed,
+            data_path,
+            model: None,
+            settings,
+            instructions: None,
+        });
+    }
+
+    // ── Codex ──
+    {
+        let dir = home.join(".codex");
+        let installed = dir.is_dir();
+        let data_path = if installed {
+            Some(dir.to_string_lossy().to_string())
+        } else {
+            None
+        };
+
+        agents.push(AgentConfigInfo {
+            agent: "codex".into(),
+            installed,
+            data_path,
+            model: None,
+            settings: serde_json::Value::Object(serde_json::Map::new()),
+            instructions: None,
+        });
+    }
+
+    // ── Gemini ──
+    {
+        let dir = home.join(".gemini");
+        let installed = dir.is_dir();
+        let data_path = if installed {
+            Some(dir.to_string_lossy().to_string())
+        } else {
+            None
+        };
+
+        agents.push(AgentConfigInfo {
+            agent: "gemini".into(),
+            installed,
+            data_path,
+            model: None,
+            settings: serde_json::Value::Object(serde_json::Map::new()),
+            instructions: None,
+        });
+    }
+
+    // ── Aider ──
+    {
+        let dir = home.join(".aider");
+        let installed = dir.is_dir();
+        let data_path = if installed {
+            Some(dir.to_string_lossy().to_string())
+        } else {
+            None
+        };
+
+        agents.push(AgentConfigInfo {
+            agent: "aider".into(),
+            installed,
+            data_path,
+            model: None,
+            settings: serde_json::Value::Object(serde_json::Map::new()),
+            instructions: None,
+        });
+    }
+
+    Json(AllAgentsConfigResponse { agents }).into_response()
+}
+
 fn count_skills_recursive(dir: &PathBuf, max_depth: usize) -> usize {
     if max_depth == 0 || !dir.is_dir() {
         return 0;

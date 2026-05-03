@@ -76,6 +76,7 @@ pub fn build_app(adapter: Arc<dyn AgentAdapter>) -> (Router, AppState) {
         .route("/api/skills/reveal", post(skills::skill_reveal))
         .route("/api/sessions/{id}/skills", get(skills::session_skills))
         .route("/api/config/copilot", get(api::copilot_config))
+        .route("/api/config/agents", get(api::all_agents_config))
         .route("/api/store/catalog", get(store::store_catalog))
         .route("/api/store/skill/{name}", get(store::store_skill_detail))
         .route("/api/store/install", post(store::store_install))
