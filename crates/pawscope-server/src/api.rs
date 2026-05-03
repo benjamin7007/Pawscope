@@ -1148,7 +1148,7 @@ pub async fn activity_heartbeat(State(s): State<AppState>) -> impl IntoResponse 
         .unwrap_or(0);
     Json(HeartbeatStats {
         grid,
-        days: vec!["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        days: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
             .iter()
             .map(|s| s.to_string())
             .collect(),
@@ -1597,13 +1597,7 @@ fn tokenize(text: &str) -> Vec<String> {
                 }
                 buf.clear();
             }
-            // CJK bigrams: emit char-pair as a token.
-            // We need lookback; collect chars first.
-        }
-        if is_cjk(ch) {
-            // handled below via separate pass
-        }
-        if !is_cjk(ch) {
+        } else {
             buf.push(ch);
         }
     }
@@ -2080,7 +2074,7 @@ pub async fn get_session_instructions(
         None => return (StatusCode::NOT_FOUND, "session not found").into_response(),
     };
     let cwd = &meta.cwd;
-    let agent_str = serde_json::to_value(&meta.agent)
+    let agent_str = serde_json::to_value(meta.agent)
         .ok()
         .and_then(|v| v.as_str().map(String::from))
         .unwrap_or_default();

@@ -68,7 +68,7 @@ pub async fn run(
                         let new_version = st.conversation.version;
                         (st.detail.clone(), new_version, new_version != prev_version)
                     };
-                    let _ = tx.send(SessionEvent::DetailUpdated { session_id: id.clone(), detail }).await;
+                    let _ = tx.send(SessionEvent::DetailUpdated { session_id: id.clone(), detail: Box::new(detail) }).await;
                     if conv_changed {
                         let _ = tx.send(SessionEvent::ConversationUpdated {
                             session_id: id,

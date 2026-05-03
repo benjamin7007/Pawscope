@@ -247,17 +247,15 @@ pub fn parse_incremental(path: &Path, state: &mut ParseState) -> anyhow::Result<
             }
             "assistant.turn_end" => {
                 state.detail.turns += 1;
-                if let Some(scope) = state.current_scope.clone() {
-                    if let ScopeRef::Turn { interaction, turn } = scope {
-                        if let Some(t) = state
-                            .conversation
-                            .interactions
-                            .get_mut(interaction)
-                            .and_then(|i| i.turns.get_mut(turn))
-                        {
-                            t.completed_at = ts;
-                            state.conversation.version += 1;
-                        }
+                if let Some(ScopeRef::Turn { interaction, turn }) = state.current_scope.clone() {
+                    if let Some(t) = state
+                        .conversation
+                        .interactions
+                        .get_mut(interaction)
+                        .and_then(|i| i.turns.get_mut(turn))
+                    {
+                        t.completed_at = ts;
+                        state.conversation.version += 1;
                     }
                 }
             }
@@ -381,43 +379,41 @@ pub fn parse_incremental(path: &Path, state: &mut ParseState) -> anyhow::Result<
                 }
             }
             "subagent.completed" => {
-                if let Some(scope) = state.current_scope.clone() {
-                    if let ScopeRef::Subagent {
-                        interaction,
-                        turn,
-                        mut path,
-                    } = scope
-                    {
-                        if let Some(last_idx) = path.last().copied() {
-                            // Mark completed_at on the deepest subagent.
-                            let parent_path = path[..path.len() - 1].to_vec();
-                            let parent_scope = if parent_path.is_empty() {
-                                ScopeRef::Turn { interaction, turn }
-                            } else {
-                                ScopeRef::Subagent {
-                                    interaction,
-                                    turn,
-                                    path: parent_path.clone(),
-                                }
-                            };
-                            if let Some(items) = state.scope_items_mut(&parent_scope) {
-                                if let Some(TurnItem::Subagent(s)) = items.get_mut(last_idx) {
-                                    s.completed_at = ts;
-                                }
+                if let Some(ScopeRef::Subagent {
+                    interaction,
+                    turn,
+                    mut path,
+                }) = state.current_scope.clone()
+                {
+                    if let Some(last_idx) = path.last().copied() {
+                        // Mark completed_at on the deepest subagent.
+                        let parent_path = path[..path.len() - 1].to_vec();
+                        let parent_scope = if parent_path.is_empty() {
+                            ScopeRef::Turn { interaction, turn }
+                        } else {
+                            ScopeRef::Subagent {
+                                interaction,
+                                turn,
+                                path: parent_path.clone(),
                             }
-                            // Pop the subagent off the active scope.
-                            path.pop();
-                            state.current_scope = Some(if path.is_empty() {
-                                ScopeRef::Turn { interaction, turn }
-                            } else {
-                                ScopeRef::Subagent {
-                                    interaction,
-                                    turn,
-                                    path,
-                                }
-                            });
-                            state.conversation.version += 1;
+                        };
+                        if let Some(items) = state.scope_items_mut(&parent_scope) {
+                            if let Some(TurnItem::Subagent(s)) = items.get_mut(last_idx) {
+                                s.completed_at = ts;
+                            }
                         }
+                        // Pop the subagent off the active scope.
+                        path.pop();
+                        state.current_scope = Some(if path.is_empty() {
+                            ScopeRef::Turn { interaction, turn }
+                        } else {
+                            ScopeRef::Subagent {
+                                interaction,
+                                turn,
+                                path,
+                            }
+                        });
+                        state.conversation.version += 1;
                     }
                 }
             }

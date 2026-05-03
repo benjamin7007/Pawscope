@@ -707,17 +707,15 @@ fn parse_rollout_into_conversation(file: std::fs::File) -> pawscope_core::Conver
                     t
                 };
                 if let Some(&(ii, ti, ix)) = call_pos.get(&call_id) {
-                    if let Some(item) = log
+                    if let Some(TurnItem::Tool(tc)) = log
                         .interactions
                         .get_mut(ii)
                         .and_then(|i| i.turns.get_mut(ti))
                         .and_then(|t| t.items.get_mut(ix))
                     {
-                        if let TurnItem::Tool(tc) = item {
-                            tc.result_snippet = Some(snippet);
-                            tc.success = Some(!is_error);
-                            log.version += 1;
-                        }
+                        tc.result_snippet = Some(snippet);
+                        tc.success = Some(!is_error);
+                        log.version += 1;
                     }
                 }
             }

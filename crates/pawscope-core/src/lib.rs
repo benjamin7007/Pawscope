@@ -16,10 +16,10 @@ pub use types::*;
 pub fn recompute_token_summary(log: &mut types::ConversationLog) {
     use types::{ModelUsage, TokenSummary, TurnItem, TurnUsage};
 
-    fn walk_turns<'a>(items: &'a [TurnItem], out: &mut Vec<&'a TurnUsage>) {
+    fn walk_turns<'a>(items: &'a [TurnItem], _out: &mut Vec<&'a TurnUsage>) {
         for item in items {
             if let TurnItem::Subagent(scope) = item {
-                walk_turns(&scope.items, out);
+                walk_turns(&scope.items, _out);
             }
         }
     }

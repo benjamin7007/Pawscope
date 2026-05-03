@@ -10,7 +10,7 @@ pub enum SessionEvent {
     SessionListChanged,
     DetailUpdated {
         session_id: String,
-        detail: SessionDetail,
+        detail: Box<SessionDetail>,
     },
     Closed {
         session_id: String,

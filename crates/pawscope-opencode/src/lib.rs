@@ -394,7 +394,7 @@ impl AgentAdapter for OpenCodeAdapter {
                 let ts = epoch_ms_to_utc(ts_ms).with_timezone(&Local);
                 let day = ts.date_naive();
                 let days_ago = (today - day).num_days();
-                if days_ago >= 0 && days_ago < 7 {
+                if (0..7).contains(&days_ago) {
                     let hour = ts.hour() as usize;
                     grid[days_ago as usize][hour] += 1;
                 }

@@ -728,7 +728,7 @@ impl AgentAdapter for ClaudeAdapter {
                     let _ = tx
                         .send(SessionEvent::DetailUpdated {
                             session_id: session_id.clone(),
-                            detail,
+                            detail: Box::new(detail),
                         })
                         .await;
                     if conv_v != prev_v {
