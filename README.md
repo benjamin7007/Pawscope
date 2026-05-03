@@ -123,9 +123,17 @@ Hide, delete (move to trash), rename, star, tag sessions. Compare 2–5 sessions
 <td align="center"><sub><b>Skills</b> — local skills grouped by category, with a usage donut</sub></td>
 <td align="center"><sub><b>Prompts</b> — full-text search across all sessions, optional clustering</sub></td>
 </tr>
+<tr>
+<td width="50%"><a href="./docs/screenshots/06-config.png"><img src="./docs/screenshots/06-config.png" alt="Config page"/></a></td>
+<td width="50%"><a href="./docs/screenshots/07-store.png"><img src="./docs/screenshots/07-store.png" alt="Skill Store"/></a></td>
+</tr>
+<tr>
+<td align="center"><sub><b>Config</b> — persona, agents, installed skills, 30-day token trend</sub></td>
+<td align="center"><sub><b>Skill Store</b> — 328+ community skills, 13 categories, project/global install</sub></td>
+</tr>
 </table>
 
-> All screenshots use the synthetic demo dataset from `scripts/gen-demo-home.py` — no real session data is ever bundled with the README.
+> Screenshots taken from a live Pawscope instance. No synthetic data — what you see is what you get.
 
 ---
 
