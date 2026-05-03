@@ -384,7 +384,7 @@ export default function App() {
             </ErrorBoundary>
           ) : view === 'config' ? (
             <ErrorBoundary scope="Config">
-              <ConfigPanel onOpenSkills={() => navigate({ view: 'skills' })} />
+              <ConfigPanel onOpenSkills={() => navigate({ view: 'skills' })} sessions={sessions} tokensMap={tokensMap} />
             </ErrorBoundary>
           ) : view === 'store' ? (
             <ErrorBoundary scope="Store">

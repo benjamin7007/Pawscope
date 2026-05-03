@@ -26,7 +26,7 @@ const dict: Record<string, { en: string; zh: string }> = {
   'crumbs.config': { en: 'Config', zh: '配置' },
 
   // Config page
-  'config.title': { en: '⚙ Copilot Configuration', zh: '⚙ Copilot 配置' },
+  'config.title': { en: '⚙ Agent Configuration', zh: '⚙ Agent 配置' },
   'config.model': { en: 'Model', zh: '模型' },
   'config.effort': { en: 'Effort Level', zh: '努力等级' },
   'config.plugins': { en: 'Plugins', zh: '插件' },
@@ -42,6 +42,15 @@ const dict: Record<string, { en: string; zh: string }> = {
   'config.skills_detail_title': { en: '🧩 Skills Detail', zh: '🧩 技能详情' },
   'config.skills_open_full': { en: 'Open Skills tab →', zh: '打开技能页 →' },
   'config.no_skills': { en: 'No skills found', zh: '未找到技能' },
+  'config.installed': { en: 'Installed', zh: '已安装' },
+  'config.not_found': { en: 'Not found', zh: '未检测到' },
+  'config.data_path': { en: 'Data path', zh: '数据路径' },
+  'config.sessions': { en: 'Sessions', zh: '会话数' },
+  'config.tokens': { en: 'Tokens', zh: 'Token 数' },
+  'config.providers': { en: 'Providers', zh: '提供者' },
+  'config.show_instructions': { en: 'Show instructions', zh: '展开人设' },
+  'config.hide_instructions': { en: 'Hide instructions', zh: '收起人设' },
+  'config.copilot_agents_title': { en: '🤖 Copilot Agents', zh: '🤖 Copilot 智能体' },
 
   // Prompts search
   'prompts.title': { en: 'Search prompts', zh: '搜索用户提示' },

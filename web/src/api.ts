@@ -223,6 +223,27 @@ export async function fetchCopilotConfig(): Promise<CopilotConfig> {
   return r.json();
 }
 
+// ---------------------------------------------------------------------------
+// All Agents Config
+// ---------------------------------------------------------------------------
+
+export interface AgentConfigInfo {
+  agent: string;
+  installed: boolean;
+  data_path: string | null;
+  model: string | null;
+  settings: Record<string, unknown>;
+  instructions: string | null;
+}
+export interface AllAgentsConfigResponse {
+  agents: AgentConfigInfo[];
+}
+export async function fetchAllAgentsConfig(): Promise<AllAgentsConfigResponse> {
+  const r = await fetch('/api/config/agents');
+  if (!r.ok) throw new Error(`agents config fetch ${r.status}`);
+  return r.json();
+}
+
 export interface ToolTrendSeries {
   name: string;
   counts: number[];
