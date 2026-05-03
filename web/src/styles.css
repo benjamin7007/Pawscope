@@ -121,3 +121,12 @@ html.theme-light .pawscope-skeleton::after {
   from { transform: translateX(20px); opacity: 0; }
   to   { transform: translateX(0); opacity: 1; }
 }
+
+/* Hide scrollbar but keep scrolling */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}

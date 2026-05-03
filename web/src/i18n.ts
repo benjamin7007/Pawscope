@@ -8,11 +8,11 @@ const DEFAULT_LANG: Lang =
 
 const dict: Record<string, { en: string; zh: string }> = {
   // Nav
-  'nav.overview': { en: '◇ Overview', zh: '◇ 总览' },
-  'nav.session': { en: '⌖ Session', zh: '⌖ 会话' },
-  'nav.skills': { en: '🛠 Skills', zh: '🛠 技能' },
-  'nav.prompts': { en: '⌕ Prompts', zh: '⌕ 提示' },
-  'nav.config': { en: '⚙ Config', zh: '⚙ 配置' },
+  'nav.overview': { en: 'Overview', zh: '总览' },
+  'nav.session': { en: 'Session', zh: '会话' },
+  'nav.skills': { en: 'Skills', zh: '技能' },
+  'nav.prompts': { en: 'Prompts', zh: '提示' },
+  'nav.config': { en: 'Config', zh: '配置' },
 
   // Breadcrumbs
   'crumbs.back': { en: 'Back', zh: '后退' },
@@ -363,7 +363,7 @@ const dict: Record<string, { en: string; zh: string }> = {
   'compare.bar_clear': { en: 'Clear', zh: '清空' },
 
   // Skill Store
-  'nav.store': { en: '📦 Store', zh: '📦 商店' },
+  'nav.store': { en: 'Store', zh: '商店' },
   'crumbs.store': { en: 'Store', zh: '技能商店' },
   'store.kicker': { en: 'Community Skills', zh: '社区技能' },
   'store.title': { en: 'Skill Store', zh: '技能商店' },
