@@ -1128,7 +1128,44 @@ export function SessionDetail({ meta, detail, onOpenSkill, label, onSetLabel, on
                 </section>
               )}
 
-              {!sessionContext.plan && sessionContext.todos.length === 0 && sessionContext.checkpoints.length === 0 && (
+              {instructions && instructions.project_files.length > 0 && (
+                <section className="bg-slate-900/50 border border-slate-800 rounded-lg overflow-hidden">
+                  <header className="px-4 py-3 border-b border-slate-800 flex items-center gap-2">
+                    <span className="text-lg">📜</span>
+                    <h3 className="text-sm font-semibold text-slate-200">{t('ctx.agent_instructions')}</h3>
+                    <span className="ml-auto text-[10px] text-slate-500">{instructions.project_files.length} {lang === 'zh' ? '个文件' : 'files'}</span>
+                  </header>
+                  <div className="divide-y divide-slate-800/50">
+                    {instructions.project_files.map(f => (
+                      <details key={f.rel_path} className="group">
+                        <summary className="px-4 py-2.5 cursor-pointer text-[12px] text-slate-300 hover:bg-slate-800/30 flex items-center gap-2">
+                          <span className="text-[10px] text-slate-600 group-open:rotate-90 transition-transform">▶</span>
+                          <span className="font-mono text-slate-400">{f.rel_path}</span>
+                          <span className="ml-auto text-[10px] text-slate-600">{f.bytes > 1024 ? `${(f.bytes / 1024).toFixed(1)}KB` : `${f.bytes}B`}</span>
+                        </summary>
+                        <div
+                          className="px-4 pb-3 text-[11px] text-slate-400 leading-relaxed max-h-[400px] overflow-y-auto prose-sm"
+                          dangerouslySetInnerHTML={{ __html: renderMarkdown(f.content) }}
+                        />
+                      </details>
+                    ))}
+                  </div>
+                  {instructions.global_instructions && (
+                    <details className="group border-t border-slate-800/50">
+                      <summary className="px-4 py-2.5 cursor-pointer text-[12px] text-slate-300 hover:bg-slate-800/30 flex items-center gap-2">
+                        <span className="text-[10px] text-slate-600 group-open:rotate-90 transition-transform">▶</span>
+                        <span className="font-mono text-slate-400">{t('ctx.global_instructions')}</span>
+                      </summary>
+                      <div
+                        className="px-4 pb-3 text-[11px] text-slate-400 leading-relaxed max-h-[400px] overflow-y-auto prose-sm"
+                        dangerouslySetInnerHTML={{ __html: renderMarkdown(instructions.global_instructions) }}
+                      />
+                    </details>
+                  )}
+                </section>
+              )}
+
+              {!sessionContext.plan && sessionContext.todos.length === 0 && sessionContext.checkpoints.length === 0 && (!instructions || instructions.project_files.length === 0) && (
                 <div className="text-center py-16 text-slate-500">
                   <div className="text-4xl mb-3">📭</div>
                   <p className="text-sm">{t('ctx.empty')}</p>

@@ -329,6 +329,8 @@ const dict: Record<string, { en: string; zh: string }> = {
   'ctx.sec_next_steps': { en: 'Next Steps', zh: '下一步' },
   'ctx.sec_technical': { en: 'Technical Details', zh: '技术细节' },
   'ctx.sec_files': { en: 'Important Files', zh: '重要文件' },
+  'ctx.agent_instructions': { en: 'Agent Instructions', zh: '代理指令' },
+  'ctx.global_instructions': { en: 'Global Instructions', zh: '全局指令' },
   'flow.empty': { en: 'No conversation events yet.', zh: '暂无对话事件。' },
   'flow.load_error': { en: 'Failed to load conversation', zh: '加载对话失败' },
   'flow.copilot_only': { en: 'Conversation flow is currently Copilot-only.', zh: '对话流目前仅支持 Copilot 会话。' },

@@ -2088,6 +2088,10 @@ pub async fn get_session_instructions(
             if let Some(f) = try_read_instruction(cwd, ".github/copilot-instructions.md") {
                 project_files.push(f);
             }
+            // Copilot CLI also reads CLAUDE.md if present
+            if let Some(f) = try_read_instruction(cwd, "CLAUDE.md") {
+                project_files.push(f);
+            }
         }
         AgentKind::Claude => {
             if let Some(f) = try_read_instruction(cwd, "CLAUDE.md") {
