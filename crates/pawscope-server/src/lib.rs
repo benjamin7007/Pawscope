@@ -86,6 +86,7 @@ pub fn build_app(adapter: Arc<dyn AgentAdapter>) -> (Router, AppState) {
         .route("/api/store/install", post(store::store_install))
         .route("/api/store/uninstall", post(store::store_uninstall))
         .route("/api/store/refresh", post(store::store_refresh))
+        .route("/api/analytics", get(api::analytics))
         .route("/api/events", get(sse::sse_handler))
         .route("/ws", get(ws::ws_handler))
         .fallback(assets::static_handler)

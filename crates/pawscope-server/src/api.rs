@@ -5,6 +5,7 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
+use chrono::Timelike;
 use pawscope_core::SessionStatus;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -2542,4 +2543,404 @@ pub async fn delete_session(
         }
         Err(e) => (StatusCode::BAD_REQUEST, e.to_string()).into_response(),
     }
+}
+
+// ---------------------------------------------------------------------------
+// Analytics
+// ---------------------------------------------------------------------------
+
+#[derive(Deserialize)]
+pub struct AnalyticsQuery {
+    #[serde(default = "default_analytics_days")]
+    pub days: u32,
+    #[serde(default)]
+    pub agent: Option<String>,
+}
+fn default_analytics_days() -> u32 {
+    30
+}
+
+#[derive(Serialize)]
+struct AnalyticsResponse {
+    days: u32,
+    agent_filter: Option<String>,
+    total_sessions: u32,
+    avg_duration_mins: f64,
+    median_duration_mins: f64,
+    p90_duration_mins: f64,
+    duration_buckets: Vec<HistogramBucket>,
+    avg_turns: f64,
+    avg_user_messages: f64,
+    engaged_sessions: u32,
+    short_sessions: u32,
+    completed_sessions: u32,
+    tokens_by_agent: Vec<AgentTokens>,
+    tokens_by_model: Vec<ModelTokens>,
+    tool_heatmap: Vec<ToolHeatmapRow>,
+    top_tools: Vec<ToolRank>,
+    daily: Vec<DayCount>,
+    agent_stats: Vec<AgentComparison>,
+}
+
+#[derive(Serialize)]
+struct HistogramBucket {
+    label: String,
+    count: u32,
+    pct: f64,
+}
+
+#[derive(Serialize)]
+struct AgentTokens {
+    agent: String,
+    tokens_in: u64,
+    tokens_out: u64,
+    sessions: u32,
+    avg_per_session: u64,
+}
+
+#[derive(Serialize)]
+struct ModelTokens {
+    model: String,
+    tokens_in: u64,
+    tokens_out: u64,
+    sessions: u32,
+}
+
+#[derive(Serialize)]
+struct ToolHeatmapRow {
+    tool: String,
+    hours: Vec<u32>,
+}
+
+#[derive(Serialize)]
+struct ToolRank {
+    name: String,
+    count: u32,
+    sessions: u32,
+}
+
+#[derive(Serialize)]
+struct DayCount {
+    date: String,
+    count: u32,
+    tokens_in: u64,
+    tokens_out: u64,
+}
+
+#[derive(Serialize)]
+struct AgentComparison {
+    agent: String,
+    sessions: u32,
+    avg_turns: f64,
+    avg_duration_mins: f64,
+    avg_tokens_in: u64,
+    avg_tokens_out: u64,
+}
+
+pub async fn analytics(
+    Query(q): Query<AnalyticsQuery>,
+    State(s): State<AppState>,
+) -> impl IntoResponse {
+    let sessions = match s.adapter.list_sessions().await {
+        Ok(v) => v,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    };
+    let pairs = s.detail_cache.fan_out(&s.adapter, &sessions).await;
+
+    let now = chrono::Utc::now();
+    let cutoff = now - chrono::Duration::days(q.days as i64);
+
+    let filtered: Vec<_> = pairs
+        .into_iter()
+        .filter(|(meta, _)| {
+            if meta.started_at < cutoff {
+                return false;
+            }
+            if let Some(ref agent_filter) = q.agent {
+                let agent_key = serde_json::to_value(meta.agent)
+                    .ok()
+                    .and_then(|v| v.as_str().map(String::from))
+                    .unwrap_or_default();
+                if &agent_key != agent_filter {
+                    return false;
+                }
+            }
+            true
+        })
+        .collect();
+
+    let total_sessions = filtered.len() as u32;
+
+    // Duration stats (completed sessions only)
+    let mut durations: Vec<f64> = Vec::new();
+    for (meta, _) in &filtered {
+        if meta.status != SessionStatus::Active {
+            let mins = (meta.last_event_at - meta.started_at).num_seconds() as f64 / 60.0;
+            durations.push(mins.max(0.0));
+        }
+    }
+    durations.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+
+    let completed_sessions = durations.len() as u32;
+    let avg_duration_mins = if durations.is_empty() {
+        0.0
+    } else {
+        durations.iter().sum::<f64>() / durations.len() as f64
+    };
+    let median_duration_mins = if durations.is_empty() {
+        0.0
+    } else {
+        durations[durations.len() / 2]
+    };
+    let p90_duration_mins = if durations.is_empty() {
+        0.0
+    } else {
+        let idx = ((durations.len() as f64 * 0.9).ceil() as usize).min(durations.len()) - 1;
+        durations[idx]
+    };
+
+    // Duration buckets
+    let bucket_labels = ["<5m", "5-15m", "15-30m", "30m-1h", "1-2h", "2h+"];
+    let bucket_bounds: [f64; 5] = [5.0, 15.0, 30.0, 60.0, 120.0];
+    let mut bucket_counts = [0u32; 6];
+    for &d in &durations {
+        let idx = bucket_bounds.iter().position(|&b| d < b).unwrap_or(5);
+        bucket_counts[idx] += 1;
+    }
+    let duration_buckets: Vec<HistogramBucket> = bucket_labels
+        .iter()
+        .enumerate()
+        .map(|(i, label)| HistogramBucket {
+            label: label.to_string(),
+            count: bucket_counts[i],
+            pct: if completed_sessions == 0 {
+                0.0
+            } else {
+                bucket_counts[i] as f64 / completed_sessions as f64 * 100.0
+            },
+        })
+        .collect();
+
+    // Interaction depth
+    let (mut sum_turns, mut sum_user_msgs) = (0u64, 0u64);
+    let mut engaged_sessions = 0u32;
+    let mut short_sessions = 0u32;
+    for (meta, detail) in &filtered {
+        sum_turns += detail.turns as u64;
+        sum_user_msgs += detail.user_messages as u64;
+        if meta.status != SessionStatus::Active {
+            let total_tc: u32 = detail.tool_calls.len() as u32;
+            if detail.turns >= 3 || total_tc > 0 {
+                engaged_sessions += 1;
+            }
+            if detail.turns < 2 {
+                short_sessions += 1;
+            }
+        }
+    }
+    let avg_turns = if total_sessions == 0 {
+        0.0
+    } else {
+        sum_turns as f64 / total_sessions as f64
+    };
+    let avg_user_messages = if total_sessions == 0 {
+        0.0
+    } else {
+        sum_user_msgs as f64 / total_sessions as f64
+    };
+
+    // Tokens by agent
+    struct AgentAccum {
+        tokens_in: u64,
+        tokens_out: u64,
+        sessions: u32,
+        turns: u64,
+        duration_sum: f64,
+        duration_count: u32,
+    }
+    let mut agent_map: HashMap<String, AgentAccum> = HashMap::new();
+    for (meta, detail) in &filtered {
+        let agent_key = serde_json::to_value(meta.agent)
+            .ok()
+            .and_then(|v| v.as_str().map(String::from))
+            .unwrap_or_default();
+        let e = agent_map.entry(agent_key).or_insert(AgentAccum {
+            tokens_in: 0,
+            tokens_out: 0,
+            sessions: 0,
+            turns: 0,
+            duration_sum: 0.0,
+            duration_count: 0,
+        });
+        e.tokens_in += detail.tokens_in;
+        e.tokens_out += detail.tokens_out;
+        e.sessions += 1;
+        e.turns += detail.turns as u64;
+        if meta.status != SessionStatus::Active {
+            let mins = (meta.last_event_at - meta.started_at).num_seconds() as f64 / 60.0;
+            e.duration_sum += mins.max(0.0);
+            e.duration_count += 1;
+        }
+    }
+    let mut tokens_by_agent: Vec<AgentTokens> = agent_map
+        .iter()
+        .map(|(agent, a)| {
+            let total = a.tokens_in + a.tokens_out;
+            AgentTokens {
+                agent: agent.clone(),
+                tokens_in: a.tokens_in,
+                tokens_out: a.tokens_out,
+                sessions: a.sessions,
+                avg_per_session: if a.sessions == 0 {
+                    0
+                } else {
+                    total / a.sessions as u64
+                },
+            }
+        })
+        .collect();
+    tokens_by_agent.sort_by(|a, b| b.sessions.cmp(&a.sessions));
+
+    let agent_stats: Vec<AgentComparison> = agent_map
+        .iter()
+        .map(|(agent, a)| AgentComparison {
+            agent: agent.clone(),
+            sessions: a.sessions,
+            avg_turns: if a.sessions == 0 {
+                0.0
+            } else {
+                a.turns as f64 / a.sessions as f64
+            },
+            avg_duration_mins: if a.duration_count == 0 {
+                0.0
+            } else {
+                a.duration_sum / a.duration_count as f64
+            },
+            avg_tokens_in: if a.sessions == 0 {
+                0
+            } else {
+                a.tokens_in / a.sessions as u64
+            },
+            avg_tokens_out: if a.sessions == 0 {
+                0
+            } else {
+                a.tokens_out / a.sessions as u64
+            },
+        })
+        .collect();
+
+    // Tokens by model
+    struct ModelAccum {
+        tokens_in: u64,
+        tokens_out: u64,
+        sessions: u32,
+    }
+    let mut model_map: HashMap<String, ModelAccum> = HashMap::new();
+    for (meta, detail) in &filtered {
+        let model_key = meta.model.clone().unwrap_or_else(|| "unknown".to_string());
+        let e = model_map.entry(model_key).or_insert(ModelAccum {
+            tokens_in: 0,
+            tokens_out: 0,
+            sessions: 0,
+        });
+        e.tokens_in += detail.tokens_in;
+        e.tokens_out += detail.tokens_out;
+        e.sessions += 1;
+    }
+    let mut tokens_by_model: Vec<ModelTokens> = model_map
+        .into_iter()
+        .map(|(model, m)| ModelTokens {
+            model,
+            tokens_in: m.tokens_in,
+            tokens_out: m.tokens_out,
+            sessions: m.sessions,
+        })
+        .collect();
+    tokens_by_model.sort_by(|a, b| b.sessions.cmp(&a.sessions));
+
+    // Tool heatmap & top tools
+    let mut tool_total: HashMap<String, u32> = HashMap::new();
+    let mut tool_sessions: HashMap<String, std::collections::HashSet<usize>> = HashMap::new();
+    let mut tool_hours: HashMap<String, [u32; 24]> = HashMap::new();
+    for (idx, (_meta, detail)) in filtered.iter().enumerate() {
+        for tc in &detail.tool_calls {
+            *tool_total.entry(tc.name.clone()).or_default() += 1;
+            tool_sessions
+                .entry(tc.name.clone())
+                .or_default()
+                .insert(idx);
+            let hour = tc.timestamp.with_timezone(&chrono::Local).hour() as usize;
+            tool_hours.entry(tc.name.clone()).or_insert([0u32; 24])[hour] += 1;
+        }
+    }
+    let mut tool_rank: Vec<(String, u32)> =
+        tool_total.iter().map(|(k, &v)| (k.clone(), v)).collect();
+    tool_rank.sort_by(|a, b| b.1.cmp(&a.1));
+
+    let top_tools: Vec<ToolRank> = tool_rank
+        .iter()
+        .take(10)
+        .map(|(name, count)| ToolRank {
+            name: name.clone(),
+            count: *count,
+            sessions: tool_sessions.get(name).map(|s| s.len() as u32).unwrap_or(0),
+        })
+        .collect();
+
+    let tool_heatmap: Vec<ToolHeatmapRow> = tool_rank
+        .iter()
+        .take(10)
+        .map(|(name, _)| {
+            let hours = tool_hours
+                .get(name)
+                .map(|h| h.to_vec())
+                .unwrap_or_else(|| vec![0u32; 24]);
+            ToolHeatmapRow {
+                tool: name.clone(),
+                hours,
+            }
+        })
+        .collect();
+
+    // Daily counts
+    let mut daily_map: HashMap<chrono::NaiveDate, (u32, u64, u64)> = HashMap::new();
+    for (meta, detail) in &filtered {
+        let date = meta.started_at.with_timezone(&chrono::Local).date_naive();
+        let e = daily_map.entry(date).or_insert((0, 0, 0));
+        e.0 += 1;
+        e.1 += detail.tokens_in;
+        e.2 += detail.tokens_out;
+    }
+    let mut daily: Vec<DayCount> = daily_map
+        .into_iter()
+        .map(|(date, (count, ti, to))| DayCount {
+            date: date.format("%Y-%m-%d").to_string(),
+            count,
+            tokens_in: ti,
+            tokens_out: to,
+        })
+        .collect();
+    daily.sort_by(|a, b| a.date.cmp(&b.date));
+
+    let resp = AnalyticsResponse {
+        days: q.days,
+        agent_filter: q.agent,
+        total_sessions,
+        avg_duration_mins,
+        median_duration_mins,
+        p90_duration_mins,
+        duration_buckets,
+        avg_turns,
+        avg_user_messages,
+        engaged_sessions,
+        short_sessions,
+        completed_sessions,
+        tokens_by_agent,
+        tokens_by_model,
+        tool_heatmap,
+        top_tools,
+        daily,
+        agent_stats,
+    };
+    Json(resp).into_response()
 }

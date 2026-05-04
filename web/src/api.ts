@@ -195,6 +195,40 @@ export async function refreshStoreCatalog(): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Analytics
+// ---------------------------------------------------------------------------
+
+export interface AnalyticsData {
+  days: number;
+  agent_filter: string | null;
+  total_sessions: number;
+  avg_duration_mins: number;
+  median_duration_mins: number;
+  p90_duration_mins: number;
+  duration_buckets: { label: string; count: number; pct: number }[];
+  avg_turns: number;
+  avg_user_messages: number;
+  engaged_sessions: number;
+  short_sessions: number;
+  completed_sessions: number;
+  tokens_by_agent: { agent: string; tokens_in: number; tokens_out: number; sessions: number; avg_per_session: number }[];
+  tokens_by_model: { model: string; tokens_in: number; tokens_out: number; sessions: number }[];
+  tool_heatmap: { tool: string; hours: number[] }[];
+  top_tools: { name: string; count: number; sessions: number }[];
+  daily: { date: string; count: number; tokens_in: number; tokens_out: number }[];
+  agent_stats: { agent: string; sessions: number; avg_turns: number; avg_duration_mins: number; avg_tokens_in: number; avg_tokens_out: number }[];
+}
+
+export async function fetchAnalytics(days = 30, agent?: string): Promise<AnalyticsData> {
+  const params = new URLSearchParams();
+  params.set('days', String(days));
+  if (agent) params.set('agent', agent);
+  const r = await fetch(`/api/analytics?${params}`);
+  if (!r.ok) throw new Error(`analytics ${r.status}`);
+  return r.json();
+}
+
+// ---------------------------------------------------------------------------
 // Copilot Config
 // ---------------------------------------------------------------------------
 

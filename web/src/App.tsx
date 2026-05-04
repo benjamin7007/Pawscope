@@ -12,6 +12,7 @@ import { PromptsPanel } from './components/PromptsPanel';
 import { CompareView } from './components/CompareView';
 import { ConfigPanel } from './components/ConfigPanel';
 import { StorePanel } from './components/StorePanel';
+import { AnalyticsPanel } from './components/AnalyticsPanel';
 import { SidebarResizer } from './components/SidebarResizer';
 import { ProgressBar } from './components/ProgressBar';
 import { ToastContainer } from './components/ToastContainer';
@@ -23,7 +24,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { LivePin } from './components/LivePin';
 import { useT } from './i18n';
 
-type View = 'overview' | 'session' | 'realm' | 'skills' | 'prompts' | 'compare' | 'config' | 'store';
+type View = 'overview' | 'session' | 'realm' | 'skills' | 'prompts' | 'compare' | 'config' | 'store' | 'analytics';
 
 interface ViewSnapshot {
   view: View;
@@ -218,6 +219,8 @@ export default function App() {
     crumbs.push({ label: t('crumbs.config') });
   } else if (view === 'store') {
     crumbs.push({ label: t('crumbs.store') });
+  } else if (view === 'analytics') {
+    crumbs.push({ label: t('crumbs.analytics') });
   }
 
   return (
@@ -318,6 +321,16 @@ export default function App() {
           >
             {t('nav.store')}
           </button>
+          <button
+            onClick={() => navigate({ view: 'analytics' })}
+            className={`flex-shrink-0 px-3 py-2.5 text-xs font-medium whitespace-nowrap transition-colors ${
+              view === 'analytics'
+                ? 'bg-slate-800/80 text-slate-100 border-b-2 border-emerald-400'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
+            }`}
+          >
+            📊 {t('nav.analytics')}
+          </button>
         </nav>
         <SessionList
           items={visibleSessions}
@@ -392,6 +405,10 @@ export default function App() {
                 onOpenSkills={() => navigate({ view: 'skills' })}
                 projectPath={sessions.find((s: any) => s.id === selected)?.cwd ?? null}
               />
+            </ErrorBoundary>
+          ) : view === 'analytics' ? (
+            <ErrorBoundary scope="Analytics">
+              <AnalyticsPanel />
             </ErrorBoundary>
           ) : view === 'compare' && compareIds.length >= 2 ? (
             <ErrorBoundary scope="Compare">
