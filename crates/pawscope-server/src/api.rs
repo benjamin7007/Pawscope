@@ -6,7 +6,7 @@ use axum::{
     response::IntoResponse,
 };
 use chrono::Timelike;
-use pawscope_core::SessionStatus;
+use pawscope_core::{AgentKind, SessionStatus};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -2083,7 +2083,6 @@ pub async fn get_session_instructions(
     let mut project_files = Vec::new();
 
     // Agent-specific project-level instruction files
-    use pawscope_core::AgentKind;
     match meta.agent {
         AgentKind::Copilot => {
             if let Some(f) = try_read_instruction(cwd, ".github/copilot-instructions.md") {
@@ -2943,4 +2942,180 @@ pub async fn analytics(
         agent_stats,
     };
     Json(resp).into_response()
+}
+
+// ── Session Context (Copilot CLI session-state) ─────────────────────
+
+#[derive(Serialize)]
+pub struct SessionContext {
+    plan: Option<String>,
+    checkpoints: Vec<CheckpointEntry>,
+    todos: Vec<TodoEntry>,
+    has_context: bool,
+}
+
+#[derive(Serialize)]
+pub struct CheckpointEntry {
+    filename: String,
+    title: String,
+    content: String,
+}
+
+#[derive(Serialize)]
+pub struct TodoEntry {
+    id: String,
+    title: String,
+    description: String,
+    status: String,
+}
+
+pub async fn get_session_context(
+    Path(id): Path<String>,
+    State(s): State<AppState>,
+) -> impl IntoResponse {
+    // Only copilot sessions have session-state dirs
+    let is_copilot = match s.adapter.list_sessions().await {
+        Ok(v) => v.iter().any(|m| m.id == id && m.agent == AgentKind::Copilot),
+        Err(_) => false,
+    };
+    if !is_copilot {
+        return Json(SessionContext {
+            plan: None,
+            checkpoints: vec![],
+            todos: vec![],
+            has_context: false,
+        })
+        .into_response();
+    }
+
+    let home = match dirs::home_dir() {
+        Some(h) => h,
+        None => {
+            return Json(SessionContext {
+                plan: None,
+                checkpoints: vec![],
+                todos: vec![],
+                has_context: false,
+            })
+            .into_response();
+        }
+    };
+
+    let session_dir = home.join(".copilot/session-state").join(&id);
+    if !session_dir.is_dir() {
+        return Json(SessionContext {
+            plan: None,
+            checkpoints: vec![],
+            todos: vec![],
+            has_context: false,
+        })
+        .into_response();
+    }
+
+    // Read plan.md
+    let plan = tokio::fs::read_to_string(session_dir.join("plan.md"))
+        .await
+        .ok()
+        .filter(|s| !s.trim().is_empty());
+
+    // Read checkpoints
+    let checkpoints = read_checkpoints(&session_dir).await;
+
+    // Read todos via sqlite3 CLI
+    let todos = read_todos(&session_dir).await;
+
+    let has_context = plan.is_some() || !checkpoints.is_empty() || !todos.is_empty();
+
+    Json(SessionContext {
+        plan,
+        checkpoints,
+        todos,
+        has_context,
+    })
+    .into_response()
+}
+
+async fn read_checkpoints(session_dir: &std::path::Path) -> Vec<CheckpointEntry> {
+    let cp_dir = session_dir.join("checkpoints");
+    let mut entries = Vec::new();
+    let mut dir = match tokio::fs::read_dir(&cp_dir).await {
+        Ok(d) => d,
+        Err(_) => return entries,
+    };
+    let mut filenames = Vec::new();
+    while let Ok(Some(entry)) = dir.next_entry().await {
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.ends_with(".md") && name != "index.md" {
+            filenames.push(name);
+        }
+    }
+    filenames.sort();
+    for name in filenames {
+        let path = cp_dir.join(&name);
+        let content = tokio::fs::read_to_string(&path).await.unwrap_or_default();
+        let title = checkpoint_title(&name);
+        entries.push(CheckpointEntry {
+            filename: name,
+            title,
+            content,
+        });
+    }
+    entries
+}
+
+fn checkpoint_title(filename: &str) -> String {
+    let stem = filename.strip_suffix(".md").unwrap_or(filename);
+    // Strip leading number prefix like "001-"
+    let stripped = if let Some(rest) = stem.strip_prefix(|c: char| c.is_ascii_digit()) {
+        let rest = rest.trim_start_matches(|c: char| c.is_ascii_digit());
+        rest.strip_prefix('-').unwrap_or(rest)
+    } else {
+        stem
+    };
+    let title = stripped.replace('-', " ");
+    let mut chars = title.chars();
+    match chars.next() {
+        None => String::new(),
+        Some(c) => c.to_uppercase().to_string() + chars.as_str(),
+    }
+}
+
+async fn read_todos(session_dir: &std::path::Path) -> Vec<TodoEntry> {
+    let db_path = session_dir.join("session.db");
+    if !db_path.exists() {
+        return vec![];
+    }
+    let output = tokio::process::Command::new("sqlite3")
+        .arg(&db_path)
+        .arg("-separator")
+        .arg("\t")
+        .arg(
+            "SELECT id, title, COALESCE(description,''), status FROM todos \
+             ORDER BY CASE status \
+               WHEN 'in_progress' THEN 0 \
+               WHEN 'pending' THEN 1 \
+               WHEN 'blocked' THEN 2 \
+               WHEN 'done' THEN 3 END;",
+        )
+        .output()
+        .await;
+    match output {
+        Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout)
+            .lines()
+            .filter_map(|line| {
+                let parts: Vec<&str> = line.splitn(4, '\t').collect();
+                if parts.len() >= 4 {
+                    Some(TodoEntry {
+                        id: parts[0].to_string(),
+                        title: parts[1].to_string(),
+                        description: parts[2].to_string(),
+                        status: parts[3].to_string(),
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect(),
+        _ => vec![],
+    }
 }

@@ -769,14 +769,21 @@ function ReplaySection({
 
 export function SessionDetail({ meta, detail, onOpenSkill, label, onSetLabel, onPrev, onNext, position }: Props) {
   const { t, lang } = useT();
-  const [tab, setTab] = useState<'summary' | 'conversation'>('summary');
+  const [tab, setTab] = useState<'summary' | 'conversation' | 'context'>('summary');
   const [availSkills, setAvailSkills] = useState<{ name: string; description: string; source: string; path: string; invoked: boolean }[] | null>(null);
   const [instructions, setInstructions] = useState<SessionInstructions | null>(null);
   const [systemPrompts, setSystemPrompts] = useState<{ at: string; content: string }[]>([]);
+  const [sessionContext, setSessionContext] = useState<{
+    plan: string | null;
+    checkpoints: { filename: string; title: string; content: string }[];
+    todos: { id: string; title: string; description: string; status: string }[];
+    has_context: boolean;
+  } | null>(null);
   useEffect(() => {
     setAvailSkills(null);
     setInstructions(null);
     setSystemPrompts([]);
+    setSessionContext(null);
     setTab('summary');
     if (!meta?.id) return;
     let cancel = false;
@@ -790,6 +797,10 @@ export function SessionDetail({ meta, detail, onOpenSkill, label, onSetLabel, on
     fetch(`/api/sessions/${encodeURIComponent(meta.id)}/conversation`)
       .then(r => (r.ok ? r.json() : null))
       .then(d => { if (!cancel && d?.system_prompts?.length) setSystemPrompts(d.system_prompts); })
+      .catch(() => {});
+    fetch(`/api/sessions/${encodeURIComponent(meta.id)}/context`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (!cancel && d) setSessionContext(d); })
       .catch(() => {});
     return () => { cancel = true; };
   }, [meta?.id]);
@@ -981,10 +992,111 @@ export function SessionDetail({ meta, detail, onOpenSkill, label, onSetLabel, on
             >
               {t('tab.conversation')}
             </button>
+            {sessionContext?.has_context && (
+              <button
+                onClick={() => setTab('context')}
+                className={`px-3 py-1.5 text-[12px] rounded-t border-b-2 transition-colors ${
+                  tab === 'context'
+                    ? 'text-cyan-300 border-cyan-400 bg-slate-900/60'
+                    : 'text-slate-400 border-transparent hover:text-slate-200'
+                }`}
+              >
+                {t('tab.context')}
+              </button>
+            )}
           </nav>
 
           {tab === 'conversation' ? (
             <ConversationFlow sessionId={meta.id} />
+          ) : tab === 'context' && sessionContext ? (
+            <div className="p-6 space-y-6 overflow-y-auto">
+              {sessionContext.plan && (
+                <section className="bg-slate-900/50 border border-slate-800 rounded-lg overflow-hidden">
+                  <header className="px-4 py-3 border-b border-slate-800 flex items-center gap-2">
+                    <span className="text-lg">📋</span>
+                    <h3 className="text-sm font-semibold text-slate-200">{t('ctx.plan')}</h3>
+                  </header>
+                  <pre className="p-4 text-[12px] text-slate-300 whitespace-pre-wrap font-mono leading-relaxed max-h-[500px] overflow-y-auto">
+                    {sessionContext.plan}
+                  </pre>
+                </section>
+              )}
+
+              {sessionContext.todos.length > 0 && (
+                <section className="bg-slate-900/50 border border-slate-800 rounded-lg overflow-hidden">
+                  <header className="px-4 py-3 border-b border-slate-800 flex items-center gap-2">
+                    <span className="text-lg">✅</span>
+                    <h3 className="text-sm font-semibold text-slate-200">{t('ctx.todos')}</h3>
+                    <span className="text-[11px] text-slate-500 ml-auto">
+                      {sessionContext.todos.filter(td => td.status === 'done').length}/{sessionContext.todos.length} {t('ctx.completed')}
+                    </span>
+                  </header>
+                  <div className="divide-y divide-slate-800">
+                    {sessionContext.todos.map(todo => (
+                      <div key={todo.id} className="px-4 py-2.5 flex items-start gap-3">
+                        <span className={`mt-0.5 text-sm ${
+                          todo.status === 'done' ? 'text-emerald-400' :
+                          todo.status === 'in_progress' ? 'text-amber-400' :
+                          todo.status === 'blocked' ? 'text-rose-400' :
+                          'text-slate-500'
+                        }`}>
+                          {todo.status === 'done' ? '✅' :
+                           todo.status === 'in_progress' ? '🔄' :
+                           todo.status === 'blocked' ? '🚫' : '⬜'}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[12px] font-medium text-slate-200">{todo.title}</div>
+                          {todo.description && (
+                            <div className="text-[11px] text-slate-500 mt-0.5 line-clamp-2">{todo.description}</div>
+                          )}
+                        </div>
+                        <span className={`px-1.5 py-0.5 text-[10px] rounded ${
+                          todo.status === 'done' ? 'bg-emerald-500/20 text-emerald-300' :
+                          todo.status === 'in_progress' ? 'bg-amber-500/20 text-amber-300' :
+                          todo.status === 'blocked' ? 'bg-rose-500/20 text-rose-300' :
+                          'bg-slate-800 text-slate-400'
+                        }`}>
+                          {todo.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {sessionContext.checkpoints.length > 0 && (
+                <section className="bg-slate-900/50 border border-slate-800 rounded-lg overflow-hidden">
+                  <header className="px-4 py-3 border-b border-slate-800 flex items-center gap-2">
+                    <span className="text-lg">📍</span>
+                    <h3 className="text-sm font-semibold text-slate-200">{t('ctx.checkpoints')}</h3>
+                    <span className="text-[11px] text-slate-500 ml-auto">
+                      {sessionContext.checkpoints.length} {t('ctx.entries')}
+                    </span>
+                  </header>
+                  <div className="divide-y divide-slate-800">
+                    {sessionContext.checkpoints.map((cp, i) => (
+                      <details key={cp.filename} className="group">
+                        <summary className="px-4 py-2.5 cursor-pointer text-[12px] font-medium text-slate-200 hover:bg-slate-800/30 flex items-center gap-2">
+                          <span className="text-[10px] text-slate-500 tabular-nums w-6">{String(i + 1).padStart(3, '0')}</span>
+                          <span className="flex-1">{cp.title}</span>
+                          <span className="text-[10px] text-slate-600 group-open:rotate-90 transition-transform">▶</span>
+                        </summary>
+                        <pre className="px-4 pb-4 pt-0 text-[11px] text-slate-400 whitespace-pre-wrap font-mono leading-relaxed max-h-[400px] overflow-y-auto border-t border-slate-800/50 ml-10">
+                          {cp.content}
+                        </pre>
+                      </details>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {!sessionContext.plan && sessionContext.todos.length === 0 && sessionContext.checkpoints.length === 0 && (
+                <div className="text-center py-16 text-slate-500">
+                  <div className="text-4xl mb-3">📭</div>
+                  <p className="text-sm">{t('ctx.empty')}</p>
+                </div>
+              )}
+            </div>
           ) : (
         <div className="p-6 space-y-6">
           <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">

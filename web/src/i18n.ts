@@ -316,6 +316,13 @@ const dict: Record<string, { en: string; zh: string }> = {
   // Conversation flow
   'tab.summary': { en: 'Summary', zh: '概览' },
   'tab.conversation': { en: 'Conversation', zh: '对话流' },
+  'tab.context': { en: 'Context', zh: '上下文' },
+  'ctx.plan': { en: 'Current Plan', zh: '当前计划' },
+  'ctx.todos': { en: 'Task Tracking', zh: '任务跟踪' },
+  'ctx.completed': { en: 'completed', zh: '已完成' },
+  'ctx.checkpoints': { en: 'Checkpoints', zh: '检查点历史' },
+  'ctx.entries': { en: 'entries', zh: '条记录' },
+  'ctx.empty': { en: 'No context data for this session', zh: '此会话没有上下文数据' },
   'flow.empty': { en: 'No conversation events yet.', zh: '暂无对话事件。' },
   'flow.load_error': { en: 'Failed to load conversation', zh: '加载对话失败' },
   'flow.copilot_only': { en: 'Conversation flow is currently Copilot-only.', zh: '对话流目前仅支持 Copilot 会话。' },
