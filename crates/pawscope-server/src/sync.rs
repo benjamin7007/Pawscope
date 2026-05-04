@@ -1,13 +1,16 @@
 use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use crate::AppState;
 use crate::my_skills::MySkill;
 use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
 
 // ---------------------------------------------------------------------------
-// Sync envelope
+// Sync envelope (kept for JSON metadata format)
 // ---------------------------------------------------------------------------
 
 #[derive(Serialize, Deserialize)]
@@ -19,74 +22,408 @@ struct SyncEnvelope {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Constants
 // ---------------------------------------------------------------------------
 
-fn github_headers(token: &str) -> Vec<(&'static str, String)> {
-    vec![
-        ("Authorization", format!("Bearer {token}")),
-        ("Accept", "application/vnd.github+json".to_string()),
-        ("User-Agent", "Pawscope".to_string()),
-        ("X-GitHub-Api-Version", "2022-11-28".to_string()),
-    ]
+const GIT_TIMEOUT: Duration = Duration::from_secs(120);
+
+const EXCLUDE_DIRS: &[&str] = &[
+    "node_modules",
+    ".git",
+    "__pycache__",
+    ".venv",
+    "venv",
+    "target",
+    "dist",
+    "build",
+    ".next",
+];
+
+const EXCLUDE_FILES: &[&str] = &[".DS_Store", ".env", ".env.local"];
+
+const EXCLUDE_EXTS: &[&str] = &["pyc", "pyo"];
+
+// ---------------------------------------------------------------------------
+// Git helpers
+// ---------------------------------------------------------------------------
+
+fn git_command(repo_dir: &Path, token: &str) -> std::process::Command {
+    let auth_b64 = B64.encode(format!("x-access-token:{token}").as_bytes());
+    let extraheader = format!("Authorization: basic {auth_b64}");
+    let mut cmd = std::process::Command::new("git");
+    cmd.current_dir(repo_dir);
+    cmd.env("GIT_TERMINAL_PROMPT", "0");
+    cmd.arg("-c")
+        .arg(format!("http.https://github.com/.extraheader={extraheader}"));
+    cmd
 }
 
-async fn get_remote_file(
-    client: &reqwest::Client,
+async fn run_git(
+    repo_dir: &Path,
     token: &str,
-    repo: &str,
-) -> Result<Option<(String, String)>, String> {
-    let url = format!(
-        "https://api.github.com/repos/{repo}/contents/pawscope-my-skills.json"
-    );
-    let mut req = client.get(&url);
-    for (k, v) in github_headers(token) {
-        req = req.header(k, v);
+    args: &[&str],
+) -> Result<String, String> {
+    let mut cmd = git_command(repo_dir, token);
+    for a in args {
+        cmd.arg(a);
     }
-    let resp = req.send().await.map_err(|e| e.to_string())?;
-    if resp.status().as_u16() == 404 {
-        return Ok(None);
+    cmd.stdout(std::process::Stdio::piped());
+    cmd.stderr(std::process::Stdio::piped());
+
+    let dir = repo_dir.to_path_buf();
+    let output = tokio::time::timeout(GIT_TIMEOUT, tokio::task::spawn_blocking(move || cmd.output()))
+        .await
+        .map_err(|_| "git operation timed out (>60s)".to_string())?
+        .map_err(|e| format!("spawn error: {e}"))?
+        .map_err(|e| format!("git exec error: {e} (dir={dir:?})"))?;
+
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        Err(format!(
+            "git {} failed: {}",
+            args.first().unwrap_or(&""),
+            stderr.trim()
+        ))
     }
-    if !resp.status().is_success() {
-        return Err(format!("GitHub GET failed: {}", resp.status()));
-    }
-    let body: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
-    let sha = body["sha"].as_str().unwrap_or("").to_string();
-    let content = body["content"].as_str().unwrap_or("").to_string();
-    // GitHub returns base64 with newlines
-    let clean = content.replace('\n', "");
-    Ok(Some((clean, sha)))
 }
 
-async fn put_remote_file(
-    client: &reqwest::Client,
-    token: &str,
-    repo: &str,
-    content_b64: &str,
-    sha: Option<&str>,
-    message: &str,
-) -> Result<(), String> {
-    let url = format!(
-        "https://api.github.com/repos/{repo}/contents/pawscope-my-skills.json"
-    );
-    let mut payload = serde_json::json!({
-        "message": message,
-        "content": content_b64,
-    });
-    if let Some(sha) = sha {
-        payload["sha"] = serde_json::Value::String(sha.to_string());
+/// Run a simple git command that doesn't need token auth in extraheader.
+async fn run_git_bare(
+    repo_dir: &Path,
+    args: &[&str],
+) -> Result<String, String> {
+    let mut cmd = std::process::Command::new("git");
+    cmd.current_dir(repo_dir);
+    cmd.env("GIT_TERMINAL_PROMPT", "0");
+    for a in args {
+        cmd.arg(a);
     }
-    let mut req = client.put(&url);
-    for (k, v) in github_headers(token) {
-        req = req.header(k, v);
+    cmd.stdout(std::process::Stdio::piped());
+    cmd.stderr(std::process::Stdio::piped());
+
+    let dir = repo_dir.to_path_buf();
+    let output = tokio::time::timeout(GIT_TIMEOUT, tokio::task::spawn_blocking(move || cmd.output()))
+        .await
+        .map_err(|_| "git operation timed out (>60s)".to_string())?
+        .map_err(|e| format!("spawn error: {e}"))?
+        .map_err(|e| format!("git exec error: {e} (dir={dir:?})"))?;
+
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        Err(format!(
+            "git {} failed: {}",
+            args.first().unwrap_or(&""),
+            stderr.trim()
+        ))
     }
-    let resp = req.json(&payload).send().await.map_err(|e| e.to_string())?;
-    if !resp.status().is_success() {
-        let status = resp.status();
-        let body = resp.text().await.unwrap_or_default();
-        return Err(format!("GitHub PUT failed: {status} — {body}"));
+}
+
+/// Clone the sync repo into `dest` using token auth.
+async fn clone_repo(token: &str, repo: &str, dest: &Path) -> Result<(), String> {
+    let auth_b64 = B64.encode(format!("x-access-token:{token}").as_bytes());
+    let extraheader = format!("Authorization: basic {auth_b64}");
+    let url = format!("https://github.com/{repo}.git");
+    let dest_str = dest
+        .to_str()
+        .ok_or_else(|| "invalid temp dir path".to_string())?
+        .to_string();
+
+    let output = tokio::time::timeout(
+        GIT_TIMEOUT,
+        tokio::task::spawn_blocking(move || {
+            std::process::Command::new("git")
+                .env("GIT_TERMINAL_PROMPT", "0")
+                .arg("-c")
+                .arg(format!("http.https://github.com/.extraheader={extraheader}"))
+                .arg("clone")
+                .arg("--depth")
+                .arg("1")
+                .arg(&url)
+                .arg(&dest_str)
+                .stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::piped())
+                .output()
+        }),
+    )
+    .await
+    .map_err(|_| "git clone timed out (>60s)".to_string())?
+    .map_err(|e| format!("spawn error: {e}"))?
+    .map_err(|e| format!("git clone exec error: {e}"))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("git clone failed: {}", stderr.trim()));
     }
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// File copy helpers
+// ---------------------------------------------------------------------------
+
+fn is_valid_skill_name(name: &str) -> bool {
+    !name.is_empty()
+        && !name.contains("..")
+        && !name.contains('/')
+        && !name.contains('\\')
+        && name
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '-' || c == '_' || c == '.')
+}
+
+fn should_exclude(name: &str, is_dir: bool) -> bool {
+    if is_dir {
+        return EXCLUDE_DIRS.contains(&name);
+    }
+    if EXCLUDE_FILES.contains(&name) {
+        return true;
+    }
+    if let Some(ext) = Path::new(name).extension().and_then(|e| e.to_str()) {
+        if EXCLUDE_EXTS.contains(&ext) {
+            return true;
+        }
+    }
+    false
+}
+
+/// Recursively copy `src` → `dst`, skipping symlinks and excluded patterns.
+/// Returns the number of files copied.
+fn copy_skill_dir(src: &Path, dst: &Path) -> std::io::Result<u64> {
+    let mut count = 0u64;
+    if !src.is_dir() {
+        return Ok(0);
+    }
+    std::fs::create_dir_all(dst)?;
+
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let ft = entry.file_type()?;
+
+        // Skip symlinks
+        if ft.is_symlink() {
+            continue;
+        }
+
+        let name = entry.file_name();
+        let name_str = name.to_string_lossy();
+
+        if ft.is_dir() {
+            if should_exclude(&name_str, true) {
+                continue;
+            }
+            count += copy_skill_dir(&entry.path(), &dst.join(&name))?;
+        } else {
+            if should_exclude(&name_str, false) {
+                continue;
+            }
+            std::fs::copy(entry.path(), dst.join(&name))?;
+            count += 1;
+        }
+    }
+    Ok(count)
+}
+
+/// Find the local source directory for a skill by name.
+fn find_skill_source(name: &str) -> Option<PathBuf> {
+    let home = dirs::home_dir()?;
+    let claude_path = home.join(".claude").join("skills").join(name);
+    if claude_path.is_dir() {
+        return Some(claude_path);
+    }
+    let copilot_path = home.join(".copilot").join("skills").join(name);
+    if copilot_path.is_dir() {
+        return Some(copilot_path);
+    }
+    None
+}
+
+/// Local skills install directory (Claude convention).
+fn local_skills_dir() -> Option<PathBuf> {
+    Some(dirs::home_dir()?.join(".claude").join("skills"))
+}
+
+// ---------------------------------------------------------------------------
+// Core sync operations
+// ---------------------------------------------------------------------------
+
+struct PushResult {
+    pushed_skills: usize,
+    pushed_files: u64,
+}
+
+/// Execute a push: clone repo, copy local skill files + metadata, commit, push.
+async fn do_push(
+    token: &str,
+    repo: &str,
+    device_id: &str,
+    skills: &[MySkill],
+) -> Result<PushResult, String> {
+    let tmp = tempfile::tempdir().map_err(|e| format!("tempdir: {e}"))?;
+    let repo_dir = tmp.path().join("repo");
+
+    clone_repo(token, repo, &repo_dir).await?;
+
+    // Configure git user
+    run_git_bare(&repo_dir, &["config", "user.name", "Pawscope"]).await?;
+    run_git_bare(&repo_dir, &["config", "user.email", "pawscope@local"]).await?;
+
+    // Clear existing skills/ directory
+    let skills_dir = repo_dir.join("skills");
+    if skills_dir.exists() {
+        std::fs::remove_dir_all(&skills_dir).map_err(|e| format!("rm skills/: {e}"))?;
+    }
+    std::fs::create_dir_all(&skills_dir).map_err(|e| format!("mkdir skills/: {e}"))?;
+
+    // Copy each skill
+    let mut pushed_skills = 0usize;
+    let mut pushed_files = 0u64;
+
+    for skill in skills {
+        if !is_valid_skill_name(&skill.name) {
+            tracing::warn!("skipping skill with invalid name: {:?}", skill.name);
+            continue;
+        }
+        if let Some(src) = find_skill_source(&skill.name) {
+            let dst = skills_dir.join(&skill.name);
+            match copy_skill_dir(&src, &dst) {
+                Ok(n) => {
+                    pushed_skills += 1;
+                    pushed_files += n;
+                }
+                Err(e) => {
+                    tracing::warn!("failed to copy skill {}: {e}", skill.name);
+                }
+            }
+        }
+    }
+
+    // Write metadata JSON
+    let envelope = SyncEnvelope {
+        version: 1,
+        updated_at: Utc::now(),
+        device_id: device_id.to_string(),
+        skills: skills.to_vec(),
+    };
+    let json = serde_json::to_string_pretty(&envelope).unwrap_or_default();
+    std::fs::write(repo_dir.join("pawscope-my-skills.json"), &json)
+        .map_err(|e| format!("write metadata: {e}"))?;
+
+    // Stage all changes
+    run_git_bare(&repo_dir, &["add", "-A"]).await?;
+
+    // Check for changes
+    let status = run_git_bare(&repo_dir, &["status", "--porcelain"]).await?;
+    if status.trim().is_empty() {
+        return Ok(PushResult {
+            pushed_skills,
+            pushed_files,
+        });
+    }
+
+    // Commit and push
+    let msg = format!("sync: update skills from {device_id}");
+    run_git_bare(&repo_dir, &["commit", "-m", &msg]).await?;
+    run_git(&repo_dir, token, &["push"]).await?;
+
+    Ok(PushResult {
+        pushed_skills,
+        pushed_files,
+    })
+}
+
+struct PullResult {
+    pulled_skills: usize,
+    merged_new: usize,
+}
+
+/// Execute a pull: clone repo, read metadata, copy remote skill files to local.
+async fn do_pull(
+    token: &str,
+    repo: &str,
+    local_skills: &[MySkill],
+) -> Result<(PullResult, Vec<MySkill>), String> {
+    let tmp = tempfile::tempdir().map_err(|e| format!("tempdir: {e}"))?;
+    let repo_dir = tmp.path().join("repo");
+
+    clone_repo(token, repo, &repo_dir).await?;
+
+    // Read remote metadata
+    let meta_path = repo_dir.join("pawscope-my-skills.json");
+    let remote_skills: Vec<MySkill> = if meta_path.exists() {
+        let raw = std::fs::read_to_string(&meta_path)
+            .map_err(|e| format!("read metadata: {e}"))?;
+        let envelope: SyncEnvelope = serde_json::from_str(&raw)
+            .map_err(|e| format!("parse metadata: {e}"))?;
+        envelope.skills
+    } else {
+        Vec::new()
+    };
+
+    // Merge: local wins for same id
+    let local_ids: HashSet<String> = local_skills.iter().map(|s| s.id.clone()).collect();
+    let mut merged = local_skills.to_vec();
+    let mut merged_new = 0usize;
+    for remote_skill in &remote_skills {
+        if !local_ids.contains(&remote_skill.id) {
+            merged.push(remote_skill.clone());
+            merged_new += 1;
+        }
+    }
+
+    // Copy remote skill files to local
+    let remote_skills_dir = repo_dir.join("skills");
+    let mut pulled_skills = 0usize;
+
+    if remote_skills_dir.is_dir() {
+        let local_base = local_skills_dir()
+            .ok_or_else(|| "cannot determine home directory".to_string())?;
+
+        if let Ok(entries) = std::fs::read_dir(&remote_skills_dir) {
+            for entry in entries.flatten() {
+                let ft = entry.file_type().unwrap_or_else(|_| {
+                    // fallback: treat as file to skip
+                    std::fs::metadata(entry.path())
+                        .map(|m| m.file_type())
+                        .unwrap_or_else(|_| entry.file_type().unwrap())
+                });
+                if !ft.is_dir() {
+                    continue;
+                }
+                if ft.is_symlink() {
+                    continue;
+                }
+
+                let name = entry.file_name();
+                let name_str = name.to_string_lossy();
+                if !is_valid_skill_name(&name_str) {
+                    tracing::warn!("skipping remote skill with invalid name: {name_str}");
+                    continue;
+                }
+
+                let dst = local_base.join(&*name_str);
+                match copy_skill_dir(&entry.path(), &dst) {
+                    Ok(_) => {
+                        pulled_skills += 1;
+                    }
+                    Err(e) => {
+                        tracing::warn!("failed to pull skill {name_str}: {e}");
+                    }
+                }
+            }
+        }
+    }
+
+    Ok((
+        PullResult {
+            pulled_skills,
+            merged_new,
+        },
+        merged,
+    ))
 }
 
 // ---------------------------------------------------------------------------
@@ -104,49 +441,31 @@ pub async fn push(State(s): State<AppState>) -> impl IntoResponse {
             .into_response();
     }
 
-    let client = reqwest::Client::new();
     let skills_data = s.my_skills.snapshot().await;
-    let count = skills_data.skills.len();
 
-    // Get current SHA if exists
-    let remote = match get_remote_file(&client, &auth.github_token, &auth.sync_repo).await {
-        Ok(r) => r,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": e})),
-            )
-                .into_response();
-        }
-    };
-
-    let envelope = SyncEnvelope {
-        version: 1,
-        updated_at: Utc::now(),
-        device_id: auth.device_id.clone(),
-        skills: skills_data.skills,
-    };
-    let json_bytes =
-        serde_json::to_string_pretty(&envelope).unwrap_or_default();
-    let content_b64 = B64.encode(json_bytes.as_bytes());
-
-    let sha = remote.as_ref().map(|(_, sha)| sha.as_str());
-    let message = format!("sync: update my-skills from {}", auth.device_id);
-
-    if let Err(e) =
-        put_remote_file(&client, &auth.github_token, &auth.sync_repo, &content_b64, sha, &message)
-            .await
+    match do_push(
+        &auth.github_token,
+        &auth.sync_repo,
+        &auth.device_id,
+        &skills_data.skills,
+    )
+    .await
     {
-        return (
+        Ok(result) => {
+            let _ = s.auth.update_last_sync().await;
+            Json(serde_json::json!({
+                "ok": true,
+                "pushed_skills": result.pushed_skills,
+                "pushed_files": result.pushed_files,
+            }))
+            .into_response()
+        }
+        Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({"error": e})),
         )
-            .into_response();
+            .into_response(),
     }
-
-    let _ = s.auth.update_last_sync().await;
-
-    Json(serde_json::json!({"ok": true, "pushed": count})).into_response()
 }
 
 /// POST /api/sync/pull
@@ -160,76 +479,33 @@ pub async fn pull(State(s): State<AppState>) -> impl IntoResponse {
             .into_response();
     }
 
-    let client = reqwest::Client::new();
-    let remote = match get_remote_file(&client, &auth.github_token, &auth.sync_repo).await {
-        Ok(r) => r,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": e})),
-            )
-                .into_response();
+    let local_skills = s.my_skills.snapshot().await;
+
+    match do_pull(&auth.github_token, &auth.sync_repo, &local_skills.skills).await {
+        Ok((result, merged)) => {
+            if result.merged_new > 0 {
+                if let Err(e) = s.my_skills.replace_all(merged).await {
+                    return (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(serde_json::json!({"error": e.to_string()})),
+                    )
+                        .into_response();
+                }
+            }
+
+            let _ = s.auth.update_last_sync().await;
+            Json(serde_json::json!({
+                "ok": true,
+                "pulled_skills": result.pulled_skills,
+            }))
+            .into_response()
         }
-    };
-
-    let (content_b64, _sha) = match remote {
-        Some(r) => r,
-        None => {
-            return Json(
-                serde_json::json!({"ok": true, "pulled": 0, "message": "no remote data"}),
-            )
-            .into_response();
-        }
-    };
-
-    let decoded = match B64.decode(&content_b64) {
-        Ok(d) => d,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": format!("base64 decode: {e}")})),
-            )
-                .into_response();
-        }
-    };
-
-    let envelope: SyncEnvelope = match serde_json::from_slice(&decoded) {
-        Ok(e) => e,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": format!("JSON parse: {e}")})),
-            )
-                .into_response();
-        }
-    };
-
-    // Merge: local wins for same id
-    let local = s.my_skills.snapshot().await;
-    let local_ids: std::collections::HashSet<String> =
-        local.skills.iter().map(|s| s.id.clone()).collect();
-
-    let mut merged = local.skills.clone();
-    let mut new_count = 0usize;
-    for remote_skill in envelope.skills {
-        if !local_ids.contains(&remote_skill.id) {
-            merged.push(remote_skill);
-            new_count += 1;
-        }
-    }
-
-    let total = merged.len();
-    if let Err(e) = s.my_skills.replace_all(merged).await {
-        return (
+        Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({"error": e.to_string()})),
+            Json(serde_json::json!({"error": e})),
         )
-            .into_response();
+            .into_response(),
     }
-
-    let _ = s.auth.update_last_sync().await;
-
-    Json(serde_json::json!({"ok": true, "pulled": new_count, "total": total})).into_response()
 }
 
 /// POST /api/sync/sync — full bidirectional sync
@@ -243,54 +519,43 @@ pub async fn sync_all(State(s): State<AppState>) -> impl IntoResponse {
             .into_response();
     }
 
-    let client = reqwest::Client::new();
+    let local_skills = s.my_skills.snapshot().await;
 
     // --- Pull phase ---
-    let remote = match get_remote_file(&client, &auth.github_token, &auth.sync_repo).await {
-        Ok(r) => r,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": e})),
-            )
-                .into_response();
-        }
-    };
-
-    let mut pulled = 0usize;
-    if let Some((content_b64, _)) = &remote {
-        if let Ok(decoded) = B64.decode(content_b64) {
-            if let Ok(envelope) = serde_json::from_slice::<SyncEnvelope>(&decoded) {
-                let local = s.my_skills.snapshot().await;
-                let local_ids: std::collections::HashSet<String> =
-                    local.skills.iter().map(|sk| sk.id.clone()).collect();
-                let mut merged = local.skills.clone();
-                for remote_skill in envelope.skills {
-                    if !local_ids.contains(&remote_skill.id) {
-                        merged.push(remote_skill);
-                        pulled += 1;
-                    }
-                }
-                let _ = s.my_skills.replace_all(merged).await;
+    let (pull_result, merged) =
+        match do_pull(&auth.github_token, &auth.sync_repo, &local_skills.skills).await {
+            Ok(r) => r,
+            Err(e) => {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({"error": e})),
+                )
+                    .into_response();
             }
+        };
+
+    // Persist merged metadata
+    if pull_result.merged_new > 0 {
+        if let Err(e) = s.my_skills.replace_all(merged).await {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": e.to_string()})),
+            )
+                .into_response();
         }
     }
 
-    // --- Push phase ---
+    // --- Push phase (re-read after merge) ---
     let skills_data = s.my_skills.snapshot().await;
-    let total = skills_data.skills.len();
 
-    let envelope = SyncEnvelope {
-        version: 1,
-        updated_at: Utc::now(),
-        device_id: auth.device_id.clone(),
-        skills: skills_data.skills,
-    };
-    let json_bytes = serde_json::to_string_pretty(&envelope).unwrap_or_default();
-    let content_b64 = B64.encode(json_bytes.as_bytes());
-
-    // Re-fetch SHA after potential pull merge
-    let remote2 = match get_remote_file(&client, &auth.github_token, &auth.sync_repo).await {
+    let push_result = match do_push(
+        &auth.github_token,
+        &auth.sync_repo,
+        &auth.device_id,
+        &skills_data.skills,
+    )
+    .await
+    {
         Ok(r) => r,
         Err(e) => {
             return (
@@ -300,27 +565,14 @@ pub async fn sync_all(State(s): State<AppState>) -> impl IntoResponse {
                 .into_response();
         }
     };
-    let sha = remote2.as_ref().map(|(_, sha)| sha.as_str());
-    let message = format!("sync: update my-skills from {}", auth.device_id);
-
-    if let Err(e) =
-        put_remote_file(&client, &auth.github_token, &auth.sync_repo, &content_b64, sha, &message)
-            .await
-    {
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({"error": e})),
-        )
-            .into_response();
-    }
 
     let _ = s.auth.update_last_sync().await;
 
     Json(serde_json::json!({
         "ok": true,
-        "pulled": pulled,
-        "pushed": total,
-        "total": total,
+        "pulled_skills": pull_result.pulled_skills,
+        "pushed_skills": push_result.pushed_skills,
+        "pushed_files": push_result.pushed_files,
     }))
     .into_response()
 }
