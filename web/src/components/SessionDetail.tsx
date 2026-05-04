@@ -4,6 +4,7 @@ import { SessionDetailSkeleton } from './Skeleton';
 import { estimateCostUsd, formatUsd, priceFor } from '../pricing';
 import { ConversationFlow } from './ConversationFlow';
 import { fetchSessionInstructions, type SessionInstructions } from '../api';
+import { renderMarkdown } from '../markdown';
 
 type Meta = {
   id: string;
@@ -1016,9 +1017,10 @@ export function SessionDetail({ meta, detail, onOpenSkill, label, onSetLabel, on
                     <span className="text-lg">📋</span>
                     <h3 className="text-sm font-semibold text-slate-200">{t('ctx.plan')}</h3>
                   </header>
-                  <pre className="p-4 text-[12px] text-slate-300 whitespace-pre-wrap font-mono leading-relaxed max-h-[500px] overflow-y-auto">
-                    {sessionContext.plan}
-                  </pre>
+                  <div
+                    className="p-4 text-[12px] text-slate-300 leading-relaxed max-h-[500px] overflow-y-auto prose-sm"
+                    dangerouslySetInnerHTML={{ __html: renderMarkdown(sessionContext.plan) }}
+                  />
                 </section>
               )}
 
@@ -1081,9 +1083,10 @@ export function SessionDetail({ meta, detail, onOpenSkill, label, onSetLabel, on
                           <span className="flex-1">{cp.title}</span>
                           <span className="text-[10px] text-slate-600 group-open:rotate-90 transition-transform">▶</span>
                         </summary>
-                        <pre className="px-4 pb-4 pt-0 text-[11px] text-slate-400 whitespace-pre-wrap font-mono leading-relaxed max-h-[400px] overflow-y-auto border-t border-slate-800/50 ml-10">
-                          {cp.content}
-                        </pre>
+                        <div
+                          className="px-4 pb-4 pt-2 text-[11px] text-slate-400 leading-relaxed max-h-[400px] overflow-y-auto border-t border-slate-800/50 ml-10"
+                          dangerouslySetInnerHTML={{ __html: renderMarkdown(cp.content) }}
+                        />
                       </details>
                     ))}
                   </div>
