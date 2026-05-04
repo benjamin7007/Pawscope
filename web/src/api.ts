@@ -425,3 +425,70 @@ export async function fetchSessionInstructions(id: string): Promise<SessionInstr
   if (!r.ok) throw new Error(`instructions fetch ${r.status}`);
   return r.json();
 }
+
+// ---------------------------------------------------------------------------
+// My Skills Library
+// ---------------------------------------------------------------------------
+
+export interface MySkillEntry {
+  id: string;
+  name: string;
+  description: string;
+  origin_kind: string;
+  origin_key: string;
+  category: string;
+  added_at: string;
+  sort_order: number;
+  missing: boolean;
+}
+export interface MySkillsResponse {
+  skills: MySkillEntry[];
+  total: number;
+  categories: string[];
+}
+export async function fetchMySkills(): Promise<MySkillsResponse> {
+  const r = await fetch('/api/my-skills');
+  if (!r.ok) throw new Error(`my-skills ${r.status}`);
+  return r.json();
+}
+export async function addMySkill(body: {
+  origin_kind: string;
+  origin_key: string;
+  category?: string;
+  name?: string;
+  description?: string;
+}): Promise<{ id: string; added: boolean }> {
+  const r = await fetch('/api/my-skills', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(`add my-skill ${r.status}`);
+  return r.json();
+}
+export async function removeMySkill(id: string): Promise<{ removed: boolean }> {
+  const r = await fetch(`/api/my-skills/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  if (!r.ok) throw new Error(`remove my-skill ${r.status}`);
+  return r.json();
+}
+export async function updateMySkill(
+  id: string,
+  body: { category?: string; sort_order?: number },
+): Promise<{ updated: boolean }> {
+  const r = await fetch(`/api/my-skills/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(`update my-skill ${r.status}`);
+  return r.json();
+}
+export async function reorderMySkills(ids: string[]): Promise<{ reordered: boolean }> {
+  const r = await fetch('/api/my-skills/reorder', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids }),
+  });
+  if (!r.ok) throw new Error(`reorder my-skills ${r.status}`);
+  return r.json();
+}

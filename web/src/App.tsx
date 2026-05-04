@@ -13,6 +13,7 @@ import { CompareView } from './components/CompareView';
 import { ConfigPanel } from './components/ConfigPanel';
 import { StorePanel } from './components/StorePanel';
 import { AnalyticsPanel } from './components/AnalyticsPanel';
+import { MySkillsPanel } from './components/MySkillsPanel';
 import { SidebarResizer } from './components/SidebarResizer';
 import { ProgressBar } from './components/ProgressBar';
 import { ToastContainer } from './components/ToastContainer';
@@ -24,7 +25,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { LivePin } from './components/LivePin';
 import { useT } from './i18n';
 
-type View = 'overview' | 'session' | 'realm' | 'skills' | 'prompts' | 'compare' | 'config' | 'store' | 'analytics';
+type View = 'overview' | 'session' | 'realm' | 'skills' | 'my_skills' | 'prompts' | 'compare' | 'config' | 'store' | 'analytics';
 
 interface ViewSnapshot {
   view: View;
@@ -211,6 +212,8 @@ export default function App() {
     crumbs.push({ label: `${t('crumbs.realm')}: ${realmPage}` });
   } else if (view === 'skills') {
     crumbs.push({ label: t('crumbs.skills') });
+  } else if (view === 'my_skills') {
+    crumbs.push({ label: t('crumbs.my_skills') });
   } else if (view === 'prompts') {
     crumbs.push({ label: t('crumbs.prompts') });
   } else if (view === 'compare') {
@@ -290,6 +293,16 @@ export default function App() {
             }`}
           >
             {t('nav.skills')}
+          </button>
+          <button
+            onClick={() => navigate({ view: 'my_skills' })}
+            className={`flex-shrink-0 px-3 py-2.5 text-xs font-medium whitespace-nowrap transition-colors ${
+              view === 'my_skills'
+                ? 'bg-slate-800/80 text-slate-100 border-b-2 border-emerald-400'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
+            }`}
+          >
+            ❤️ {t('nav.my_skills')}
           </button>
           <button
             onClick={() => navigate({ view: 'prompts' })}
@@ -390,6 +403,10 @@ export default function App() {
                 autoCategory={pendingCategory?.name ?? null}
                 autoCategoryNonce={pendingCategory?.n ?? 0}
               />
+            </ErrorBoundary>
+          ) : view === 'my_skills' ? (
+            <ErrorBoundary scope="MySkills">
+              <MySkillsPanel />
             </ErrorBoundary>
           ) : view === 'prompts' ? (
             <ErrorBoundary scope="Prompts">

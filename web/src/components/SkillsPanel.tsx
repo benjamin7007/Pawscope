@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { fetchSkills, fetchSkillContent, fetchSkillUsage, revealSkill, type SkillEntry, type SkillContent, type SkillUsage } from '../api';
+import { fetchSkills, fetchSkillContent, fetchSkillUsage, revealSkill, fetchMySkills, addMySkill, removeMySkill, type SkillEntry, type SkillContent, type SkillUsage } from '../api';
 import { useT } from '../i18n';
 import { renderMarkdown } from '../markdown';
 import { categorize, CATEGORY_ORDER, categoryLabel, popularityFor, summaryFor, languageTagFor } from '../skillCategory';
@@ -60,7 +60,31 @@ export function SkillsPanel({
   const [openSkill, setOpenSkill] = useState<SkillEntry | null>(null);
   const [openContent, setOpenContent] = useState<SkillContent | null>(null);
   const [openErr, setOpenErr] = useState<string | null>(null);
+  const [bookmarked, setBookmarked] = useState<Set<string>>(new Set());
   const { t, fmt, lang } = useT();
+
+  useEffect(() => {
+    fetchMySkills().then(data => {
+      const keys = new Set(data.skills.filter(s => s.origin_kind === 'filesystem').map(s => s.origin_key));
+      setBookmarked(keys);
+    }).catch(() => {});
+  }, []);
+
+  const handleBookmark = async (skill: SkillEntry) => {
+    if (bookmarked.has(skill.path)) {
+      try {
+        const data = await fetchMySkills();
+        const entry = data.skills.find(s => s.origin_kind === 'filesystem' && s.origin_key === skill.path);
+        if (entry) await removeMySkill(entry.id);
+        setBookmarked(prev => { const n = new Set(prev); n.delete(skill.path); return n; });
+      } catch { /* ignore */ }
+    } else {
+      try {
+        await addMySkill({ origin_kind: 'filesystem', origin_key: skill.path, name: skill.name, description: skill.description });
+        setBookmarked(prev => new Set(prev).add(skill.path));
+      } catch { /* ignore */ }
+    }
+  };
 
   useEffect(() => {
     if (!openSkill) {
@@ -345,6 +369,19 @@ export function SkillsPanel({
                 )}
                 <span className="ml-auto text-[10px] text-slate-600 font-mono truncate max-w-[420px]" title={s.path}>
                   {s.path.replace(/^.*\.(copilot|claude|agents)\//, '~/.$1/')}
+                </span>
+                <span
+                  role="button"
+                  tabIndex={-1}
+                  onClick={e => { e.stopPropagation(); handleBookmark(s); }}
+                  className={`flex-shrink-0 text-[11px] transition-colors cursor-pointer ${
+                    bookmarked.has(s.path)
+                      ? 'text-rose-400 hover:text-rose-300'
+                      : 'text-slate-600 hover:text-slate-400'
+                  }`}
+                  title={bookmarked.has(s.path) ? 'Remove from My Skills' : 'Add to My Skills'}
+                >
+                  {bookmarked.has(s.path) ? '❤️' : '🤍'}
                 </span>
               </div>
               {(() => {

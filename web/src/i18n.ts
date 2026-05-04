@@ -380,6 +380,28 @@ const dict: Record<string, { en: string; zh: string }> = {
   'nav.store': { en: 'Store', zh: '商店' },
   'crumbs.store': { en: 'Store', zh: '技能商店' },
 
+  // My Skills Library
+  'nav.my_skills': { en: 'My Skills', zh: '我的技能' },
+  'crumbs.my_skills': { en: 'My Skills', zh: '我的技能' },
+  'my_skills.title': { en: 'My Skills', zh: '我的技能' },
+  'my_skills.kicker': { en: 'PERSONAL LIBRARY', zh: '个人技能库' },
+  'my_skills.search_ph': { en: 'Search my skills...', zh: '搜索我的技能…' },
+  'my_skills.filter_all': { en: 'All', zh: '全部' },
+  'my_skills.sort': { en: 'Sort', zh: '排序' },
+  'my_skills.sort_custom': { en: 'Custom', zh: '自定义' },
+  'my_skills.sort_name': { en: 'Name', zh: '名称' },
+  'my_skills.sort_date': { en: 'Date', zh: '日期' },
+  'my_skills.sort_category': { en: 'Category', zh: '分类' },
+  'my_skills.total_label': { en: 'skills saved', zh: '个技能已收藏' },
+  'my_skills.delete': { en: 'Delete', zh: '删除' },
+  'my_skills.confirm': { en: 'Confirm', zh: '确认' },
+  'my_skills.cancel': { en: 'Cancel', zh: '取消' },
+  'my_skills.edit_category': { en: 'Click to set category', zh: '点击设置分类' },
+  'my_skills.uncategorized': { en: 'uncategorized', zh: '未分类' },
+  'my_skills.empty': { en: 'No skills saved yet', zh: '还没有收藏技能' },
+  'my_skills.empty_hint': { en: 'Bookmark skills from Store or Skills panel', zh: '从商店或技能面板收藏技能' },
+  'my_skills.no_results': { en: 'No matching skills', zh: '没有匹配的技能' },
+
   // Analytics
   'nav.analytics': { en: 'Analytics', zh: '分析' },
   'crumbs.analytics': { en: 'Analytics', zh: '分析' },

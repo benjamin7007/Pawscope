@@ -1,6 +1,6 @@
 use axum::{
     Router,
-    routing::{get, post},
+    routing::{delete, get, post},
 };
 use pawscope_core::AgentAdapter;
 use std::sync::Arc;
@@ -12,6 +12,7 @@ pub mod cache;
 pub mod hidden;
 pub mod labels;
 pub mod multi;
+pub mod my_skills;
 pub mod skills;
 pub mod sse;
 pub mod store;
@@ -26,18 +27,21 @@ pub struct AppState {
     pub detail_cache: cache::DetailCache,
     pub labels: labels::LabelStore,
     pub hidden: hidden::HiddenStore,
+    pub my_skills: my_skills::MySkillsStore,
 }
 
 pub fn build_app(adapter: Arc<dyn AgentAdapter>) -> (Router, AppState) {
     let (tx, _) = broadcast::channel(256);
     let labels = futures::executor::block_on(labels::LabelStore::load());
     let hidden = futures::executor::block_on(hidden::HiddenStore::load());
+    let my_skills = futures::executor::block_on(my_skills::MySkillsStore::load());
     let state = AppState {
         adapter,
         events: tx,
         detail_cache: cache::DetailCache::new(),
         labels,
         hidden,
+        my_skills,
     };
     let router = Router::new()
         .route("/api/sessions", get(api::list_sessions))
@@ -86,6 +90,15 @@ pub fn build_app(adapter: Arc<dyn AgentAdapter>) -> (Router, AppState) {
         .route("/api/store/install", post(store::store_install))
         .route("/api/store/uninstall", post(store::store_uninstall))
         .route("/api/store/refresh", post(store::store_refresh))
+        .route(
+            "/api/my-skills",
+            get(my_skills::list_my_skills).post(my_skills::add_my_skill),
+        )
+        .route("/api/my-skills/reorder", post(my_skills::reorder_my_skills))
+        .route(
+            "/api/my-skills/{id}",
+            delete(my_skills::remove_my_skill).patch(my_skills::update_my_skill),
+        )
         .route("/api/analytics", get(api::analytics))
         .route("/api/events", get(sse::sse_handler))
         .route("/ws", get(ws::ws_handler))

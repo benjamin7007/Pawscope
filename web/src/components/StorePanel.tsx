@@ -5,6 +5,9 @@ import {
   uninstallStoreSkill,
   refreshStoreCatalog,
   fetchStoreSkillDetail,
+  fetchMySkills,
+  addMySkill,
+  removeMySkill,
   type StoreCatalog,
 } from '../api';
 import { useT } from '../i18n';
@@ -25,6 +28,14 @@ export function StorePanel({ onOpenSkills: _onOpenSkills, projectPath }: Props) 
   const [skillContent, setSkillContent] = useState<Record<string, string>>({});
   const [filterMode, setFilterMode] = useState<'all' | 'installed' | 'not_installed'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [bookmarked, setBookmarked] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    fetchMySkills().then(data => {
+      const keys = new Set(data.skills.filter(s => s.origin_kind === 'store').map(s => s.origin_key));
+      setBookmarked(keys);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -114,6 +125,22 @@ export function StorePanel({ onOpenSkills: _onOpenSkills, projectPath }: Props) 
       } catch {
         /* ignore */
       }
+    }
+  };
+
+  const handleBookmark = async (skill: { name: string; description: string }) => {
+    if (bookmarked.has(skill.name)) {
+      try {
+        const data = await fetchMySkills();
+        const entry = data.skills.find(s => s.origin_kind === 'store' && s.origin_key === skill.name);
+        if (entry) await removeMySkill(entry.id);
+        setBookmarked(prev => { const n = new Set(prev); n.delete(skill.name); return n; });
+      } catch { /* ignore */ }
+    } else {
+      try {
+        await addMySkill({ origin_kind: 'store', origin_key: skill.name, name: skill.name, description: skill.description });
+        setBookmarked(prev => new Set(prev).add(skill.name));
+      } catch { /* ignore */ }
     }
   };
 
@@ -284,6 +311,17 @@ export function StorePanel({ onOpenSkills: _onOpenSkills, projectPath }: Props) 
                 </p>
               </div>
               <div className="flex-shrink-0 flex items-center gap-1">
+                <button
+                  onClick={e => { e.stopPropagation(); handleBookmark(skill); }}
+                  className={`px-1.5 py-1 text-[11px] rounded transition-colors ${
+                    bookmarked.has(skill.name)
+                      ? 'text-rose-400 hover:text-rose-300'
+                      : 'text-slate-600 hover:text-slate-400'
+                  }`}
+                  title={bookmarked.has(skill.name) ? 'Remove from My Skills' : 'Add to My Skills'}
+                >
+                  {bookmarked.has(skill.name) ? '❤️' : '🤍'}
+                </button>
                 {skill.installed ? (
                   <button
                     onClick={e => {
