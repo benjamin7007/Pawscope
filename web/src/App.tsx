@@ -258,7 +258,7 @@ export default function App() {
           </div>
         </div>
         <CostSparkline sessions={sessions} tokensMap={tokensMap} t={t} />
-        <nav className="flex border-b border-slate-800 overflow-x-auto scrollbar-none">
+        <nav className="flex flex-wrap border-b border-slate-800">
           <button
             onClick={() => navigate({ view: 'overview' })}
             className={`flex-shrink-0 px-3 py-2.5 text-xs font-medium whitespace-nowrap transition-colors ${
