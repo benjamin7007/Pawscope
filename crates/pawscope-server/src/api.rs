@@ -2959,6 +2959,18 @@ pub struct CheckpointEntry {
     filename: String,
     title: String,
     content: String,
+    /// Parsed sections from checkpoint XML-like format
+    sections: CheckpointSections,
+}
+
+#[derive(Serialize, Default)]
+pub struct CheckpointSections {
+    overview: Option<String>,
+    history: Option<String>,
+    work_done: Option<String>,
+    technical_details: Option<String>,
+    important_files: Option<String>,
+    next_steps: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -3054,13 +3066,41 @@ async fn read_checkpoints(session_dir: &std::path::Path) -> Vec<CheckpointEntry>
         let path = cp_dir.join(&name);
         let content = tokio::fs::read_to_string(&path).await.unwrap_or_default();
         let title = checkpoint_title(&name);
+        let sections = parse_checkpoint_sections(&content);
         entries.push(CheckpointEntry {
             filename: name,
             title,
             content,
+            sections,
         });
     }
     entries
+}
+
+fn parse_checkpoint_sections(content: &str) -> CheckpointSections {
+    let mut sections = CheckpointSections::default();
+    let tags = [
+        ("overview", &mut sections.overview as &mut Option<String>),
+        ("history", &mut sections.history),
+        ("work_done", &mut sections.work_done),
+        ("technical_details", &mut sections.technical_details),
+        ("important_files", &mut sections.important_files),
+        ("next_steps", &mut sections.next_steps),
+    ];
+    for (tag, field) in tags {
+        let open = format!("<{}>", tag);
+        let close = format!("</{}>", tag);
+        if let Some(start) = content.find(&open) {
+            if let Some(end) = content[start..].find(&close) {
+                let inner = &content[start + open.len()..start + end];
+                let trimmed = inner.trim();
+                if !trimmed.is_empty() {
+                    *field = Some(trimmed.to_string());
+                }
+            }
+        }
+    }
+    sections
 }
 
 fn checkpoint_title(filename: &str) -> String {

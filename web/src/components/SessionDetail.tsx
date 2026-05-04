@@ -776,7 +776,10 @@ export function SessionDetail({ meta, detail, onOpenSkill, label, onSetLabel, on
   const [systemPrompts, setSystemPrompts] = useState<{ at: string; content: string }[]>([]);
   const [sessionContext, setSessionContext] = useState<{
     plan: string | null;
-    checkpoints: { filename: string; title: string; content: string }[];
+    checkpoints: { filename: string; title: string; content: string; sections: {
+      overview?: string; history?: string; work_done?: string;
+      technical_details?: string; important_files?: string; next_steps?: string;
+    } }[];
     todos: { id: string; title: string; description: string; status: string }[];
     has_context: boolean;
   } | null>(null);
@@ -1076,19 +1079,51 @@ export function SessionDetail({ meta, detail, onOpenSkill, label, onSetLabel, on
                     </span>
                   </header>
                   <div className="divide-y divide-slate-800">
-                    {sessionContext.checkpoints.map((cp, i) => (
-                      <details key={cp.filename} className="group">
-                        <summary className="px-4 py-2.5 cursor-pointer text-[12px] font-medium text-slate-200 hover:bg-slate-800/30 flex items-center gap-2">
-                          <span className="text-[10px] text-slate-500 tabular-nums w-6">{String(i + 1).padStart(3, '0')}</span>
-                          <span className="flex-1">{cp.title}</span>
-                          <span className="text-[10px] text-slate-600 group-open:rotate-90 transition-transform">▶</span>
-                        </summary>
-                        <div
-                          className="px-4 pb-4 pt-2 text-[11px] text-slate-400 leading-relaxed max-h-[400px] overflow-y-auto border-t border-slate-800/50 ml-10"
-                          dangerouslySetInnerHTML={{ __html: renderMarkdown(cp.content) }}
-                        />
-                      </details>
-                    ))}
+                    {[...sessionContext.checkpoints].reverse().map((cp, i) => {
+                      const s = cp.sections;
+                      const num = sessionContext.checkpoints.length - i;
+                      const sectionList: { key: string; icon: string; label: string; text: string }[] = [];
+                      if (s.overview) sectionList.push({ key: 'overview', icon: '📋', label: t('ctx.sec_overview'), text: s.overview });
+                      if (s.work_done) sectionList.push({ key: 'work_done', icon: '✅', label: t('ctx.sec_work_done'), text: s.work_done });
+                      if (s.history) sectionList.push({ key: 'history', icon: '📜', label: t('ctx.sec_history'), text: s.history });
+                      if (s.next_steps) sectionList.push({ key: 'next_steps', icon: '🎯', label: t('ctx.sec_next_steps'), text: s.next_steps });
+                      if (s.technical_details) sectionList.push({ key: 'technical', icon: '⚙️', label: t('ctx.sec_technical'), text: s.technical_details });
+                      if (s.important_files) sectionList.push({ key: 'files', icon: '📁', label: t('ctx.sec_files'), text: s.important_files });
+                      return (
+                        <details key={cp.filename} className="group">
+                          <summary className="px-4 py-2.5 cursor-pointer text-[12px] font-medium text-slate-200 hover:bg-slate-800/30 flex items-center gap-2">
+                            <span className="text-[10px] text-cyan-400/80 tabular-nums w-6 font-mono">#{String(num).padStart(2, '0')}</span>
+                            <span className="flex-1">{cp.title}</span>
+                            {s.overview && <span className="text-[10px] text-slate-600 max-w-[300px] truncate hidden lg:inline">{s.overview.slice(0, 80)}</span>}
+                            <span className="text-[10px] text-slate-600 group-open:rotate-90 transition-transform">▶</span>
+                          </summary>
+                          <div className="border-t border-slate-800/50 ml-8">
+                            {sectionList.length > 0 ? (
+                              <div className="divide-y divide-slate-800/50">
+                                {sectionList.map(sec => (
+                                  <details key={sec.key} className="group/sec" open={sec.key === 'overview' || sec.key === 'work_done'}>
+                                    <summary className="px-4 py-2 cursor-pointer text-[11px] text-slate-300 hover:bg-slate-800/20 flex items-center gap-1.5">
+                                      <span>{sec.icon}</span>
+                                      <span className="font-medium">{sec.label}</span>
+                                      <span className="text-[10px] text-slate-600 ml-auto group-open/sec:rotate-90 transition-transform">▸</span>
+                                    </summary>
+                                    <div
+                                      className="px-4 pb-3 text-[11px] text-slate-400 leading-relaxed max-h-[300px] overflow-y-auto"
+                                      dangerouslySetInnerHTML={{ __html: renderMarkdown(sec.text) }}
+                                    />
+                                  </details>
+                                ))}
+                              </div>
+                            ) : (
+                              <div
+                                className="px-4 py-3 text-[11px] text-slate-400 leading-relaxed max-h-[400px] overflow-y-auto"
+                                dangerouslySetInnerHTML={{ __html: renderMarkdown(cp.content) }}
+                              />
+                            )}
+                          </div>
+                        </details>
+                      );
+                    })}
                   </div>
                 </section>
               )}
