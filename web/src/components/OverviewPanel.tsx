@@ -16,6 +16,7 @@ type Session = {
   summary: string;
   model: string | null;
   status: string;
+  started_at: string;
   last_event_at: string;
 };
 
@@ -1056,6 +1057,128 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
+function TodayEfficiency({
+  sessions,
+  tokensMap,
+}: {
+  sessions: Session[];
+  tokensMap: Record<string, { in: number; out: number }>;
+}) {
+  const { t } = useT();
+
+  const stats = useMemo(() => {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    const todaySessions = sessions.filter(s => {
+      if (!s.started_at) return false;
+      const d = new Date(s.started_at);
+      return d >= todayStart;
+    });
+
+    const count = todaySessions.length;
+    if (count === 0) return { count: 0 } as const;
+
+    const durations: number[] = [];
+    for (const s of todaySessions) {
+      if (s.status === 'active' || !s.started_at || !s.last_event_at) continue;
+      const mins = (new Date(s.last_event_at).getTime() - new Date(s.started_at).getTime()) / 60000;
+      if (mins >= 0) durations.push(mins);
+    }
+
+    const avg = durations.length > 0 ? durations.reduce((a, b) => a + b, 0) / durations.length : 0;
+
+    let median = 0;
+    if (durations.length > 0) {
+      const sorted = [...durations].sort((a, b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      median = sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+    }
+
+    const maxDur = durations.length > 0 ? Math.max(...durations) : 0;
+    const longestSession = durations.length > 0
+      ? todaySessions.find(s => {
+          if (s.status === 'active' || !s.started_at || !s.last_event_at) return false;
+          const m = (new Date(s.last_event_at).getTime() - new Date(s.started_at).getTime()) / 60000;
+          return Math.abs(m - maxDur) < 0.01;
+        })
+      : undefined;
+
+    const engaged = todaySessions.filter(s => {
+      const tk = tokensMap[s.id];
+      return tk && (tk.in + tk.out) > 0;
+    }).length;
+    const engagementRate = count > 0 ? Math.round((engaged / count) * 100) : 0;
+
+    let totalTokens = 0;
+    for (const s of todaySessions) {
+      const tk = tokensMap[s.id];
+      if (tk) totalTokens += tk.in + tk.out;
+    }
+
+    return { count, avg, median, maxDur, longestSession, engagementRate, totalTokens };
+  }, [sessions, tokensMap]);
+
+  const fmtDur = (mins: number): string => {
+    if (mins < 60) return `${Math.round(mins)}${t('misc.minutes_short')}`;
+    const h = Math.floor(mins / 60);
+    const m = Math.round(mins % 60);
+    return `${h}h ${m}${t('misc.minutes_short')}`;
+  };
+
+  return (
+    <section className="rounded-lg bg-slate-900/40 border border-slate-800">
+      <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
+        <h3 className="text-xs uppercase tracking-wider text-slate-400">⚡ {t('sec.today_efficiency')}</h3>
+        <span className="text-[11px] text-slate-500 tabular-nums">
+          {stats.count} {t('stat.today_sessions')}
+        </span>
+      </header>
+      <div className="px-4 py-4">
+        {stats.count === 0 ? (
+          <p className="text-sm text-slate-600">{t('misc.no_sessions_today')}</p>
+        ) : (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+              <div className="rounded-md bg-slate-950/40 border border-slate-800/60 px-3 py-2">
+                <div className="text-[9px] uppercase tracking-wider text-slate-500">{t('stat.today_sessions')}</div>
+                <div className="text-xl font-semibold text-slate-100 tabular-nums">{stats.count}</div>
+              </div>
+              <div className="rounded-md bg-slate-950/40 border border-slate-800/60 px-3 py-2">
+                <div className="text-[9px] uppercase tracking-wider text-slate-500">{t('stat.avg_duration')}</div>
+                <div className="text-xl font-semibold text-cyan-300 tabular-nums">{fmtDur(stats.avg ?? 0)}</div>
+              </div>
+              <div className="rounded-md bg-slate-950/40 border border-slate-800/60 px-3 py-2">
+                <div className="text-[9px] uppercase tracking-wider text-slate-500">{t('stat.median_duration')}</div>
+                <div className="text-xl font-semibold text-cyan-300 tabular-nums">{fmtDur(stats.median ?? 0)}</div>
+              </div>
+              <div className="rounded-md bg-slate-950/40 border border-slate-800/60 px-3 py-2">
+                <div className="text-[9px] uppercase tracking-wider text-slate-500">{t('stat.longest_session')}</div>
+                <div className="text-xl font-semibold text-amber-300 tabular-nums">{fmtDur(stats.maxDur ?? 0)}</div>
+              </div>
+              <div className="rounded-md bg-slate-950/40 border border-slate-800/60 px-3 py-2">
+                <div className="text-[9px] uppercase tracking-wider text-slate-500">{t('stat.engagement_rate')}</div>
+                <div className="text-xl font-semibold text-emerald-300 tabular-nums">{stats.engagementRate}%</div>
+              </div>
+            </div>
+            {stats.longestSession?.summary && (
+              <div className="text-xs text-slate-500">
+                <span className="text-slate-600">{t('misc.longest_session_label')}:</span>{' '}
+                <span className="text-slate-400">{stats.longestSession.summary}</span>
+              </div>
+            )}
+            {(stats.totalTokens ?? 0) > 0 && (
+              <div className="text-[11px] text-slate-500 tabular-nums">
+                {t('stat.tokens_today')}: {(stats.totalTokens ?? 0).toLocaleString()}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function TokenUsageSection({
   tokensIn,
   tokensOut,
@@ -1544,6 +1667,8 @@ export function OverviewPanel({
           heartbeat={heartbeat as any}
           t={t}
         />
+
+        <TodayEfficiency sessions={allSessions} tokensMap={tokensMap} />
 
         {((data.total_tokens_in ?? 0) + (data.total_tokens_out ?? 0)) > 0 && (
           <TokenUsageSection

@@ -443,6 +443,18 @@ const dict: Record<string, { en: string; zh: string }> = {
   'store.no_results': { en: 'No skills match your search', zh: '没有匹配的技能' },
   'store.empty': { en: 'No skills available', zh: '暂无可用技能' },
   'store.error': { en: 'Failed to load store', zh: '加载商店失败' },
+
+  // Today's Efficiency
+  'sec.today_efficiency': { en: "Today's Efficiency", zh: '今日效率' },
+  'stat.today_sessions': { en: 'Sessions', zh: '会话数' },
+  'stat.avg_duration': { en: 'Avg Duration', zh: '平均时长' },
+  'stat.median_duration': { en: 'Median', zh: '中位数' },
+  'stat.longest_session': { en: 'Longest', zh: '最长时长' },
+  'stat.engagement_rate': { en: 'Engaged', zh: '参与率' },
+  'stat.tokens_today': { en: 'Tokens Today', zh: '今日Token' },
+  'misc.no_sessions_today': { en: 'No sessions today', zh: '今天还没有会话' },
+  'misc.longest_session_label': { en: 'longest session', zh: '最长会话' },
+  'misc.minutes_short': { en: 'min', zh: '分' },
 };
 
 function readLang(): Lang {
