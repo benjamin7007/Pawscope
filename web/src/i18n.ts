@@ -437,6 +437,16 @@ const dict: Record<string, { en: string; zh: string }> = {
   'sync.cancel': { en: 'Cancel', zh: '取消' },
   'sync.connected': { en: 'Connected to', zh: '已连接' },
   'sync.pat_hint': { en: 'Needs fine-grained PAT with Contents: Read/Write on the target repo', zh: '需要细粒度 PAT，对目标仓库有 Contents 读写权限' },
+  'sync.remote_skills': { en: 'Remote Skills', zh: '远程技能' },
+  'sync.available': { en: 'available', zh: '个可用' },
+  'sync.installed': { en: 'Installed', zh: '已安装' },
+  'sync.install': { en: 'Install', zh: '安装' },
+  'sync.install_global': { en: 'Install Globally', zh: '全局安装' },
+  'sync.install_to': { en: 'Install to', zh: '安装到' },
+  'sync.installing': { en: 'Installing...', zh: '安装中...' },
+  'sync.install_success': { en: 'Installed successfully', zh: '安装成功' },
+  'sync.no_remote': { en: 'No skills synced yet', zh: '暂无同步的技能' },
+  'sync.projects': { en: 'Projects', zh: '项目' },
 
   // Analytics
   'nav.analytics': { en: 'Analytics', zh: '分析' },

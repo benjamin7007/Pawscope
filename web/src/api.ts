@@ -537,3 +537,47 @@ export async function syncAll() {
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
+
+// ---------------------------------------------------------------------------
+// Remote Skills
+// ---------------------------------------------------------------------------
+
+export interface RemoteSkill {
+  name: string;
+  description: string;
+  installed: boolean;
+}
+
+export async function fetchRemoteSkills(): Promise<{ skills: RemoteSkill[] }> {
+  const r = await fetch('/api/sync/remote-skills');
+  if (!r.ok) throw new Error(`remote-skills ${r.status}`);
+  return r.json();
+}
+
+export interface Project {
+  path: string;
+  name: string;
+}
+
+export async function fetchProjects(): Promise<{ projects: Project[] }> {
+  const r = await fetch('/api/projects');
+  if (!r.ok) throw new Error(`projects ${r.status}`);
+  return r.json();
+}
+
+export async function installSkill(
+  skill_name: string,
+  target: 'global' | 'project',
+  project_path?: string,
+): Promise<{ ok: boolean; installed_to: string; files: number }> {
+  const r = await fetch('/api/skills/install', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ skill_name, target, project_path }),
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({ error: `${r.status}` }));
+    throw new Error(err.error || `install ${r.status}`);
+  }
+  return r.json();
+}

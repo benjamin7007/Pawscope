@@ -430,6 +430,314 @@ async fn do_pull(
 // HTTP handlers
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// GitHub API helpers
+// ---------------------------------------------------------------------------
+
+async fn github_api_get(
+    client: &reqwest::Client,
+    url: &str,
+    token: &str,
+) -> Result<serde_json::Value, String> {
+    let resp = client
+        .get(url)
+        .header("Authorization", format!("Bearer {token}"))
+        .header("Accept", "application/vnd.github+json")
+        .header("User-Agent", "Pawscope")
+        .header("X-GitHub-Api-Version", "2022-11-28")
+        .send()
+        .await
+        .map_err(|e| format!("GitHub API request failed: {e}"))?;
+
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(format!("GitHub API {status}: {body}"));
+    }
+
+    resp.json::<serde_json::Value>()
+        .await
+        .map_err(|e| format!("Failed to parse GitHub JSON: {e}"))
+}
+
+/// Extract the `description:` field from SKILL.md YAML front matter.
+fn extract_description_from_frontmatter(content: &str) -> String {
+    let trimmed = content.trim_start();
+    if !trimmed.starts_with("---") {
+        return String::new();
+    }
+    // Find the closing ---
+    if let Some(rest) = trimmed.strip_prefix("---") {
+        if let Some(end) = rest.find("\n---") {
+            let front = &rest[..end];
+            for line in front.lines() {
+                let line = line.trim();
+                if let Some(desc) = line.strip_prefix("description:") {
+                    let desc = desc.trim();
+                    // Remove surrounding quotes if present
+                    let desc = desc
+                        .strip_prefix('"')
+                        .and_then(|d| d.strip_suffix('"'))
+                        .or_else(|| desc.strip_prefix('\'').and_then(|d| d.strip_suffix('\'')))
+                        .unwrap_or(desc);
+                    return desc.to_string();
+                }
+            }
+        }
+    }
+    String::new()
+}
+
+// ---------------------------------------------------------------------------
+// Remote skills listing
+// ---------------------------------------------------------------------------
+
+#[derive(Serialize)]
+struct RemoteSkillEntry {
+    name: String,
+    description: String,
+    installed: bool,
+}
+
+/// GET /api/sync/remote-skills
+pub async fn remote_skills(State(s): State<AppState>) -> impl IntoResponse {
+    let auth = s.auth.snapshot().await;
+    if auth.github_token.is_empty() {
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({"error": "Not logged in"})),
+        )
+            .into_response();
+    }
+
+    let client = reqwest::Client::new();
+    let repo = &auth.sync_repo;
+    let token = &auth.github_token;
+
+    // Try to get the default branch first
+    let branch = match github_api_get(&client, &format!("https://api.github.com/repos/{repo}"), token).await {
+        Ok(repo_json) => repo_json["default_branch"]
+            .as_str()
+            .unwrap_or("main")
+            .to_string(),
+        Err(_) => "main".to_string(),
+    };
+
+    // Get the repo tree
+    let tree_url = format!(
+        "https://api.github.com/repos/{repo}/git/trees/{branch}?recursive=true"
+    );
+    let tree_json = match github_api_get(&client, &tree_url, token).await {
+        Ok(v) => v,
+        Err(_) => {
+            // Empty repo or other error — return empty list
+            return Json(serde_json::json!({"skills": []})).into_response();
+        }
+    };
+
+    let tree = match tree_json["tree"].as_array() {
+        Some(arr) => arr,
+        None => {
+            return Json(serde_json::json!({"skills": []})).into_response();
+        }
+    };
+
+    // Find entries matching skills/{name}/SKILL.md
+    let skill_md_re = regex::Regex::new(r"^skills/([^/]+)/SKILL\.md$").unwrap();
+    let mut skill_names: Vec<String> = Vec::new();
+    for entry in tree {
+        if let Some(path) = entry["path"].as_str() {
+            if let Some(caps) = skill_md_re.captures(path) {
+                if let Some(name) = caps.get(1) {
+                    let name = name.as_str().to_string();
+                    if is_valid_skill_name(&name) {
+                        skill_names.push(name);
+                    }
+                }
+            }
+        }
+    }
+
+    // Determine which skills are installed locally
+    let home = dirs::home_dir().unwrap_or_default();
+    let local_skills_base = home.join(".claude").join("skills");
+
+    // Fetch descriptions in parallel (limited concurrency)
+    let mut entries: Vec<RemoteSkillEntry> = Vec::new();
+    for name in &skill_names {
+        let contents_url = format!(
+            "https://api.github.com/repos/{repo}/contents/skills/{name}/SKILL.md?ref={branch}"
+        );
+        let description = match github_api_get(&client, &contents_url, token).await {
+            Ok(content_json) => {
+                // Content is base64 encoded
+                if let Some(b64) = content_json["content"].as_str() {
+                    let cleaned: String = b64.chars().filter(|c| !c.is_whitespace()).collect();
+                    match B64.decode(&cleaned) {
+                        Ok(bytes) => {
+                            let text = String::from_utf8_lossy(&bytes);
+                            extract_description_from_frontmatter(&text)
+                        }
+                        Err(_) => String::new(),
+                    }
+                } else {
+                    String::new()
+                }
+            }
+            Err(_) => String::new(),
+        };
+
+        let installed = local_skills_base.join(name).is_dir();
+        entries.push(RemoteSkillEntry {
+            name: name.clone(),
+            description,
+            installed,
+        });
+    }
+
+    entries.sort_by(|a, b| a.name.cmp(&b.name));
+
+    Json(serde_json::json!({"skills": entries})).into_response()
+}
+
+// ---------------------------------------------------------------------------
+// Install skill from remote
+// ---------------------------------------------------------------------------
+
+#[derive(Deserialize)]
+pub struct InstallSkillBody {
+    pub skill_name: String,
+    pub target: String,           // "global" or "project"
+    pub project_path: Option<String>,
+}
+
+/// POST /api/skills/install
+pub async fn install_skill(
+    State(s): State<AppState>,
+    Json(body): Json<InstallSkillBody>,
+) -> impl IntoResponse {
+    let auth = s.auth.snapshot().await;
+    if auth.github_token.is_empty() {
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({"error": "Not logged in"})),
+        )
+            .into_response();
+    }
+
+    if !is_valid_skill_name(&body.skill_name) {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": "Invalid skill name"})),
+        )
+            .into_response();
+    }
+
+    // Determine install target directory
+    let install_dir = match body.target.as_str() {
+        "global" => {
+            let home = dirs::home_dir().ok_or_else(|| "Cannot determine home directory".to_string());
+            match home {
+                Ok(h) => h.join(".claude").join("skills").join(&body.skill_name),
+                Err(e) => {
+                    return (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(serde_json::json!({"error": e})),
+                    )
+                        .into_response();
+                }
+            }
+        }
+        "project" => {
+            let project_path = match &body.project_path {
+                Some(p) => p.clone(),
+                None => {
+                    return (
+                        StatusCode::BAD_REQUEST,
+                        Json(serde_json::json!({"error": "project_path required for project install"})),
+                    )
+                        .into_response();
+                }
+            };
+            if project_path.contains("..") {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    Json(serde_json::json!({"error": "Invalid project path"})),
+                )
+                    .into_response();
+            }
+            let pp = PathBuf::from(&project_path);
+            if !pp.is_dir() {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    Json(serde_json::json!({"error": "Project path does not exist or is not a directory"})),
+                )
+                    .into_response();
+            }
+            pp.join(".claude").join("skills").join(&body.skill_name)
+        }
+        _ => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"error": "target must be 'global' or 'project'"})),
+            )
+                .into_response();
+        }
+    };
+
+    // Clone the sync repo
+    let tmp = match tempfile::tempdir() {
+        Ok(t) => t,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": format!("tempdir: {e}")})),
+            )
+                .into_response();
+        }
+    };
+    let repo_dir = tmp.path().join("repo");
+
+    if let Err(e) = clone_repo(&auth.github_token, &auth.sync_repo, &repo_dir).await {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": e})),
+        )
+            .into_response();
+    }
+
+    // Find the skill in the cloned repo
+    let skill_src = repo_dir.join("skills").join(&body.skill_name);
+    if !skill_src.is_dir() {
+        return (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({"error": format!("Skill '{}' not found in remote repo", body.skill_name)})),
+        )
+            .into_response();
+    }
+
+    // Copy skill to target
+    match copy_skill_dir(&skill_src, &install_dir) {
+        Ok(files) => {
+            Json(serde_json::json!({
+                "ok": true,
+                "installed_to": install_dir.display().to_string(),
+                "files": files,
+            }))
+            .into_response()
+        }
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": format!("Copy failed: {e}")})),
+        )
+            .into_response(),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// HTTP handlers
+// ---------------------------------------------------------------------------
+
 /// POST /api/sync/push
 pub async fn push(State(s): State<AppState>) -> impl IntoResponse {
     let auth = s.auth.snapshot().await;

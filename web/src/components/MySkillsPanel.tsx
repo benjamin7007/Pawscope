@@ -1,5 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
-import { fetchMySkills, removeMySkill, updateMySkill, authStatus, authLogin, authLogout, syncAll, type MySkillEntry } from '../api';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  fetchMySkills, removeMySkill, updateMySkill, authStatus, authLogin, authLogout, syncAll,
+  fetchRemoteSkills, fetchProjects, installSkill,
+  type MySkillEntry, type RemoteSkill, type Project,
+} from '../api';
 import { useT } from '../i18n';
 
 export function MySkillsPanel() {
@@ -23,6 +27,15 @@ export function MySkillsPanel() {
   const [loginError, setLoginError] = useState('');
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
+
+  // Remote skills state
+  const [remoteSkills, setRemoteSkills] = useState<RemoteSkill[]>([]);
+  const [remoteLoading, setRemoteLoading] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [installingSkill, setInstallingSkill] = useState<string | null>(null);
+  const [installMessage, setInstallMessage] = useState('');
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const reload = async () => {
     try {
@@ -79,6 +92,55 @@ export function MySkillsPanel() {
       setSyncMessage(`❌ ${e}`);
     } finally {
       setSyncing(false);
+    }
+  };
+
+  // Load remote skills when logged in
+  const loadRemoteSkills = async () => {
+    setRemoteLoading(true);
+    try {
+      const [rs, ps] = await Promise.all([fetchRemoteSkills(), fetchProjects()]);
+      setRemoteSkills(rs.skills);
+      setProjects(ps.projects);
+    } catch {
+      // silently ignore
+    } finally {
+      setRemoteLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (authState?.logged_in) {
+      loadRemoteSkills();
+    } else {
+      setRemoteSkills([]);
+    }
+  }, [authState?.logged_in]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpenDropdown(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const handleInstall = async (name: string, target: 'global' | 'project', projectPath?: string) => {
+    setInstallingSkill(name);
+    setOpenDropdown(null);
+    try {
+      const result = await installSkill(name, target, projectPath);
+      setInstallMessage(`✅ ${t('sync.install_success')} → ${result.installed_to}`);
+      setRemoteSkills(prev => prev.map(s => s.name === name ? { ...s, installed: true } : s));
+      setTimeout(() => setInstallMessage(''), 4000);
+    } catch (e) {
+      setInstallMessage(`❌ ${e}`);
+      setTimeout(() => setInstallMessage(''), 4000);
+    } finally {
+      setInstallingSkill(null);
     }
   };
 
@@ -236,6 +298,85 @@ export function MySkillsPanel() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Remote Skills section */}
+      {authState?.logged_in && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-slate-200">☁️ {t('sync.remote_skills')}</h3>
+            {remoteLoading ? (
+              <span className="text-[11px] text-slate-500">{t('sync.syncing')}</span>
+            ) : (
+              <span className="text-[11px] text-slate-500">({remoteSkills.length} {t('sync.available')})</span>
+            )}
+          </div>
+          {installMessage && (
+            <div className={`text-[11px] px-3 py-1.5 rounded ${installMessage.startsWith('❌') ? 'bg-rose-500/10 text-rose-300 border border-rose-500/30' : 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30'}`}>
+              {installMessage}
+            </div>
+          )}
+          {remoteSkills.length > 0 ? (
+            <div className="border border-slate-800 rounded-lg divide-y divide-slate-800 bg-slate-900/40" ref={dropdownRef}>
+              {remoteSkills.map(skill => (
+                <div key={skill.name} className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-800/40 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-slate-100">{skill.name}</span>
+                      {skill.installed && (
+                        <span className="px-1.5 py-0.5 text-[10px] rounded bg-emerald-500/20 text-emerald-300">
+                          ✅ {t('sync.installed')}
+                        </span>
+                      )}
+                    </div>
+                    {skill.description && (
+                      <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-1">{skill.description}</p>
+                    )}
+                  </div>
+                  <div className="relative flex-shrink-0">
+                    {installingSkill === skill.name ? (
+                      <span className="px-2.5 py-1 text-[11px] text-slate-400">{t('sync.installing')}</span>
+                    ) : (
+                      <button
+                        onClick={() => setOpenDropdown(openDropdown === skill.name ? null : skill.name)}
+                        className="px-2.5 py-1 text-[11px] rounded border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-slate-100 transition-colors"
+                      >
+                        {t('sync.install')} ▾
+                      </button>
+                    )}
+                    {openDropdown === skill.name && (
+                      <div className="absolute right-0 top-8 z-50 w-56 bg-slate-800 border border-slate-700 rounded-lg shadow-xl overflow-hidden">
+                        <button
+                          onClick={() => handleInstall(skill.name, 'global')}
+                          className="w-full text-left px-3 py-2 text-[12px] text-slate-200 hover:bg-slate-700 transition-colors"
+                        >
+                          🌐 {t('sync.install_global')}
+                        </button>
+                        {projects.length > 0 && (
+                          <>
+                            <div className="border-t border-slate-700" />
+                            {projects.map(proj => (
+                              <button
+                                key={proj.path}
+                                onClick={() => handleInstall(skill.name, 'project', proj.path)}
+                                className="w-full text-left px-3 py-2 text-[12px] text-slate-300 hover:bg-slate-700 transition-colors truncate"
+                                title={proj.path}
+                              >
+                                📁 {proj.name}
+                              </button>
+                            ))}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : !remoteLoading ? (
+            <div className="text-center py-6 text-slate-500 text-[11px]">{t('sync.no_remote')}</div>
+          ) : null}
         </div>
       )}
 

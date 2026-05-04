@@ -3163,3 +3163,45 @@ async fn read_todos(session_dir: &std::path::Path) -> Vec<TodoEntry> {
         _ => vec![],
     }
 }
+
+// ---------------------------------------------------------------------------
+// Projects listing (for install target selector)
+// ---------------------------------------------------------------------------
+
+#[derive(Serialize)]
+struct ProjectEntry {
+    path: String,
+    name: String,
+}
+
+/// GET /api/projects — list known projects from session CWDs
+pub async fn list_projects(State(s): State<AppState>) -> impl IntoResponse {
+    let sessions = match s.adapter.list_sessions().await {
+        Ok(v) => v,
+        Err(_) => vec![],
+    };
+
+    let mut seen = std::collections::HashSet::new();
+    let mut projects: Vec<ProjectEntry> = Vec::new();
+
+    for session in &sessions {
+        let path_str = session.cwd.display().to_string();
+        if seen.contains(&path_str) {
+            continue;
+        }
+        seen.insert(path_str.clone());
+        let name = session
+            .cwd
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| path_str.clone());
+        projects.push(ProjectEntry {
+            path: path_str,
+            name,
+        });
+    }
+
+    projects.sort_by(|a, b| a.name.cmp(&b.name));
+
+    Json(serde_json::json!({ "projects": projects }))
+}
