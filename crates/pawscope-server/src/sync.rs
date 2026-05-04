@@ -562,37 +562,49 @@ pub async fn remote_skills(State(s): State<AppState>) -> impl IntoResponse {
     let home = dirs::home_dir().unwrap_or_default();
     let local_skills_base = home.join(".claude").join("skills");
 
-    // Fetch descriptions in parallel (limited concurrency)
-    let mut entries: Vec<RemoteSkillEntry> = Vec::new();
+    // Fetch descriptions in parallel
+    let mut handles = Vec::new();
     for name in &skill_names {
-        let contents_url = format!(
-            "https://api.github.com/repos/{repo}/contents/skills/{name}/SKILL.md?ref={branch}"
-        );
-        let description = match github_api_get(&client, &contents_url, token).await {
-            Ok(content_json) => {
-                // Content is base64 encoded
-                if let Some(b64) = content_json["content"].as_str() {
-                    let cleaned: String = b64.chars().filter(|c| !c.is_whitespace()).collect();
-                    match B64.decode(&cleaned) {
-                        Ok(bytes) => {
-                            let text = String::from_utf8_lossy(&bytes);
-                            extract_description_from_frontmatter(&text)
+        let client = client.clone();
+        let token = token.clone();
+        let repo = repo.clone();
+        let branch = branch.clone();
+        let name = name.clone();
+        handles.push(tokio::spawn(async move {
+            let contents_url = format!(
+                "https://api.github.com/repos/{repo}/contents/skills/{name}/SKILL.md?ref={branch}"
+            );
+            let description = match github_api_get(&client, &contents_url, &token).await {
+                Ok(content_json) => {
+                    if let Some(b64) = content_json["content"].as_str() {
+                        let cleaned: String = b64.chars().filter(|c| !c.is_whitespace()).collect();
+                        match B64.decode(&cleaned) {
+                            Ok(bytes) => {
+                                let text = String::from_utf8_lossy(&bytes);
+                                extract_description_from_frontmatter(&text)
+                            }
+                            Err(_) => String::new(),
                         }
-                        Err(_) => String::new(),
+                    } else {
+                        String::new()
                     }
-                } else {
-                    String::new()
                 }
-            }
-            Err(_) => String::new(),
-        };
+                Err(_) => String::new(),
+            };
+            (name, description)
+        }));
+    }
 
-        let installed = local_skills_base.join(name).is_dir();
-        entries.push(RemoteSkillEntry {
-            name: name.clone(),
-            description,
-            installed,
-        });
+    let mut entries: Vec<RemoteSkillEntry> = Vec::new();
+    for handle in handles {
+        if let Ok((name, description)) = handle.await {
+            let installed = local_skills_base.join(&name).is_dir();
+            entries.push(RemoteSkillEntry {
+                name,
+                description,
+                installed,
+            });
+        }
     }
 
     entries.sort_by(|a, b| a.name.cmp(&b.name));
