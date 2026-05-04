@@ -8,6 +8,7 @@ use tokio::sync::broadcast;
 
 pub mod api;
 pub mod assets;
+pub mod auth;
 pub mod cache;
 pub mod hidden;
 pub mod labels;
@@ -16,6 +17,7 @@ pub mod my_skills;
 pub mod skills;
 pub mod sse;
 pub mod store;
+pub mod sync;
 pub mod ws;
 
 pub use multi::MultiAdapter;
@@ -28,6 +30,7 @@ pub struct AppState {
     pub labels: labels::LabelStore,
     pub hidden: hidden::HiddenStore,
     pub my_skills: my_skills::MySkillsStore,
+    pub auth: auth::AuthStore,
 }
 
 pub fn build_app(adapter: Arc<dyn AgentAdapter>) -> (Router, AppState) {
@@ -35,6 +38,7 @@ pub fn build_app(adapter: Arc<dyn AgentAdapter>) -> (Router, AppState) {
     let labels = futures::executor::block_on(labels::LabelStore::load());
     let hidden = futures::executor::block_on(hidden::HiddenStore::load());
     let my_skills = futures::executor::block_on(my_skills::MySkillsStore::load());
+    let auth = futures::executor::block_on(auth::AuthStore::load());
     let state = AppState {
         adapter,
         events: tx,
@@ -42,6 +46,7 @@ pub fn build_app(adapter: Arc<dyn AgentAdapter>) -> (Router, AppState) {
         labels,
         hidden,
         my_skills,
+        auth,
     };
     let router = Router::new()
         .route("/api/sessions", get(api::list_sessions))
@@ -100,6 +105,12 @@ pub fn build_app(adapter: Arc<dyn AgentAdapter>) -> (Router, AppState) {
             delete(my_skills::remove_my_skill).patch(my_skills::update_my_skill),
         )
         .route("/api/analytics", get(api::analytics))
+        .route("/api/auth/login", post(auth::login))
+        .route("/api/auth/status", get(auth::status))
+        .route("/api/auth/logout", post(auth::logout))
+        .route("/api/sync/push", post(sync::push))
+        .route("/api/sync/pull", post(sync::pull))
+        .route("/api/sync/sync", post(sync::sync_all))
         .route("/api/events", get(sse::sse_handler))
         .route("/ws", get(ws::ws_handler))
         .fallback(assets::static_handler)

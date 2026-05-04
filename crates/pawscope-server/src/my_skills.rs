@@ -26,6 +26,8 @@ pub struct MySkill {
     #[serde(default)]
     pub category: String,
     pub added_at: DateTime<Utc>,
+    #[serde(default = "Utc::now")]
+    pub updated_at: DateTime<Utc>,
     #[serde(default)]
     pub sort_order: i32,
 }
@@ -111,11 +113,17 @@ impl MySkillsStore {
         {
             let mut g = self.inner.write().await;
             found = if let Some(s) = g.skills.iter_mut().find(|s| s.id == id) {
+                let mut changed = false;
                 if let Some(c) = category {
                     s.category = c;
+                    changed = true;
                 }
                 if let Some(o) = sort_order {
                     s.sort_order = o;
+                    changed = true;
+                }
+                if changed {
+                    s.updated_at = Utc::now();
                 }
                 true
             } else {
@@ -126,6 +134,14 @@ impl MySkillsStore {
             self.persist().await?;
         }
         Ok(found)
+    }
+
+    pub async fn replace_all(&self, skills: Vec<MySkill>) -> std::io::Result<()> {
+        {
+            let mut g = self.inner.write().await;
+            g.skills = skills;
+        }
+        self.persist().await
     }
 
     pub async fn reorder(&self, ids: &[String]) -> std::io::Result<()> {
@@ -163,6 +179,7 @@ struct MySkillResponse {
     origin_key: String,
     category: String,
     added_at: DateTime<Utc>,
+    updated_at: DateTime<Utc>,
     sort_order: i32,
     missing: bool,
 }
@@ -198,6 +215,7 @@ pub async fn list_my_skills(State(s): State<AppState>) -> impl IntoResponse {
             origin_key: s.origin_key.clone(),
             category: s.category.clone(),
             added_at: s.added_at,
+            updated_at: s.updated_at,
             sort_order: s.sort_order,
             missing: false,
         })
@@ -240,6 +258,7 @@ pub async fn add_my_skill(
     }
 
     let id = format!("{}", uuid::Uuid::new_v4());
+    let now = Utc::now();
     let skill = MySkill {
         id: id.clone(),
         name: if body.name.is_empty() {
@@ -255,7 +274,8 @@ pub async fn add_my_skill(
         origin_kind: body.origin_kind,
         origin_key: body.origin_key,
         category: body.category,
-        added_at: Utc::now(),
+        added_at: now,
+        updated_at: now,
         sort_order: 0,
     };
     match s.my_skills.add(skill).await {

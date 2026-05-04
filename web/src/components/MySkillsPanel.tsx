@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { fetchMySkills, removeMySkill, updateMySkill, type MySkillEntry } from '../api';
+import { fetchMySkills, removeMySkill, updateMySkill, authStatus, authLogin, authLogout, syncAll, type MySkillEntry } from '../api';
 import { useT } from '../i18n';
 
 export function MySkillsPanel() {
-  const { t } = useT();
+  const { t, rel } = useT();
   const [skills, setSkills] = useState<MySkillEntry[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -13,6 +13,16 @@ export function MySkillsPanel() {
   const [sortMode, setSortMode] = useState<'custom' | 'name' | 'date' | 'category'>('custom');
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+
+  // Sync state
+  const [authState, setAuthState] = useState<{logged_in: boolean, user?: {login: string, avatar_url: string, name: string}, sync_repo?: string, last_sync?: string} | null>(null);
+  const [showLogin, setShowLogin] = useState(false);
+  const [loginToken, setLoginToken] = useState('');
+  const [loginRepo, setLoginRepo] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState('');
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState('');
 
   const reload = async () => {
     try {
@@ -27,6 +37,50 @@ export function MySkillsPanel() {
   };
 
   useEffect(() => { reload(); }, []);
+
+  // Load auth status on mount
+  useEffect(() => {
+    authStatus().then(setAuthState).catch(() => {});
+  }, []);
+
+  const handleLogin = async () => {
+    setLoginLoading(true);
+    setLoginError('');
+    try {
+      await authLogin(loginToken, loginRepo);
+      const status = await authStatus();
+      setAuthState(status);
+      setShowLogin(false);
+      setLoginToken('');
+      setLoginRepo('');
+    } catch (e) {
+      setLoginError(String(e));
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await authLogout();
+    setAuthState({ logged_in: false });
+  };
+
+  const handleSync = async () => {
+    setSyncing(true);
+    setSyncMessage('');
+    try {
+      const result = await syncAll();
+      setSyncMessage(`${t('sync.success')} — ⬇${result.pulled} ⬆${result.pushed}`);
+      await reload();
+      const status = await authStatus();
+      setAuthState(status);
+      setTimeout(() => setSyncMessage(''), 4000);
+    } catch (e) {
+      setSyncMessage(`❌ ${e}`);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const sorted = useMemo(() => {
     let list = [...skills];
@@ -87,6 +141,103 @@ export function MySkillsPanel() {
         </div>
         <h2 className="text-xl font-semibold text-slate-100">{t('my_skills.title')}</h2>
       </header>
+
+      {/* Sync bar */}
+      {authState && (
+        <div className="flex items-center gap-3 px-3 py-2 rounded border border-slate-800 bg-slate-900/60 text-sm flex-wrap">
+          {authState.logged_in && authState.user ? (
+            <>
+              <img src={authState.user.avatar_url} alt="" className="w-6 h-6 rounded-full" />
+              <span className="text-slate-300 text-xs">{authState.user.login}</span>
+              <span className="text-slate-600 text-xs">·</span>
+              <span className="text-slate-500 text-xs">{t('sync.connected')} {authState.sync_repo}</span>
+              {authState.last_sync && (
+                <>
+                  <span className="text-slate-600 text-xs">·</span>
+                  <span className="text-slate-500 text-[11px]">{t('sync.last_sync')}: {rel(authState.last_sync)}</span>
+                </>
+              )}
+              {syncMessage && (
+                <span className={`text-[11px] px-2 py-0.5 rounded ${syncMessage.startsWith('❌') ? 'bg-rose-500/10 text-rose-300' : 'bg-emerald-500/10 text-emerald-300'}`}>
+                  {syncMessage}
+                </span>
+              )}
+              <div className="ml-auto flex items-center gap-2">
+                <button
+                  onClick={handleSync}
+                  disabled={syncing}
+                  className="px-2.5 py-1 text-[11px] rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 disabled:opacity-50 transition-colors"
+                >
+                  {syncing ? t('sync.syncing') : t('sync.sync')}
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="px-2 py-1 text-[11px] rounded border border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-600 transition-colors"
+                >
+                  🚪 {t('sync.logout')}
+                </button>
+              </div>
+            </>
+          ) : (
+            <button
+              onClick={() => setShowLogin(true)}
+              className="px-3 py-1.5 text-[11px] rounded border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-500 transition-colors"
+            >
+              {t('sync.login_github')}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Login dialog */}
+      {showLogin && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="bg-slate-900 border border-slate-700 rounded-lg p-6 w-full max-w-md space-y-4 shadow-xl">
+            <h3 className="text-lg font-semibold text-slate-100">{t('sync.login_title')}</h3>
+            <p className="text-[11px] text-slate-500">{t('sync.login_hint')}</p>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">{t('sync.token_label')}</label>
+                <input
+                  type="password"
+                  value={loginToken}
+                  onChange={e => setLoginToken(e.target.value)}
+                  placeholder={t('sync.token_placeholder')}
+                  className="w-full px-3 py-2 text-sm bg-slate-800 border border-slate-700 rounded text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-slate-500"
+                />
+                <p className="text-[10px] text-slate-600 mt-1">{t('sync.pat_hint')}</p>
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">{t('sync.repo_label')}</label>
+                <input
+                  value={loginRepo}
+                  onChange={e => setLoginRepo(e.target.value)}
+                  placeholder={t('sync.repo_placeholder')}
+                  className="w-full px-3 py-2 text-sm bg-slate-800 border border-slate-700 rounded text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-slate-500"
+                />
+              </div>
+            </div>
+            {loginError && (
+              <div className="text-rose-400 text-xs p-2 bg-rose-500/10 rounded border border-rose-500/30">{loginError}</div>
+            )}
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => { setShowLogin(false); setLoginError(''); }}
+                className="px-3 py-1.5 text-xs rounded border border-slate-700 text-slate-400 hover:text-slate-200"
+              >
+                {t('sync.cancel')}
+              </button>
+              <button
+                onClick={handleLogin}
+                disabled={loginLoading || !loginToken || !loginRepo}
+                className="px-3 py-1.5 text-xs rounded border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 disabled:opacity-50"
+              >
+                {loginLoading ? '...' : t('sync.login_btn')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filters bar */}
       <div className="flex items-center gap-3 flex-wrap">

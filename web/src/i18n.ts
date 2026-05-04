@@ -402,6 +402,27 @@ const dict: Record<string, { en: string; zh: string }> = {
   'my_skills.empty_hint': { en: 'Bookmark skills from Store or Skills panel', zh: '从商店或技能面板收藏技能' },
   'my_skills.no_results': { en: 'No matching skills', zh: '没有匹配的技能' },
 
+  // Sync
+  'sync.login_github': { en: 'Login GitHub Sync', zh: '🔗 登录 GitHub 同步' },
+  'sync.logout': { en: 'Logout', zh: '退出' },
+  'sync.sync': { en: 'Sync', zh: '🔄 同步' },
+  'sync.push': { en: 'Push', zh: '⬆ 上传' },
+  'sync.pull': { en: 'Pull', zh: '⬇ 下载' },
+  'sync.syncing': { en: 'Syncing...', zh: '同步中...' },
+  'sync.last_sync': { en: 'Last sync', zh: '上次同步' },
+  'sync.never': { en: 'Never', zh: '从未同步' },
+  'sync.success': { en: 'Sync complete', zh: '同步完成' },
+  'sync.login_title': { en: 'GitHub Sync Login', zh: 'GitHub 同步登录' },
+  'sync.token_label': { en: 'Personal Access Token', zh: '个人访问令牌' },
+  'sync.token_placeholder': { en: 'ghp_...', zh: 'ghp_...' },
+  'sync.repo_label': { en: 'Repository', zh: '仓库' },
+  'sync.repo_placeholder': { en: 'owner/repo', zh: 'owner/repo' },
+  'sync.login_hint': { en: 'Enter your GitHub PAT and repo name to sync your skill library across devices.', zh: '输入 GitHub PAT 和仓库名来跨设备同步你的技能库。' },
+  'sync.login_btn': { en: 'Login & Connect', zh: '登录并连接' },
+  'sync.cancel': { en: 'Cancel', zh: '取消' },
+  'sync.connected': { en: 'Connected to', zh: '已连接' },
+  'sync.pat_hint': { en: 'Needs fine-grained PAT with Contents: Read/Write on the target repo', zh: '需要细粒度 PAT，对目标仓库有 Contents 读写权限' },
+
   // Analytics
   'nav.analytics': { en: 'Analytics', zh: '分析' },
   'crumbs.analytics': { en: 'Analytics', zh: '分析' },

@@ -492,3 +492,48 @@ export async function reorderMySkills(ids: string[]): Promise<{ reordered: boole
   if (!r.ok) throw new Error(`reorder my-skills ${r.status}`);
   return r.json();
 }
+
+// ---------------------------------------------------------------------------
+// Auth
+// ---------------------------------------------------------------------------
+
+export async function authLogin(token: string, repo: string) {
+  const res = await fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, repo }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function authStatus() {
+  const res = await fetch('/api/auth/status');
+  return res.json();
+}
+
+export async function authLogout() {
+  await fetch('/api/auth/logout', { method: 'POST' });
+}
+
+// ---------------------------------------------------------------------------
+// Sync
+// ---------------------------------------------------------------------------
+
+export async function syncPush() {
+  const res = await fetch('/api/sync/push', { method: 'POST' });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function syncPull() {
+  const res = await fetch('/api/sync/pull', { method: 'POST' });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function syncAll() {
+  const res = await fetch('/api/sync/sync', { method: 'POST' });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
