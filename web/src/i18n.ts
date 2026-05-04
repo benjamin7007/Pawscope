@@ -455,6 +455,17 @@ const dict: Record<string, { en: string; zh: string }> = {
   'misc.no_sessions_today': { en: 'No sessions today', zh: '今天还没有会话' },
   'misc.longest_session_label': { en: 'longest session', zh: '最长会话' },
   'misc.minutes_short': { en: 'min', zh: '分' },
+
+  // Section groups
+  'group.realtime': { en: 'Real-time', zh: '实时' },
+  'group.summary': { en: 'Summary', zh: '概览' },
+  'group.usage': { en: 'Usage & Cost', zh: '用量与费用' },
+  'group.activity': { en: 'Activity Patterns', zh: '活动节奏' },
+  'group.prompts': { en: 'Prompt Analytics', zh: '提示词分析' },
+  'group.tools': { en: 'Tools & Security', zh: '工具与安全' },
+  'group.projects': { en: 'Projects & Agents', zh: '项目与代理' },
+  'misc.expand_all': { en: 'Expand All', zh: '全部展开' },
+  'misc.collapse_all': { en: 'Collapse All', zh: '全部折叠' },
 };
 
 function readLang(): Lang {

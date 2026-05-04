@@ -7,6 +7,122 @@ import { OverviewSkeleton } from './Skeleton';
 import { ToolTrend } from './ToolTrend';
 import { estimateCostUsd, formatUsd, priceFor } from '../pricing';
 
+/* ── Collapse event for expand/collapse-all ── */
+const COLLAPSE_EVENT = 'pawscope-collapse-toggle';
+
+const COLLAPSIBLE_IDS = [
+  'insights', 'today-efficiency', 'token-usage', 'cost-summary',
+  'activity-heatmap', 'week-grid', 'heartbeat', 'weekly-trend',
+  'word-cloud', 'prompt-length', 'tech-stack',
+  'dangerous-tools', 'hot-files', 'top-tools', 'tool-trend',
+  'subagents', 'top-realms', 'repos-agents', 'categories',
+];
+
+function CollapsibleCard({
+  id,
+  icon,
+  title,
+  badge,
+  defaultOpen = true,
+  children,
+}: {
+  id: string;
+  icon?: string;
+  title: string;
+  badge?: React.ReactNode;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const key = `pawscope.collapse.${id}`;
+  const [open, setOpen] = useState(() => {
+    try {
+      const saved = localStorage.getItem(key);
+      return saved !== null ? saved !== '0' : defaultOpen;
+    } catch { return defaultOpen; }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem(key, open ? '1' : '0'); } catch {}
+  }, [open, key]);
+
+  useEffect(() => {
+    const handler = () => {
+      try {
+        const saved = localStorage.getItem(key);
+        setOpen(saved !== '0');
+      } catch {}
+    };
+    window.addEventListener(COLLAPSE_EVENT, handler);
+    return () => window.removeEventListener(COLLAPSE_EVENT, handler);
+  }, [key]);
+
+  return (
+    <section className="rounded-lg bg-slate-900/40 border border-slate-800">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="w-full px-4 py-2.5 border-b border-slate-800 flex items-center justify-between hover:bg-slate-800/30 transition-colors"
+      >
+        <h3 className="text-xs uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+          {icon && <span>{icon}</span>}
+          {title}
+        </h3>
+        <div className="flex items-center gap-2">
+          {badge && <span className="text-[11px] text-slate-500">{badge}</span>}
+          <span className="text-slate-600 text-[10px]">{open ? '▾' : '▸'}</span>
+        </div>
+      </button>
+      {open && children}
+    </section>
+  );
+}
+
+function SectionGroup({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-3 pt-2">
+      <span className="text-[10px] uppercase tracking-wider text-slate-600 font-medium whitespace-nowrap">{label}</span>
+      <div className="flex-1 h-px bg-slate-800/60" />
+    </div>
+  );
+}
+
+function toggleAllSections(expand: boolean) {
+  for (const id of COLLAPSIBLE_IDS) {
+    try { localStorage.setItem(`pawscope.collapse.${id}`, expand ? '1' : '0'); } catch {}
+  }
+  window.dispatchEvent(new Event(COLLAPSE_EVENT));
+}
+
+function CollapsibleWrap({ id, label, defaultOpen = true, children }: {
+  id: string; label: string; defaultOpen?: boolean; children: React.ReactNode;
+}) {
+  const key = `pawscope.collapse.${id}`;
+  const [open, setOpen] = useState(() => {
+    try { const saved = localStorage.getItem(key); return saved !== null ? saved !== '0' : defaultOpen; } catch { return defaultOpen; }
+  });
+  useEffect(() => { try { localStorage.setItem(key, open ? '1' : '0'); } catch {} }, [open, key]);
+  useEffect(() => {
+    const handler = () => { try { setOpen(localStorage.getItem(key) !== '0'); } catch {} };
+    window.addEventListener(COLLAPSE_EVENT, handler);
+    return () => window.removeEventListener(COLLAPSE_EVENT, handler);
+  }, [key]);
+
+  if (!open) return (
+    <button type="button" onClick={() => setOpen(true)}
+      className="w-full rounded-lg border border-slate-800/60 bg-slate-900/20 px-4 py-2.5 text-[11px] text-slate-600 hover:text-slate-300 hover:bg-slate-800/30 transition-colors flex items-center gap-2">
+      <span>▸</span> <span>{label}</span>
+    </button>
+  );
+  return (
+    <div className="relative group/wrap">
+      {children}
+      <button type="button" onClick={() => setOpen(false)}
+        className="absolute top-2.5 right-10 opacity-0 group-hover/wrap:opacity-100 transition-opacity text-slate-600 hover:text-slate-300 text-[10px] px-1.5 py-0.5 rounded bg-slate-800/80"
+        title="Collapse">▾</button>
+    </div>
+  );
+}
+
 type Session = {
   id: string;
   agent: string;
@@ -279,7 +395,7 @@ function AgentDonut({ entries }: { entries: [string, number][] }) {
   );
 }
 
-function WeekGrid({ grid }: { grid: number[][] }) {
+function WeekGrid({ grid, bare }: { grid: number[][]; bare?: boolean }) {
   const { t, fmt, lang } = useT();
   const flat = grid.flat();
   const total = flat.reduce((a, b) => a + b, 0);
@@ -306,51 +422,57 @@ function WeekGrid({ grid }: { grid: number[][] }) {
   // grid[0] = today, render today at the bottom for natural reading
   const rows = grid.map((row, i) => ({ daysAgo: i, row })).reverse();
 
+  const body = (
+    <div className="p-4">
+      <div className="flex">
+        <div className="flex flex-col justify-between mr-2 text-[10px] text-slate-500 leading-none">
+          {rows.map(({ daysAgo }) => (
+            <div key={daysAgo} className="h-5 flex items-center">{dayLabel(daysAgo)}</div>
+          ))}
+        </div>
+        <div className="flex-1">
+          <div className="grid gap-1" style={{ gridTemplateColumns: 'repeat(24, minmax(0,1fr))' }}>
+            {rows.flatMap(({ daysAgo, row }) =>
+              row.map((v, h) => (
+                <div
+                  key={`${daysAgo}-${h}`}
+                  title={`${dayLabel(daysAgo)} ${String(h).padStart(2, '0')}:00 · ${fmt(v)} ${t('misc.events')}`}
+                  className={`h-5 rounded-sm ${intensity(v)} hover:ring-1 hover:ring-slate-500 transition`}
+                />
+              ))
+            )}
+          </div>
+          <div className="mt-2 grid text-[10px] text-slate-500" style={{ gridTemplateColumns: 'repeat(24, minmax(0,1fr))' }}>
+            {Array.from({ length: 24 }).map((_, h) => (
+              <div key={h} className="text-center">{h % 6 === 0 ? String(h).padStart(2, '0') : ''}</div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="mt-3 flex items-center gap-2 text-[10px] text-slate-500">
+        <span>{lang === 'zh' ? '少' : 'less'}</span>
+        {['bg-slate-800/60', 'bg-emerald-900/70', 'bg-emerald-800', 'bg-emerald-600', 'bg-emerald-500', 'bg-emerald-400'].map(c => (
+          <div key={c} className={`w-3 h-3 rounded-sm ${c}`} />
+        ))}
+        <span>{lang === 'zh' ? '多' : 'more'}</span>
+      </div>
+    </div>
+  );
+
+  if (bare) return body;
+
   return (
     <section className="rounded-lg bg-slate-900/40 border border-slate-800">
       <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
         <h3 className="text-xs uppercase tracking-wider text-slate-400">{lang === 'zh' ? '7 天 × 24 小时活跃度' : '7 days × 24h activity'}</h3>
         <span className="text-[11px] text-slate-500">{fmt(total)} {t('misc.events')}</span>
       </header>
-      <div className="p-4">
-        <div className="flex">
-          <div className="flex flex-col justify-between mr-2 text-[10px] text-slate-500 leading-none">
-            {rows.map(({ daysAgo }) => (
-              <div key={daysAgo} className="h-5 flex items-center">{dayLabel(daysAgo)}</div>
-            ))}
-          </div>
-          <div className="flex-1">
-            <div className="grid gap-1" style={{ gridTemplateColumns: 'repeat(24, minmax(0,1fr))' }}>
-              {rows.flatMap(({ daysAgo, row }) =>
-                row.map((v, h) => (
-                  <div
-                    key={`${daysAgo}-${h}`}
-                    title={`${dayLabel(daysAgo)} ${String(h).padStart(2, '0')}:00 · ${fmt(v)} ${t('misc.events')}`}
-                    className={`h-5 rounded-sm ${intensity(v)} hover:ring-1 hover:ring-slate-500 transition`}
-                  />
-                ))
-              )}
-            </div>
-            <div className="mt-2 grid text-[10px] text-slate-500" style={{ gridTemplateColumns: 'repeat(24, minmax(0,1fr))' }}>
-              {Array.from({ length: 24 }).map((_, h) => (
-                <div key={h} className="text-center">{h % 6 === 0 ? String(h).padStart(2, '0') : ''}</div>
-              ))}
-            </div>
-          </div>
-        </div>
-        <div className="mt-3 flex items-center gap-2 text-[10px] text-slate-500">
-          <span>{lang === 'zh' ? '少' : 'less'}</span>
-          {['bg-slate-800/60', 'bg-emerald-900/70', 'bg-emerald-800', 'bg-emerald-600', 'bg-emerald-500', 'bg-emerald-400'].map(c => (
-            <div key={c} className={`w-3 h-3 rounded-sm ${c}`} />
-          ))}
-          <span>{lang === 'zh' ? '多' : 'more'}</span>
-        </div>
-      </div>
+      {body}
     </section>
   );
 }
 
-function ActivityHeatmap({ buckets }: { buckets: number[] }) {
+function ActivityHeatmap({ buckets, bare }: { buckets: number[]; bare?: boolean }) {
   const { t, fmt, lang } = useT();
   const total = buckets.reduce((a, b) => a + b, 0);
   const max = buckets.reduce((a, b) => Math.max(a, b), 0);
@@ -366,35 +488,41 @@ function ActivityHeatmap({ buckets }: { buckets: number[] }) {
     return 'bg-emerald-400';
   };
 
+  const body = (
+    <div className="p-4">
+      <div className="grid grid-cols-24 gap-1" style={{ gridTemplateColumns: `repeat(${buckets.length}, minmax(0,1fr))` }}>
+        {buckets.map((v, i) => {
+          const hour = (startHour + i) % 24;
+          const hoursAgo = buckets.length - 1 - i;
+          const ago = hoursAgo === 0
+            ? t('misc.now')
+            : (lang === 'zh' ? `${hoursAgo} 小时前` : `${hoursAgo}h ago`);
+          const label = `${ago} · ${String(hour).padStart(2, '0')}:00 · ${fmt(v)} ${t('misc.events')}`;
+          return (
+            <div
+              key={i}
+              title={label}
+              className={`h-8 rounded ${intensity(v)} hover:ring-1 hover:ring-slate-500 transition`}
+            />
+          );
+        })}
+      </div>
+      <div className="mt-2 flex justify-between text-[10px] text-slate-500">
+        <span>{buckets.length}h ago</span>
+        <span>now</span>
+      </div>
+    </div>
+  );
+
+  if (bare) return body;
+
   return (
     <section className="rounded-lg bg-slate-900/40 border border-slate-800">
       <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
         <h3 className="text-xs uppercase tracking-wider text-slate-400">{lang === 'zh' ? '24 小时活跃度' : '24h activity'}</h3>
         <span className="text-[11px] text-slate-500">{fmt(total)} {t('misc.events')}</span>
       </header>
-      <div className="p-4">
-        <div className="grid grid-cols-24 gap-1" style={{ gridTemplateColumns: `repeat(${buckets.length}, minmax(0,1fr))` }}>
-          {buckets.map((v, i) => {
-            const hour = (startHour + i) % 24;
-            const hoursAgo = buckets.length - 1 - i;
-            const ago = hoursAgo === 0
-              ? t('misc.now')
-              : (lang === 'zh' ? `${hoursAgo} 小时前` : `${hoursAgo}h ago`);
-            const label = `${ago} · ${String(hour).padStart(2, '0')}:00 · ${fmt(v)} ${t('misc.events')}`;
-            return (
-              <div
-                key={i}
-                title={label}
-                className={`h-8 rounded ${intensity(v)} hover:ring-1 hover:ring-slate-500 transition`}
-              />
-            );
-          })}
-        </div>
-        <div className="mt-2 flex justify-between text-[10px] text-slate-500">
-          <span>{buckets.length}h ago</span>
-          <span>now</span>
-        </div>
-      </div>
+      {body}
     </section>
   );
 }
@@ -551,7 +679,7 @@ interface Insight {
 }
 
 function InsightsCard({
-  sessions, tokensMap, hotFiles, dangerous, heartbeat, t,
+  sessions, tokensMap, hotFiles, dangerous, heartbeat, t, bare,
 }: {
   sessions: Session[];
   tokensMap: Record<string, { in: number; out: number }>;
@@ -559,6 +687,7 @@ function InsightsCard({
   dangerous: { tool: string; count: number; sessions: number; severity: string }[];
   heartbeat: { peak_hour: number | null; peak_dow: number | null } | null;
   t: (k: string) => string;
+  bare?: boolean;
 }) {
   const insights = useMemo<Insight[]>(() => {
     const out: Insight[] = [];
@@ -667,20 +796,26 @@ function InsightsCard({
     : tone === 'cost' ? 'border-amber-900/40 bg-amber-950/20'
     : 'border-slate-800 bg-slate-900/40';
 
+  const body = (
+    <ul className="divide-y divide-slate-800/40">
+      {insights.map((ins, i) => (
+        <li key={i} className={`px-4 py-2.5 text-xs flex items-start gap-3 border-l-2 ${toneClass(ins.tone)}`}>
+          <span className="text-base leading-none mt-0.5">{ins.icon}</span>
+          <span className="text-slate-200 leading-relaxed">{ins.text}</span>
+        </li>
+      ))}
+    </ul>
+  );
+
+  if (bare) return body;
+
   return (
     <section className="rounded-lg bg-slate-900/40 border border-slate-800">
       <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
         <h3 className="text-xs uppercase tracking-wider text-slate-400">💡 {t('sec.insights')}</h3>
         <span className="text-[11px] text-slate-500">{insights.length}</span>
       </header>
-      <ul className="divide-y divide-slate-800/40">
-        {insights.map((ins, i) => (
-          <li key={i} className={`px-4 py-2.5 text-xs flex items-start gap-3 border-l-2 ${toneClass(ins.tone)}`}>
-            <span className="text-base leading-none mt-0.5">{ins.icon}</span>
-            <span className="text-slate-200 leading-relaxed">{ins.text}</span>
-          </li>
-        ))}
-      </ul>
+      {body}
     </section>
   );
 }
@@ -1060,9 +1195,11 @@ function Stat({ label, value }: { label: string; value: string }) {
 function TodayEfficiency({
   sessions,
   tokensMap,
+  bare,
 }: {
   sessions: Session[];
   tokensMap: Record<string, { in: number; out: number }>;
+  bare?: boolean;
 }) {
   const { t } = useT();
 
@@ -1126,6 +1263,52 @@ function TodayEfficiency({
     return `${h}h ${m}${t('misc.minutes_short')}`;
   };
 
+  const body = (
+    <div className="px-4 py-4">
+      {stats.count === 0 ? (
+        <p className="text-sm text-slate-600">{t('misc.no_sessions_today')}</p>
+      ) : (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+            <div className="rounded-md bg-slate-950/40 border border-slate-800/60 px-3 py-2">
+              <div className="text-[9px] uppercase tracking-wider text-slate-500">{t('stat.today_sessions')}</div>
+              <div className="text-xl font-semibold text-slate-100 tabular-nums">{stats.count}</div>
+            </div>
+            <div className="rounded-md bg-slate-950/40 border border-slate-800/60 px-3 py-2">
+              <div className="text-[9px] uppercase tracking-wider text-slate-500">{t('stat.avg_duration')}</div>
+              <div className="text-xl font-semibold text-cyan-300 tabular-nums">{fmtDur(stats.avg ?? 0)}</div>
+            </div>
+            <div className="rounded-md bg-slate-950/40 border border-slate-800/60 px-3 py-2">
+              <div className="text-[9px] uppercase tracking-wider text-slate-500">{t('stat.median_duration')}</div>
+              <div className="text-xl font-semibold text-cyan-300 tabular-nums">{fmtDur(stats.median ?? 0)}</div>
+            </div>
+            <div className="rounded-md bg-slate-950/40 border border-slate-800/60 px-3 py-2">
+              <div className="text-[9px] uppercase tracking-wider text-slate-500">{t('stat.longest_session')}</div>
+              <div className="text-xl font-semibold text-amber-300 tabular-nums">{fmtDur(stats.maxDur ?? 0)}</div>
+            </div>
+            <div className="rounded-md bg-slate-950/40 border border-slate-800/60 px-3 py-2">
+              <div className="text-[9px] uppercase tracking-wider text-slate-500">{t('stat.engagement_rate')}</div>
+              <div className="text-xl font-semibold text-emerald-300 tabular-nums">{stats.engagementRate}%</div>
+            </div>
+          </div>
+          {stats.longestSession?.summary && (
+            <div className="text-xs text-slate-500">
+              <span className="text-slate-600">{t('misc.longest_session_label')}:</span>{' '}
+              <span className="text-slate-400">{stats.longestSession.summary}</span>
+            </div>
+          )}
+          {(stats.totalTokens ?? 0) > 0 && (
+            <div className="text-[11px] text-slate-500 tabular-nums">
+              {t('stat.tokens_today')}: {(stats.totalTokens ?? 0).toLocaleString()}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
+  if (bare) return body;
+
   return (
     <section className="rounded-lg bg-slate-900/40 border border-slate-800">
       <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
@@ -1134,47 +1317,7 @@ function TodayEfficiency({
           {stats.count} {t('stat.today_sessions')}
         </span>
       </header>
-      <div className="px-4 py-4">
-        {stats.count === 0 ? (
-          <p className="text-sm text-slate-600">{t('misc.no_sessions_today')}</p>
-        ) : (
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-              <div className="rounded-md bg-slate-950/40 border border-slate-800/60 px-3 py-2">
-                <div className="text-[9px] uppercase tracking-wider text-slate-500">{t('stat.today_sessions')}</div>
-                <div className="text-xl font-semibold text-slate-100 tabular-nums">{stats.count}</div>
-              </div>
-              <div className="rounded-md bg-slate-950/40 border border-slate-800/60 px-3 py-2">
-                <div className="text-[9px] uppercase tracking-wider text-slate-500">{t('stat.avg_duration')}</div>
-                <div className="text-xl font-semibold text-cyan-300 tabular-nums">{fmtDur(stats.avg ?? 0)}</div>
-              </div>
-              <div className="rounded-md bg-slate-950/40 border border-slate-800/60 px-3 py-2">
-                <div className="text-[9px] uppercase tracking-wider text-slate-500">{t('stat.median_duration')}</div>
-                <div className="text-xl font-semibold text-cyan-300 tabular-nums">{fmtDur(stats.median ?? 0)}</div>
-              </div>
-              <div className="rounded-md bg-slate-950/40 border border-slate-800/60 px-3 py-2">
-                <div className="text-[9px] uppercase tracking-wider text-slate-500">{t('stat.longest_session')}</div>
-                <div className="text-xl font-semibold text-amber-300 tabular-nums">{fmtDur(stats.maxDur ?? 0)}</div>
-              </div>
-              <div className="rounded-md bg-slate-950/40 border border-slate-800/60 px-3 py-2">
-                <div className="text-[9px] uppercase tracking-wider text-slate-500">{t('stat.engagement_rate')}</div>
-                <div className="text-xl font-semibold text-emerald-300 tabular-nums">{stats.engagementRate}%</div>
-              </div>
-            </div>
-            {stats.longestSession?.summary && (
-              <div className="text-xs text-slate-500">
-                <span className="text-slate-600">{t('misc.longest_session_label')}:</span>{' '}
-                <span className="text-slate-400">{stats.longestSession.summary}</span>
-              </div>
-            )}
-            {(stats.totalTokens ?? 0) > 0 && (
-              <div className="text-[11px] text-slate-500 tabular-nums">
-                {t('stat.tokens_today')}: {(stats.totalTokens ?? 0).toLocaleString()}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+      {body}
     </section>
   );
 }
@@ -1629,6 +1772,16 @@ export function OverviewPanel({
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={() => toggleAllSections(true)}
+            title={t('misc.expand_all')}
+            className="px-2 py-1.5 text-[10px] rounded border border-slate-700 bg-slate-900 text-slate-400 hover:text-slate-100 hover:border-emerald-500/50 transition-colors"
+          >▾ {t('misc.expand_all')}</button>
+          <button
+            onClick={() => toggleAllSections(false)}
+            title={t('misc.collapse_all')}
+            className="px-2 py-1.5 text-[10px] rounded border border-slate-700 bg-slate-900 text-slate-400 hover:text-slate-100 hover:border-emerald-500/50 transition-colors"
+          >▸ {t('misc.collapse_all')}</button>
+          <button
             onClick={() => downloadDigest('day')}
             title={t('overview.export_day_tip')}
             className="px-3 py-1.5 text-xs rounded border border-slate-700 bg-slate-900 text-slate-300 hover:text-slate-100 hover:border-emerald-500/50 transition-colors"
@@ -1659,6 +1812,8 @@ export function OverviewPanel({
           <HeroStat label={t('stat.tool_calls')} value={totalTools.toLocaleString()} />
         </section>
 
+        <SectionGroup label={t('group.summary')} />
+        <CollapsibleWrap id="insights" label={`💡 ${t('sec.insights')}`}>
         <InsightsCard
           sessions={allSessions}
           tokensMap={tokensMap}
@@ -1667,10 +1822,15 @@ export function OverviewPanel({
           heartbeat={heartbeat as any}
           t={t}
         />
+        </CollapsibleWrap>
 
+        <CollapsibleWrap id="today-efficiency" label={`⚡ ${t('sec.today_efficiency')}`}>
         <TodayEfficiency sessions={allSessions} tokensMap={tokensMap} />
+        </CollapsibleWrap>
 
+        <SectionGroup label={t('group.usage')} />
         {((data.total_tokens_in ?? 0) + (data.total_tokens_out ?? 0)) > 0 && (
+          <CollapsibleWrap id="token-usage" label={t('sec.token_usage')}>
           <TokenUsageSection
             tokensIn={data.total_tokens_in ?? 0}
             tokensOut={data.total_tokens_out ?? 0}
@@ -1680,17 +1840,14 @@ export function OverviewPanel({
             daily30In={data.tokens_daily30_in ?? []}
             daily30Out={data.tokens_daily30_out ?? []}
           />
+          </CollapsibleWrap>
         )}
 
         {(costStats.total > 0 || costStats.unknownSessions > 0) && (
-          <section className="rounded-lg bg-slate-900/40 border border-slate-800">
-            <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
-              <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.cost_summary')}</h3>
-              <span className="text-[11px] text-slate-500 tabular-nums">
-                {costStats.knownSessions} {t('misc.sessions_priced')}
-                {costStats.unknownSessions > 0 && ` · ${costStats.unknownSessions} ${t('misc.sessions_unpriced')}`}
-              </span>
-            </header>
+          <CollapsibleCard id="cost-summary" title={t('sec.cost_summary')} badge={<>
+            {costStats.knownSessions} {t('misc.sessions_priced')}
+            {costStats.unknownSessions > 0 && ` · ${costStats.unknownSessions} ${t('misc.sessions_unpriced')}`}
+          </>}>
             <div className="px-4 py-4 space-y-3">
               <div className="flex items-baseline gap-3">
                 <span className="text-3xl font-semibold text-amber-300 tabular-nums">{formatUsd(costStats.total)}</span>
@@ -1721,13 +1878,41 @@ export function OverviewPanel({
                 </p>
               )}
             </div>
-          </section>
+          </CollapsibleCard>
         )}
 
-        {activity && <ActivityHeatmap buckets={activity} />}
-        {grid && <WeekGrid grid={grid} />}
+        <SectionGroup label={t('group.activity')} />
+        {activity && <CollapsibleWrap id="activity-heatmap" label={lang === 'zh' ? '24 小时活跃度' : '24h Activity'}><ActivityHeatmap buckets={activity} /></CollapsibleWrap>}
+        {grid && <CollapsibleWrap id="week-grid" label={lang === 'zh' ? '7 天活跃度' : '7-day Grid'}><WeekGrid grid={grid} /></CollapsibleWrap>}
 
+        {heartbeat && heartbeat.total > 0 && (
+          <CollapsibleWrap id="heartbeat" label={t('sec.heartbeat')}>
+          <section className="rounded-lg bg-slate-900/40 border border-slate-800">
+            <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
+              <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.heartbeat')}</h3>
+              <span className="text-[11px] text-slate-500">{t('misc.dow_x_hour')}</span>
+            </header>
+            <HeartbeatHeatmap data={heartbeat} t={t} />
+          </section>
+          </CollapsibleWrap>
+        )}
+
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {techStack.length > 0 && (
+            <CollapsibleCard id="tech-stack" title={t('sec.tech_stack')} badge={`${techStack.length} ${t('misc.detected')}`}>
+              <TechStack entries={techStack} t={t} />
+            </CollapsibleCard>
+          )}
+          {weekly && (
+            <CollapsibleCard id="weekly-trend" title={t('sec.weekly_trend')} badge={t('misc.this_vs_last')}>
+              <WeeklyTrendChart data={weekly} t={t} />
+            </CollapsibleCard>
+          )}
+        </section>
+
+        <SectionGroup label={t('group.prompts')} />
         {categoryStats.length > 0 && (
+          <CollapsibleWrap id="categories" label={t('sec.categories') ?? 'Categories'}>
           <CategoryDonut
             stats={categoryStats}
             total={categoryTotal}
@@ -1736,104 +1921,48 @@ export function OverviewPanel({
             onPick={onOpenCategory}
             getLabel={(name: string) => categoryLabel(name, lang === 'zh' ? 'zh' : 'en')}
           />
+          </CollapsibleWrap>
         )}
 
         {wordcloud.length > 0 && (
-          <section className="rounded-lg bg-slate-900/40 border border-slate-800">
-            <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
-              <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.prompt_cloud')}</h3>
-              <span className="text-[11px] text-slate-500">{wordcloud.length} {t('misc.terms')}</span>
-            </header>
+          <CollapsibleCard id="word-cloud" icon="☁️" title={t('sec.prompt_cloud')} badge={`${wordcloud.length} ${t('misc.terms')}`}>
             <WordCloud entries={wordcloud} onPick={(w) => onOpenSearch?.(w)} />
-          </section>
+          </CollapsibleCard>
         )}
 
         {promptLen && promptLen.total > 0 && (
-          <section className="rounded-lg bg-slate-900/40 border border-slate-800">
-            <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
-              <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.prompt_length')}</h3>
-              <span className="text-[11px] text-slate-500">{promptLen.total} {t('misc.prompts')}</span>
-            </header>
+          <CollapsibleCard id="prompt-length" title={t('sec.prompt_length')} badge={`${promptLen.total} ${t('misc.prompts')}`}>
             <PromptLengthHist stats={promptLen} t={t} />
-          </section>
+          </CollapsibleCard>
         )}
 
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {techStack.length > 0 && (
-            <div className="rounded-lg bg-slate-900/40 border border-slate-800">
-              <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
-                <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.tech_stack')}</h3>
-                <span className="text-[11px] text-slate-500">{techStack.length} {t('misc.detected')}</span>
-              </header>
-              <TechStack entries={techStack} t={t} />
-            </div>
-          )}
-          {weekly && (
-            <div className="rounded-lg bg-slate-900/40 border border-slate-800">
-              <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
-                <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.weekly_trend')}</h3>
-                <span className="text-[11px] text-slate-500">{t('misc.this_vs_last')}</span>
-              </header>
-              <WeeklyTrendChart data={weekly} t={t} />
-            </div>
-          )}
-        </section>
-
-        {heartbeat && heartbeat.total > 0 && (
-          <section className="rounded-lg bg-slate-900/40 border border-slate-800">
-            <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
-              <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.heartbeat')}</h3>
-              <span className="text-[11px] text-slate-500">{t('misc.dow_x_hour')}</span>
-            </header>
-            <HeartbeatHeatmap data={heartbeat} t={t} />
-          </section>
-        )}
-
+        <SectionGroup label={t('group.tools')} />
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {dangerous && (
-            <div className="rounded-lg bg-slate-900/40 border border-slate-800">
-              <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
-                <h3 className="text-xs uppercase tracking-wider text-slate-400">⚠ {t('sec.dangerous')}</h3>
-                <span className="text-[11px] text-rose-400">{dangerous.entries.filter(e => e.severity === 'high').length} {t('misc.high_risk')}</span>
-              </header>
+            <CollapsibleCard id="dangerous-tools" icon="⚠" title={t('sec.dangerous')} badge={<span className="text-rose-400">{dangerous.entries.filter(e => e.severity === 'high').length} {t('misc.high_risk')}</span>}>
               <DangerousTools data={dangerous} t={t} onOpenSession={onOpenSession} />
-            </div>
+            </CollapsibleCard>
           )}
           {hotFiles.length > 0 && (
-            <div className="rounded-lg bg-slate-900/40 border border-slate-800">
-              <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
-                <h3 className="text-xs uppercase tracking-wider text-slate-400">🔥 {t('sec.hot_files')}</h3>
-                <span className="text-[11px] text-slate-500">{hotFiles.length} {t('misc.files')}</span>
-              </header>
+            <CollapsibleCard id="hot-files" icon="🔥" title={t('sec.hot_files')} badge={`${hotFiles.length} ${t('misc.files')}`}>
               <HotFiles files={hotFiles} t={t} onClick={(p) => onOpenSearch?.(p)} onOpenSession={onOpenSession} />
-            </div>
+            </CollapsibleCard>
           )}
         </section>
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="rounded-lg bg-slate-900/40 border border-slate-800">
-            <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
-              <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.top_tools')}</h3>
-              <span className="text-[11px] text-slate-500">{tools.length} unique</span>
-            </header>
+          <CollapsibleCard id="top-tools" title={t('sec.top_tools')} badge={`${tools.length} unique`}>
             <BarList entries={tools.slice(0, 12)} max={toolsMax} color="bg-gradient-to-r from-emerald-500/70 to-emerald-400" />
-          </div>
-          <div className="rounded-lg bg-slate-900/40 border border-slate-800">
-            <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
-              <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.top_skills')}</h3>
-              <span className="text-[11px] text-slate-500">{skills.length} unique</span>
-            </header>
+          </CollapsibleCard>
+          <CollapsibleCard id="top-skills" title={t('sec.top_skills')} badge={`${skills.length} unique`}>
             <BarList entries={skills.slice(0, 12)} max={skillsMax} color="bg-gradient-to-r from-sky-500/70 to-sky-400" onClick={onOpenSkill} />
-          </div>
+          </CollapsibleCard>
         </section>
 
+        <CollapsibleWrap id="tool-trend" label="Tool Trend"><ToolTrend onOpenSession={onOpenSession} /></CollapsibleWrap>
+
+        <SectionGroup label={t('group.projects')} />
         {data.top_subagents && data.top_subagents.length > 0 && (
-          <section className="rounded-lg bg-slate-900/40 border border-slate-800">
-            <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
-              <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.top_subagents')}</h3>
-              <span className="text-[11px] text-slate-500">
-                {data.subagent_count ?? 0} total{data.subagent_active ? ` · ${data.subagent_active} active` : ''}
-              </span>
-            </header>
+          <CollapsibleCard id="subagents" title={t('sec.top_subagents')} badge={`${data.subagent_count ?? 0} total${data.subagent_active ? ` · ${data.subagent_active} active` : ''}`}>
             <ul className="divide-y divide-slate-800/60">
               {data.top_subagents.map(sa => (
                 <li key={`${sa.session_id}-${sa.id}`} className="px-4 py-2.5 flex items-center gap-3 text-sm">
@@ -1863,17 +1992,11 @@ export function OverviewPanel({
                 </li>
               ))}
             </ul>
-          </section>
+          </CollapsibleCard>
         )}
 
         {data.top_realms && data.top_realms.length > 0 && (
-          <section className="rounded-lg bg-gradient-to-br from-amber-950/30 via-slate-900/40 to-slate-900/40 border border-amber-900/30">
-            <header className="px-4 py-2.5 border-b border-amber-900/30 flex items-baseline justify-between">
-              <h3 className="text-xs uppercase tracking-wider text-amber-300 font-semibold">
-                <span className="mr-1.5">👑</span> {t('sec.top_realms')}
-              </h3>
-              <span className="text-[11px] text-slate-500">{data.top_realms.length} ranked by turns</span>
-            </header>
+          <CollapsibleCard id="top-realms" icon="👑" title={t('sec.top_realms')} badge={`${data.top_realms.length} ranked by turns`}>
             <ul>
               {data.top_realms.map((r, i) => {
                 const rankBadge =
@@ -1888,10 +2011,7 @@ export function OverviewPanel({
                         : 'text-slate-500';
                 const isRepo = r.name.includes('/') && !r.name.startsWith('~/');
                 return (
-                  <li
-                    key={r.name}
-                    className="border-b border-slate-800/40 last:border-b-0"
-                  >
+                  <li key={r.name} className="border-b border-slate-800/40 last:border-b-0">
                     <button
                       type="button"
                       onClick={() => onOpenRealm?.(r.name)}
@@ -1953,26 +2073,17 @@ export function OverviewPanel({
                 );
               })}
             </ul>
-          </section>
+          </CollapsibleCard>
         )}
 
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="rounded-lg bg-slate-900/40 border border-slate-800">
-            <header className="px-4 py-2.5 border-b border-slate-800">
-              <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.top_repos')}</h3>
-            </header>
+          <CollapsibleCard id="repos-agents" title={t('sec.top_repos')}>
             <BarList entries={repos.slice(0, 10)} max={reposMax} color="bg-gradient-to-r from-violet-500/70 to-violet-400" />
-          </div>
-          <div className="rounded-lg bg-slate-900/40 border border-slate-800">
-            <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
-              <h3 className="text-xs uppercase tracking-wider text-slate-400">{t('sec.agents')}</h3>
-              <span className="text-[11px] text-slate-500">{agents.length} types</span>
-            </header>
+          </CollapsibleCard>
+          <CollapsibleCard id="agent-donut" title={t('sec.agents')} badge={`${agents.length} types`}>
             <AgentDonut entries={agents} />
-          </div>
+          </CollapsibleCard>
         </section>
-
-        <ToolTrend onOpenSession={onOpenSession} />
 
         <section className="text-[11px] text-slate-600 px-1">
           Messages: ↑ {data.total_user_messages.toLocaleString()} user · ↓ {data.total_assistant_messages.toLocaleString()} assistant

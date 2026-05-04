@@ -16,6 +16,7 @@ export function CategoryDonut({
   compact = false,
   selected,
   getLabel,
+  bare = false,
 }: {
   stats: CategoryStat[];
   total: number;
@@ -25,6 +26,7 @@ export function CategoryDonut({
   compact?: boolean;
   selected?: string | null;
   getLabel?: (name: string) => string;
+  bare?: boolean;
 }) {
   const R = compact ? 36 : 56;
   const W = compact ? 11 : 18;
@@ -47,18 +49,8 @@ export function CategoryDonut({
   });
   const totalFontSize = compact ? 11 : 16;
   const labelFontSize = compact ? 7 : 9;
-  return (
-    <section className="rounded-lg bg-slate-900/40 border border-slate-800">
-      <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
-        <h3 className="text-xs uppercase tracking-wider text-slate-400">
-          {lang === 'zh' ? '各分类调用量占比' : 'Invocations by category'}
-        </h3>
-        <span className="text-[11px] text-slate-500">
-          {fmt(total)} {lang === 'zh' ? '次' : 'invocations'} · {stats.length}{' '}
-          {lang === 'zh' ? '类' : 'categories'}
-        </span>
-      </header>
-      <div className={`px-4 ${compact ? 'py-3' : 'py-4'} flex items-center gap-6 flex-wrap`}>
+  const body = (
+    <div className={`px-4 ${compact ? 'py-3' : 'py-4'} flex items-center gap-6 flex-wrap`}>
         <svg
           viewBox={`-${VB} -${VB} ${VB * 2} ${VB * 2}`}
           width={SIZE}
@@ -151,6 +143,22 @@ export function CategoryDonut({
           })}
         </ul>
       </div>
+    );
+
+  if (bare) return body;
+
+  return (
+    <section className="rounded-lg bg-slate-900/40 border border-slate-800">
+      <header className="px-4 py-2.5 border-b border-slate-800 flex items-baseline justify-between">
+        <h3 className="text-xs uppercase tracking-wider text-slate-400">
+          {lang === 'zh' ? '各分类调用量占比' : 'Invocations by category'}
+        </h3>
+        <span className="text-[11px] text-slate-500">
+          {fmt(total)} {lang === 'zh' ? '次' : 'invocations'} · {stats.length}{' '}
+          {lang === 'zh' ? '类' : 'categories'}
+        </span>
+      </header>
+      {body}
     </section>
   );
 }

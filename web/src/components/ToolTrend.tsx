@@ -14,7 +14,7 @@ const RANGES: { key: '24h' | '7d' | '30d'; hours: number }[] = [
   { key: '30d', hours: 720 },
 ];
 
-export function ToolTrend({ onOpenSession }: { onOpenSession?: (id: string) => void }) {
+export function ToolTrend({ onOpenSession, bare = false }: { onOpenSession?: (id: string) => void; bare?: boolean }) {
   const { t } = useT();
   const [range, setRange] = useState<'24h' | '7d' | '30d'>('7d');
   const [data, setData] = useState<ToolTrendResponse | null>(null);
@@ -57,33 +57,28 @@ export function ToolTrend({ onOpenSession }: { onOpenSession?: (id: string) => v
 
   const totalAll = data?.totals.reduce((a, b) => a + b, 0) ?? 0;
 
-  return (
-    <section className="rounded-lg bg-slate-900/40 border border-slate-800">
-      <header className="px-4 py-2.5 border-b border-slate-800 flex items-center gap-2">
-        <h3 className="text-xs uppercase tracking-wider text-slate-400 flex-1">
-          {t('sec.tool_trend')}
-        </h3>
-        <span className="text-[11px] text-slate-500 tabular-nums">
-          {totalAll.toLocaleString()} calls
-        </span>
-        <div className="flex gap-0.5 bg-slate-950/60 rounded p-0.5">
-          {RANGES.map((r) => (
-            <button
-              key={r.key}
-              onClick={() => setRange(r.key)}
-              className={`px-2 py-0.5 text-[10px] uppercase tracking-wider rounded transition-colors ${
-                range === r.key
-                  ? 'bg-slate-700 text-slate-100'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              {t(`tool_trend.range.${r.key}` as any)}
-            </button>
-          ))}
-        </div>
-      </header>
-      <div className="p-4">
-        {loading && !data ? (
+  const rangeToggle = (
+    <div className="flex gap-0.5 bg-slate-950/60 rounded p-0.5">
+      {RANGES.map((r) => (
+        <button
+          key={r.key}
+          onClick={() => setRange(r.key)}
+          className={`px-2 py-0.5 text-[10px] uppercase tracking-wider rounded transition-colors ${
+            range === r.key
+              ? 'bg-slate-700 text-slate-100'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          {t(`tool_trend.range.${r.key}` as any)}
+        </button>
+      ))}
+    </div>
+  );
+
+  const body = (
+    <div className="p-4">
+      {bare && <div className="flex items-center justify-end gap-2 mb-2">{rangeToggle}</div>}
+      {loading && !data ? (
           <div className="h-40 flex items-center justify-center text-xs text-slate-500">…</div>
         ) : !data || data.series.length === 0 || totalAll === 0 ? (
           <div className="h-40 flex items-center justify-center text-xs text-slate-600">
@@ -258,6 +253,22 @@ export function ToolTrend({ onOpenSession }: { onOpenSession?: (id: string) => v
           </>
         )}
       </div>
+    );
+
+  if (bare) return body;
+
+  return (
+    <section className="rounded-lg bg-slate-900/40 border border-slate-800">
+      <header className="px-4 py-2.5 border-b border-slate-800 flex items-center gap-2">
+        <h3 className="text-xs uppercase tracking-wider text-slate-400 flex-1">
+          {t('sec.tool_trend')}
+        </h3>
+        <span className="text-[11px] text-slate-500 tabular-nums">
+          {totalAll.toLocaleString()} calls
+        </span>
+        {rangeToggle}
+      </header>
+      {body}
     </section>
   );
 }
