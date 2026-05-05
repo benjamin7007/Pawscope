@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   fetchMySkills, removeMySkill, updateMySkill, authStatus, authLogin, authLogout, syncAll,
-  fetchRemoteSkills, fetchProjects, installSkill,
+  fetchRemoteSkills, fetchProjects, installSkill, autoCategorizeMySkills,
   type MySkillEntry, type RemoteSkill, type Project,
 } from '../api';
 import { useT } from '../i18n';
@@ -36,6 +36,7 @@ export function MySkillsPanel() {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [installingSkill, setInstallingSkill] = useState<string | null>(null);
   const [installMessage, setInstallMessage] = useState('');
+  const [categorizing, setCategorizing] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const reload = async () => {
@@ -149,6 +150,19 @@ export function MySkillsPanel() {
       toast.error(`${t('sync.install_failed')}: ${e}`);
     } finally {
       setInstallingSkill(null);
+    }
+  };
+
+  const handleAutoCategorize = async (overwrite = false) => {
+    setCategorizing(true);
+    try {
+      const result = await autoCategorizeMySkills(overwrite);
+      await reload();
+      toast.success(`${t('my_skills.auto_cat_done')}: ${result.categorized} ${t('my_skills.auto_cat_count')}`);
+    } catch (e) {
+      toast.error(`${t('my_skills.auto_cat_failed')}: ${e}`);
+    } finally {
+      setCategorizing(false);
     }
   };
 
@@ -424,6 +438,14 @@ export function MySkillsPanel() {
               </button>
             );
           })}
+          <button
+            onClick={() => handleAutoCategorize(false)}
+            disabled={categorizing}
+            className="px-2.5 py-1.5 text-[11px] rounded border border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 disabled:opacity-50 transition-colors whitespace-nowrap"
+            title={t('my_skills.auto_cat_hint')}
+          >
+            {categorizing ? '...' : `✨ ${t('my_skills.auto_cat')}`}
+          </button>
         </div>
         {/* Sort mode */}
         <div className="flex items-center gap-1">
@@ -510,21 +532,44 @@ export function MySkillsPanel() {
               <div className="mt-2 flex items-center gap-2 text-[10px] text-slate-500">
                 {/* Category tag - click to edit */}
                 {editingCategory === skill.id ? (
-                  <input
+                  <select
                     autoFocus
-                    defaultValue={skill.category}
-                    onBlur={e => {
-                      const v = e.target.value.trim();
-                      if (v !== skill.category) handleCategoryChange(skill.id, v);
-                      else setEditingCategory(null);
+                    defaultValue={skill.category || '__custom__'}
+                    onChange={e => {
+                      const v = e.target.value;
+                      if (v === '__custom__') {
+                        // Switch to text input for custom value
+                        const input = document.createElement('input');
+                        input.value = skill.category;
+                        input.className = 'px-1.5 py-0.5 text-[10px] bg-slate-800 border border-emerald-500/40 rounded text-emerald-300 outline-none w-24';
+                        input.placeholder = 'category';
+                        input.onblur = () => {
+                          const val = input.value.trim();
+                          if (val !== skill.category) handleCategoryChange(skill.id, val);
+                          else setEditingCategory(null);
+                        };
+                        input.onkeydown = (ke) => {
+                          if (ke.key === 'Enter') input.blur();
+                          if (ke.key === 'Escape') setEditingCategory(null);
+                        };
+                        e.target.replaceWith(input);
+                        input.focus();
+                      } else {
+                        handleCategoryChange(skill.id, v);
+                      }
                     }}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                      if (e.key === 'Escape') setEditingCategory(null);
-                    }}
-                    className="px-1.5 py-0.5 text-[10px] bg-slate-800 border border-emerald-500/40 rounded text-emerald-300 outline-none w-24"
-                    placeholder="category"
-                  />
+                    onBlur={() => setEditingCategory(null)}
+                    className="px-1.5 py-0.5 text-[10px] bg-slate-800 border border-emerald-500/40 rounded text-emerald-300 outline-none"
+                  >
+                    {['📱 社交媒体', '🎨 图片设计', '📝 内容创作', '🌐 翻译', '🔄 内容处理', '📄 文档处理', '🛠️ 开发工具', '🤖 自动化', '📦 其他'].map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                    {/* Include existing categories not in predefined list */}
+                    {categories.filter(c => !['📱 社交媒体', '🎨 图片设计', '📝 内容创作', '🌐 翻译', '🔄 内容处理', '📄 文档处理', '🛠️ 开发工具', '🤖 自动化', '📦 其他'].includes(c)).map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                    <option value="__custom__">✏️ {t('my_skills.custom_category')}</option>
+                  </select>
                 ) : (
                   <button
                     onClick={() => setEditingCategory(skill.id)}

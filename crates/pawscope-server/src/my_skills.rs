@@ -319,6 +319,127 @@ pub async fn update_my_skill(
     }
 }
 
+// ---------------------------------------------------------------------------
+// Auto-categorization
+// ---------------------------------------------------------------------------
+
+fn classify_skill(name: &str, description: &str) -> &'static str {
+    let n = name.to_lowercase();
+    let d = description.to_lowercase();
+    let text = format!("{} {}", n, d);
+
+    // Social media publishing
+    if n.contains("post-to") || n.contains("wechat") || n.contains("weibo")
+        || n.contains("xiaohongshu") || n.contains("x-to-") || n.contains("twitter")
+        || text.contains("发布") || text.contains("publish to")
+    {
+        return "📱 社交媒体";
+    }
+    // Image / visual design
+    if n.contains("image") || n.contains("cover") || n.contains("comic")
+        || n.contains("infographic") || n.contains("illustrat") || n.contains("slide")
+        || n.contains("card") || n.contains("diagram")
+        || (text.contains("visual") && !text.contains("visual studio"))
+    {
+        return "🎨 图片设计";
+    }
+    // Content writing / creation
+    if n.contains("writ") || n.contains("article") || text.contains("write article")
+        || text.contains("blog") || text.contains("tutorial") || text.contains("newsletter")
+    {
+        return "📝 内容创作";
+    }
+    // Translation
+    if n.contains("translat") || text.contains("翻译") {
+        return "🌐 翻译";
+    }
+    // Content processing / conversion
+    if n.contains("format") || n.contains("markdown") || n.contains("html")
+        || n.contains("convert") || n.contains("url-to")
+    {
+        return "🔄 内容处理";
+    }
+    // Document processing
+    if n.contains("pdf") || text.contains("document") || text.contains("文档") {
+        return "📄 文档处理";
+    }
+    // Development tools
+    if n.contains("comment") || n.contains("governance") || n.contains("owasp")
+        || n.contains("security") || n.contains("debug") || n.contains("lint")
+        || n.contains("review") || n.contains("refactor") || n.contains("test")
+        || text.contains("code quality") || text.contains("compliance")
+    {
+        return "🛠️ 开发工具";
+    }
+    // Automation / workflow
+    if n.contains("daily") || n.contains("auto") || n.contains("insight")
+        || n.contains("cron") || n.contains("schedule")
+        || text.contains("automat") || text.contains("workflow")
+    {
+        return "🤖 自动化";
+    }
+    "📦 其他"
+}
+
+/// POST /api/my-skills/auto-categorize
+#[derive(Deserialize)]
+pub struct AutoCategorizeBody {
+    #[serde(default)]
+    pub overwrite: bool,
+}
+
+#[derive(Serialize)]
+struct AutoCategorizeResponse {
+    categorized: usize,
+    skipped: usize,
+    categories: std::collections::BTreeMap<String, usize>,
+}
+
+pub async fn auto_categorize(
+    State(s): State<AppState>,
+    Json(body): Json<AutoCategorizeBody>,
+) -> impl IntoResponse {
+    let data = s.my_skills.snapshot().await;
+    let mut updated = data.skills.clone();
+    let mut categorized = 0usize;
+    let mut skipped = 0usize;
+
+    for skill in &mut updated {
+        if !body.overwrite && !skill.category.is_empty() {
+            skipped += 1;
+            continue;
+        }
+        let new_cat = classify_skill(&skill.name, &skill.description);
+        if skill.category != new_cat {
+            skill.category = new_cat.to_string();
+            skill.updated_at = Utc::now();
+            categorized += 1;
+        } else {
+            skipped += 1;
+        }
+    }
+
+    let mut cat_counts = std::collections::BTreeMap::new();
+    for skill in &updated {
+        if !skill.category.is_empty() {
+            *cat_counts.entry(skill.category.clone()).or_insert(0usize) += 1;
+        }
+    }
+
+    if categorized > 0 {
+        if let Err(e) = s.my_skills.replace_all(updated).await {
+            return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response();
+        }
+    }
+
+    Json(AutoCategorizeResponse {
+        categorized,
+        skipped,
+        categories: cat_counts,
+    })
+    .into_response()
+}
+
 /// POST /api/my-skills/reorder
 #[derive(Deserialize)]
 pub struct ReorderBody {

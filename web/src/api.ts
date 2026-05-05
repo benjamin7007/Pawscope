@@ -493,6 +493,21 @@ export async function reorderMySkills(ids: string[]): Promise<{ reordered: boole
   return r.json();
 }
 
+export interface AutoCategorizeResult {
+  categorized: number;
+  skipped: number;
+  categories: Record<string, number>;
+}
+export async function autoCategorizeMySkills(overwrite = false): Promise<AutoCategorizeResult> {
+  const r = await fetch('/api/my-skills/auto-categorize', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ overwrite }),
+  });
+  if (!r.ok) throw new Error(`auto-categorize ${r.status}`);
+  return r.json();
+}
+
 // ---------------------------------------------------------------------------
 // Auth
 // ---------------------------------------------------------------------------

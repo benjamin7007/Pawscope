@@ -105,6 +105,10 @@ pub fn build_app(adapter: Arc<dyn AgentAdapter>) -> (Router, AppState) {
         )
         .route("/api/my-skills/reorder", post(my_skills::reorder_my_skills))
         .route(
+            "/api/my-skills/auto-categorize",
+            post(my_skills::auto_categorize),
+        )
+        .route(
             "/api/my-skills/{id}",
             delete(my_skills::remove_my_skill).patch(my_skills::update_my_skill),
         )
