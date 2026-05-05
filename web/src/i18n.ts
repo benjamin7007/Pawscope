@@ -445,6 +445,12 @@ const dict: Record<string, { en: string; zh: string }> = {
   'sync.install_to': { en: 'Install to', zh: '安装到' },
   'sync.installing': { en: 'Installing...', zh: '安装中...' },
   'sync.install_success': { en: 'Installed successfully', zh: '安装成功' },
+  'sync.login_success_toast': { en: 'Logged in to GitHub successfully', zh: '已成功登录 GitHub' },
+  'sync.login_failed': { en: 'Login failed', zh: '登录失败' },
+  'sync.sync_complete_toast': { en: 'Skills synced successfully', zh: '技能同步完成' },
+  'sync.sync_failed': { en: 'Sync failed', zh: '同步失败' },
+  'sync.install_failed': { en: 'Install failed', zh: '安装失败' },
+  'sync.logged_out_toast': { en: 'Logged out', zh: '已退出登录' },
   'sync.no_remote': { en: 'No skills synced yet', zh: '暂无同步的技能' },
   'sync.projects': { en: 'Projects', zh: '项目' },
 

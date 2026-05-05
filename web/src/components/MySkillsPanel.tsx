@@ -5,6 +5,7 @@ import {
   type MySkillEntry, type RemoteSkill, type Project,
 } from '../api';
 import { useT } from '../i18n';
+import { toast } from '../toast';
 
 export function MySkillsPanel() {
   const { t, rel } = useT();
@@ -66,8 +67,10 @@ export function MySkillsPanel() {
       setShowLogin(false);
       setLoginToken('');
       setLoginRepo('');
+      toast.success(t('sync.login_success_toast'));
     } catch (e) {
       setLoginError(String(e));
+      toast.error(`${t('sync.login_failed')}: ${e}`);
     } finally {
       setLoginLoading(false);
     }
@@ -76,6 +79,7 @@ export function MySkillsPanel() {
   const handleLogout = async () => {
     await authLogout();
     setAuthState({ logged_in: false });
+    toast.info(t('sync.logged_out_toast'));
   };
 
   const handleSync = async () => {
@@ -88,8 +92,10 @@ export function MySkillsPanel() {
       const status = await authStatus();
       setAuthState(status);
       setTimeout(() => setSyncMessage(''), 4000);
+      toast.success(t('sync.sync_complete_toast'));
     } catch (e) {
       setSyncMessage(`❌ ${e}`);
+      toast.error(`${t('sync.sync_failed')}: ${e}`);
     } finally {
       setSyncing(false);
     }
@@ -136,9 +142,11 @@ export function MySkillsPanel() {
       setInstallMessage(`✅ ${t('sync.install_success')} → ${result.installed_to}`);
       setRemoteSkills(prev => prev.map(s => s.name === name ? { ...s, installed: true } : s));
       setTimeout(() => setInstallMessage(''), 4000);
+      toast.success(`${t('sync.install_success')}: ${name}`);
     } catch (e) {
       setInstallMessage(`❌ ${e}`);
       setTimeout(() => setInstallMessage(''), 4000);
+      toast.error(`${t('sync.install_failed')}: ${e}`);
     } finally {
       setInstallingSkill(null);
     }
