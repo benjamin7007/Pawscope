@@ -362,16 +362,16 @@ export function MySkillsPanel() {
 
       {/* Remote Skills section */}
       {authState?.logged_in && (
-        <div className="space-y-3">
+        <div className="space-y-3 p-3 rounded-lg border border-sky-500/20 bg-sky-500/5">
           {/* Header */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold text-slate-200">☁️ {t('sync.remote_skills')}</h3>
+              <h3 className="text-sm font-semibold text-sky-200">☁️ GitHub 远程技能库</h3>
               {remoteLoading ? (
                 <span className="text-[11px] text-slate-500">{t('sync.syncing')}</span>
               ) : (
                 <span className="text-[11px] text-slate-500">
-                  <span className="text-emerald-300 font-semibold">{remoteSkills.filter(s => s.installed).length}</span> / {remoteSkills.length} {t('sync.available')}
+                  <span className="text-sky-300 font-semibold">{remoteSkills.filter(s => s.installed).length}</span> / {remoteSkills.length} {t('sync.available')}
                 </span>
               )}
             </div>
@@ -548,6 +548,14 @@ export function MySkillsPanel() {
           ) : null}
         </div>
       )}
+
+      {/* Local Favorites section */}
+      <div className="space-y-3 p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
+        {/* Section header */}
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-emerald-200">⭐ 我的收藏</h3>
+          <span className="text-[11px] text-slate-500">本地收藏的技能列表</span>
+        </div>
 
       {/* Filters bar */}
       <div className="flex items-center gap-3 flex-wrap">
@@ -751,6 +759,7 @@ export function MySkillsPanel() {
           <p className="text-[11px] mt-1">{t('my_skills.empty_hint')}</p>
         </div>
       )}
+      </div>
     </main>
   );
 }
