@@ -124,13 +124,44 @@ async fn run_git_bare(
 
 /// Clone the sync repo into `dest` using token auth.
 async fn clone_repo(token: &str, repo: &str, dest: &Path) -> Result<(), String> {
-    let auth_b64 = B64.encode(format!("x-access-token:{token}").as_bytes());
-    let extraheader = format!("Authorization: basic {auth_b64}");
-    let url = format!("https://github.com/{repo}.git");
     let dest_str = dest
         .to_str()
         .ok_or_else(|| "invalid temp dir path".to_string())?
         .to_string();
+
+    // Try SSH first (more reliable through corporate proxies)
+    let ssh_url = format!("git@github.com:{repo}.git");
+    let ssh_dest = dest_str.clone();
+    let ssh_result = tokio::time::timeout(
+        Duration::from_secs(30),
+        tokio::task::spawn_blocking(move || {
+            std::process::Command::new("git")
+                .env("GIT_TERMINAL_PROMPT", "0")
+                .arg("clone")
+                .arg("--depth")
+                .arg("1")
+                .arg(&ssh_url)
+                .arg(&ssh_dest)
+                .stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::piped())
+                .output()
+        }),
+    )
+    .await;
+
+    if let Ok(Ok(Ok(output))) = ssh_result {
+        if output.status.success() {
+            return Ok(());
+        }
+    }
+    // Clean up failed SSH attempt
+    let _ = std::fs::remove_dir_all(dest);
+
+    // Fallback to HTTPS with token auth
+    let auth_b64 = B64.encode(format!("x-access-token:{token}").as_bytes());
+    let extraheader = format!("Authorization: basic {auth_b64}");
+    let https_url = format!("https://github.com/{repo}.git");
+    let https_dest = dest_str;
 
     let output = tokio::time::timeout(
         GIT_TIMEOUT,
@@ -142,8 +173,8 @@ async fn clone_repo(token: &str, repo: &str, dest: &Path) -> Result<(), String> 
                 .arg("clone")
                 .arg("--depth")
                 .arg("1")
-                .arg(&url)
-                .arg(&dest_str)
+                .arg(&https_url)
+                .arg(&https_dest)
                 .stdout(std::process::Stdio::piped())
                 .stderr(std::process::Stdio::piped())
                 .output()
