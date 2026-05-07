@@ -180,6 +180,11 @@ export function MySkillsPanel() {
 
   const sorted = useMemo(() => {
     let list = [...skills];
+    // Hide skills already synced to remote (when logged in and remote skills loaded)
+    if (authState?.logged_in && remoteSkills.length > 0) {
+      const remoteNames = new Set(remoteSkills.map(s => s.name));
+      list = list.filter(s => !remoteNames.has(s.name));
+    }
     const q = query.toLowerCase().trim();
     if (q) list = list.filter(s => s.name.includes(q) || s.description.toLowerCase().includes(q));
     if (categoryFilter !== 'all') list = list.filter(s => s.category === categoryFilter);
@@ -190,7 +195,7 @@ export function MySkillsPanel() {
       case 'custom': list.sort((a, b) => a.sort_order - b.sort_order); break;
     }
     return list;
-  }, [skills, query, categoryFilter, sortMode]);
+  }, [skills, query, categoryFilter, sortMode, authState?.logged_in, remoteSkills]);
 
   const handleDelete = async (id: string) => {
     try {
