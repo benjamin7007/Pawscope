@@ -3178,10 +3178,7 @@ struct ProjectEntry {
 
 /// GET /api/projects — list known projects from session CWDs
 pub async fn list_projects(State(s): State<AppState>) -> impl IntoResponse {
-    let sessions = match s.adapter.list_sessions().await {
-        Ok(v) => v,
-        Err(_) => vec![],
-    };
+    let sessions = s.adapter.list_sessions().await.unwrap_or_default();
 
     let mut seen = std::collections::HashSet::new();
     let mut projects: Vec<ProjectEntry> = Vec::new();

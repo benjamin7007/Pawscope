@@ -387,7 +387,7 @@ fn generate_readme(skills: &[MySkill]) -> String {
             let link = format!("skills/{}/{}", cat, skill.name);
             md.push_str(&format!("| [{}]({}) | {} |\n", skill.name, link, desc));
         }
-        md.push_str("\n");
+        md.push('\n');
     }
 
     md.push_str("---\n\n");
