@@ -88,8 +88,11 @@ struct CachedCatalog {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct SkillEntry {
     name: String,
+    #[serde(default)]
     description: String,
+    #[serde(default)]
     assets: Vec<String>,
+    #[serde(default)]
     category: String,
 }
 
@@ -424,20 +427,43 @@ pub async fn store_catalog(
         }
     }
 
-    // 3. Fetch from GitHub
+    // 3. Fetch from GitHub (with stale-cache fallback on failure)
     let client = http_client();
     let md_url =
         "https://raw.githubusercontent.com/github/awesome-copilot/main/docs/README.skills.md";
     let md_resp = match client.get(md_url).send().await {
         Ok(r) => r,
-        Err(e) => {
-            return (StatusCode::BAD_GATEWAY, format!("fetch index: {e}")).into_response();
+        Err(_e) => {
+            // Network failure: fall back to stale disk cache
+            if let Some(stale) = load_disk_cache() {
+                let mut guard = cache_lock().write().await;
+                *guard = Some(stale.clone());
+                return Json(build_catalog_response(
+                    &stale.skills,
+                    &stale.fetched_at,
+                    &stale.commit_sha,
+                    pp,
+                ))
+                .into_response();
+            }
+            return (StatusCode::BAD_GATEWAY, format!("fetch index: {_e}")).into_response();
         }
     };
     let md_text = match md_resp.text().await {
         Ok(t) => t,
-        Err(e) => {
-            return (StatusCode::BAD_GATEWAY, format!("read index: {e}")).into_response();
+        Err(_e) => {
+            if let Some(stale) = load_disk_cache() {
+                let mut guard = cache_lock().write().await;
+                *guard = Some(stale.clone());
+                return Json(build_catalog_response(
+                    &stale.skills,
+                    &stale.fetched_at,
+                    &stale.commit_sha,
+                    pp,
+                ))
+                .into_response();
+            }
+            return (StatusCode::BAD_GATEWAY, format!("read index: {_e}")).into_response();
         }
     };
 
