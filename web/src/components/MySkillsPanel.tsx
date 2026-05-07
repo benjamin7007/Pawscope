@@ -205,11 +205,6 @@ export function MySkillsPanel() {
 
   const sorted = useMemo(() => {
     let list = [...skills];
-    // Hide skills already synced to remote (when logged in and remote skills loaded)
-    if (authState?.logged_in && remoteSkills.length > 0) {
-      const remoteNames = new Set(remoteSkills.map(s => s.name));
-      list = list.filter(s => !remoteNames.has(s.name));
-    }
     const q = query.toLowerCase().trim();
     if (q) list = list.filter(s => s.name.includes(q) || s.description.toLowerCase().includes(q));
     if (categoryFilter !== 'all') list = list.filter(s => s.category === categoryFilter);
@@ -220,7 +215,7 @@ export function MySkillsPanel() {
       case 'custom': list.sort((a, b) => a.sort_order - b.sort_order); break;
     }
     return list;
-  }, [skills, query, categoryFilter, sortMode, authState?.logged_in, remoteSkills]);
+  }, [skills, query, categoryFilter, sortMode]);
 
   const handleDelete = async (id: string) => {
     try {
@@ -618,6 +613,15 @@ export function MySkillsPanel() {
         </div>
         <div className="text-xs text-slate-500">
           <span className="text-emerald-300 font-semibold">{skills.length}</span> {t('my_skills.total_label')}
+          {authState?.logged_in && remoteSkills.length > 0 && (() => {
+            const remoteNames = new Set(remoteSkills.map(s => s.name));
+            const unsynced = skills.filter(s => !remoteNames.has(s.name)).length;
+            return unsynced > 0 ? (
+              <span className="ml-2 text-amber-300">({unsynced} 待同步)</span>
+            ) : (
+              <span className="ml-2 text-sky-300">(全部已同步 ☁️)</span>
+            );
+          })()}
         </div>
       </div>
 
@@ -650,6 +654,9 @@ export function MySkillsPanel() {
                     </span>
                     {skill.missing && (
                       <span className="px-1.5 py-0.5 text-[10px] rounded bg-rose-500/20 text-rose-300">Missing</span>
+                    )}
+                    {authState?.logged_in && remoteSkills.some(r => r.name === skill.name) && (
+                      <span className="px-1.5 py-0.5 text-[10px] rounded bg-sky-500/20 text-sky-300">☁️ 已同步</span>
                     )}
                   </div>
                   <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">{skill.description}</p>
