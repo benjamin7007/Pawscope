@@ -92,6 +92,7 @@ export function MySkillsPanel() {
       await reload();
       const status = await authStatus();
       setAuthState(status);
+      await loadRemoteSkills();
       setTimeout(() => setSyncMessage(''), 4000);
       toast.success(t('sync.sync_complete_toast'));
     } catch (e) {
