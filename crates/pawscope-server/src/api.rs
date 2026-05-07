@@ -1393,7 +1393,7 @@ pub async fn files_hot(State(s): State<AppState>) -> impl IntoResponse {
                     if host_tlds.contains(&ext_after) {
                         continue;
                     }
-                    // Reject "extensions" that start with uppercase — likely proper nouns (e.g. Anbei.Yuan).
+                    // Reject "extensions" that start with uppercase — likely proper nouns (e.g. John.Smith).
                     if ext_after
                         .chars()
                         .next()

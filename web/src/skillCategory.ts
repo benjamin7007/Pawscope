@@ -58,7 +58,7 @@ export const SKILL_TAXONOMY: Record<string, SkillTaxonomyEntry> = {
   "ai-first-engineering": { category: 'ai-methodology', popularity: 5, summary: "Engineering...", reason: "Specialized tool with moderate applicability.", languageTag: null },
   "ai-regression-testing": { category: 'writing', popularity: 5, summary: "Regression...", reason: "Specialized tool with moderate applicability.", languageTag: null },
   "algorithmic-art": { category: 'design', popularity: 5, summary: "p5.js 生成艺术与算法绘图", reason: "Generative art via p5.js with seeded randomness", languageTag: null },
-  "anbei-wechat": { category: 'writing', popularity: 9, summary: "袁安贝的微信公众号一键发布工作流", reason: "Personal one-click WeChat publishing workflow", languageTag: null },
+  "anbei-wechat": { category: 'writing', popularity: 9, summary: "微信公众号一键发布工作流", reason: "Personal one-click WeChat publishing workflow", languageTag: null },
   "anbei-xiaohongshu": { category: 'writing', popularity: 9, summary: "小红书自动发布工作流（含 Playwright 自动化）", reason: "Personal Xiaohongshu publishing automation", languageTag: null },
   "android-clean-architecture": { category: 'development', popularity: 5, summary: "Clean...", reason: "Technical tool with niche but active usage.", languageTag: null },
   "api-connector-builder": { category: 'development', popularity: 5, summary: "Build...", reason: "Technical tool with niche but active usage.", languageTag: null },
