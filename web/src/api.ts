@@ -561,6 +561,7 @@ export interface RemoteSkill {
   name: string;
   description: string;
   installed: boolean;
+  category: string;
 }
 
 export async function fetchRemoteSkills(): Promise<{ skills: RemoteSkill[] }> {

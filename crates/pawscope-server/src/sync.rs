@@ -639,6 +639,7 @@ struct RemoteSkillEntry {
     name: String,
     description: String,
     installed: bool,
+    category: String,
 }
 
 /// GET /api/sync/remote-skills
@@ -689,20 +690,24 @@ pub async fn remote_skills(State(s): State<AppState>) -> impl IntoResponse {
 
     // Find entries matching skills/{name}/SKILL.md or skills/{category}/{name}/SKILL.md
     let skill_md_flat = regex::Regex::new(r"^skills/([^/]+)/SKILL\.md$").unwrap();
-    let skill_md_nested = regex::Regex::new(r"^skills/[^/]+/([^/]+)/SKILL\.md$").unwrap();
-    let mut skill_entries: Vec<(String, String)> = Vec::new(); // (name, full_path)
+    let skill_md_nested = regex::Regex::new(r"^skills/([^/]+)/([^/]+)/SKILL\.md$").unwrap();
+    let mut skill_entries: Vec<(String, String, String)> = Vec::new(); // (name, full_path, category)
     let mut seen_names: HashSet<String> = HashSet::new();
     for entry in tree {
         if let Some(path) = entry["path"].as_str() {
-            let name_opt = skill_md_flat
-                .captures(path)
-                .or_else(|| skill_md_nested.captures(path))
-                .and_then(|caps| caps.get(1))
-                .map(|m| m.as_str().to_string());
-            if let Some(name) = name_opt {
+            // Try nested first (category/name)
+            if let Some(caps) = skill_md_nested.captures(path) {
+                let category = caps.get(1).map(|m| m.as_str().to_string()).unwrap_or_default();
+                let name = caps.get(2).map(|m| m.as_str().to_string()).unwrap_or_default();
                 if is_valid_skill_name(&name) && !seen_names.contains(&name) {
                     seen_names.insert(name.clone());
-                    skill_entries.push((name, path.to_string()));
+                    skill_entries.push((name, path.to_string(), category));
+                }
+            } else if let Some(caps) = skill_md_flat.captures(path) {
+                let name = caps.get(1).map(|m| m.as_str().to_string()).unwrap_or_default();
+                if is_valid_skill_name(&name) && !seen_names.contains(&name) {
+                    seen_names.insert(name.clone());
+                    skill_entries.push((name, path.to_string(), "📦其他".to_string()));
                 }
             }
         }
@@ -714,13 +719,14 @@ pub async fn remote_skills(State(s): State<AppState>) -> impl IntoResponse {
 
     // Fetch descriptions in parallel
     let mut handles = Vec::new();
-    for (name, skill_path) in &skill_entries {
+    for (name, skill_path, category) in &skill_entries {
         let client = client.clone();
         let token = token.clone();
         let repo = repo.clone();
         let branch = branch.clone();
         let name = name.clone();
         let skill_path = skill_path.clone();
+        let category = category.clone();
         handles.push(tokio::spawn(async move {
             let contents_url = format!(
                 "https://api.github.com/repos/{repo}/contents/{skill_path}?ref={branch}"
@@ -742,18 +748,19 @@ pub async fn remote_skills(State(s): State<AppState>) -> impl IntoResponse {
                 }
                 Err(_) => String::new(),
             };
-            (name, description)
+            (name, description, category)
         }));
     }
 
     let mut entries: Vec<RemoteSkillEntry> = Vec::new();
     for handle in handles {
-        if let Ok((name, description)) = handle.await {
+        if let Ok((name, description, category)) = handle.await {
             let installed = local_skills_base.join(&name).is_dir();
             entries.push(RemoteSkillEntry {
                 name,
                 description,
                 installed,
+                category,
             });
         }
     }
@@ -778,6 +785,7 @@ async fn fallback_remote_from_local(s: &AppState) -> Json<serde_json::Value> {
                 "name": skill.name,
                 "description": skill.description,
                 "installed": installed,
+                "category": skill.category,
             })
         })
         .collect();

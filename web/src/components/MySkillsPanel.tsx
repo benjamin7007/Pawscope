@@ -39,6 +39,9 @@ export function MySkillsPanel() {
   const [categorizing, setCategorizing] = useState(false);
   const [syncRepoDir, setSyncRepoDir] = useState('');
   const [skillsDir, setSkillsDir] = useState('');
+  const [remoteQuery, setRemoteQuery] = useState('');
+  const [remoteCategoryFilter, setRemoteCategoryFilter] = useState('all');
+  const [expandedRemote, setExpandedRemote] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const reload = async () => {
@@ -349,69 +352,113 @@ export function MySkillsPanel() {
             <span>·</span>
             <a href={`https://github.com/${authState.sync_repo}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400 transition-colors">🔗 github.com/{authState.sync_repo}</a>
           </div>
+          {/* Remote skills filter */}
+          {remoteSkills.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <input
+                value={remoteQuery}
+                onChange={e => setRemoteQuery(e.target.value)}
+                placeholder="🔍 搜索技能..."
+                className="flex-1 min-w-[120px] px-2 py-1 text-xs bg-slate-800 border border-slate-700 rounded text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-slate-500"
+              />
+              <select
+                value={remoteCategoryFilter}
+                onChange={e => setRemoteCategoryFilter(e.target.value)}
+                className="px-2 py-1 text-xs bg-slate-800 border border-slate-700 rounded text-slate-300"
+              >
+                <option value="all">全部分类</option>
+                {Array.from(new Set(remoteSkills.map(s => s.category).filter(Boolean))).sort().map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+          )}
           {installMessage && (
             <div className={`text-[11px] px-3 py-1.5 rounded ${installMessage.startsWith('❌') ? 'bg-rose-500/10 text-rose-300 border border-rose-500/30' : 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30'}`}>
               {installMessage}
             </div>
           )}
-          {remoteSkills.length > 0 ? (
-            <div className="border border-slate-800 rounded-lg divide-y divide-slate-800 bg-slate-900/40" ref={dropdownRef}>
-              {remoteSkills.map(skill => (
-                <div key={skill.name} className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-800/40 transition-colors">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-slate-100">{skill.name}</span>
-                      {skill.installed && (
-                        <span className="px-1.5 py-0.5 text-[10px] rounded bg-emerald-500/20 text-emerald-300">
-                          ✅ {t('sync.installed')}
-                        </span>
-                      )}
+          {remoteSkills.length > 0 ? (() => {
+            const filtered = remoteSkills.filter(s => {
+              const matchQuery = !remoteQuery || s.name.toLowerCase().includes(remoteQuery.toLowerCase()) || s.description.toLowerCase().includes(remoteQuery.toLowerCase());
+              const matchCat = remoteCategoryFilter === 'all' || s.category === remoteCategoryFilter;
+              return matchQuery && matchCat;
+            });
+            const grouped = filtered.reduce<Record<string, typeof filtered>>((acc, s) => {
+              const cat = s.category || '📦其他';
+              (acc[cat] = acc[cat] || []).push(s);
+              return acc;
+            }, {});
+            const sortedCats = Object.keys(grouped).sort();
+            return (
+              <div className="space-y-3" ref={dropdownRef}>
+                {sortedCats.map(cat => (
+                  <div key={cat}>
+                    <div className="text-xs font-semibold text-slate-400 mb-1 px-1">{cat} ({grouped[cat].length})</div>
+                    <div className="border border-slate-800 rounded-lg divide-y divide-slate-800 bg-slate-900/40">
+                      {grouped[cat].map(skill => (
+                        <div key={skill.name} className="px-3 py-2.5 hover:bg-slate-800/40 transition-colors">
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setExpandedRemote(expandedRemote === skill.name ? null : skill.name)}>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-semibold text-slate-100">{skill.name}</span>
+                                {skill.installed && (
+                                  <span className="px-1.5 py-0.5 text-[10px] rounded bg-emerald-500/20 text-emerald-300">
+                                    ✅ {t('sync.installed')}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="relative flex-shrink-0">
+                              {installingSkill === skill.name ? (
+                                <span className="px-2.5 py-1 text-[11px] text-slate-400">{t('sync.installing')}</span>
+                              ) : (
+                                <button
+                                  onClick={() => setOpenDropdown(openDropdown === skill.name ? null : skill.name)}
+                                  className="px-2.5 py-1 text-[11px] rounded border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-slate-100 transition-colors"
+                                >
+                                  {t('sync.install')} ▾
+                                </button>
+                              )}
+                              {openDropdown === skill.name && (
+                                <div className="absolute right-0 top-8 z-50 w-56 bg-slate-800 border border-slate-700 rounded-lg shadow-xl overflow-hidden">
+                                  <button
+                                    onClick={() => handleInstall(skill.name, 'global')}
+                                    className="w-full text-left px-3 py-2 text-[12px] text-slate-200 hover:bg-slate-700 transition-colors"
+                                  >
+                                    🌐 {t('sync.install_global')}
+                                  </button>
+                                  {projects.length > 0 && (
+                                    <>
+                                      <div className="border-t border-slate-700" />
+                                      {projects.map(proj => (
+                                        <button
+                                          key={proj.path}
+                                          onClick={() => handleInstall(skill.name, 'project', proj.path)}
+                                          className="w-full text-left px-3 py-2 text-[12px] text-slate-300 hover:bg-slate-700 transition-colors truncate"
+                                          title={proj.path}
+                                        >
+                                          📁 {proj.name}
+                                        </button>
+                                      ))}
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          {expandedRemote === skill.name && skill.description && (
+                            <p className="text-[11px] text-slate-400 mt-1.5 pl-1 leading-relaxed">{skill.description}</p>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                    {skill.description && (
-                      <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-1">{skill.description}</p>
-                    )}
                   </div>
-                  <div className="relative flex-shrink-0">
-                    {installingSkill === skill.name ? (
-                      <span className="px-2.5 py-1 text-[11px] text-slate-400">{t('sync.installing')}</span>
-                    ) : (
-                      <button
-                        onClick={() => setOpenDropdown(openDropdown === skill.name ? null : skill.name)}
-                        className="px-2.5 py-1 text-[11px] rounded border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-slate-100 transition-colors"
-                      >
-                        {t('sync.install')} ▾
-                      </button>
-                    )}
-                    {openDropdown === skill.name && (
-                      <div className="absolute right-0 top-8 z-50 w-56 bg-slate-800 border border-slate-700 rounded-lg shadow-xl overflow-hidden">
-                        <button
-                          onClick={() => handleInstall(skill.name, 'global')}
-                          className="w-full text-left px-3 py-2 text-[12px] text-slate-200 hover:bg-slate-700 transition-colors"
-                        >
-                          🌐 {t('sync.install_global')}
-                        </button>
-                        {projects.length > 0 && (
-                          <>
-                            <div className="border-t border-slate-700" />
-                            {projects.map(proj => (
-                              <button
-                                key={proj.path}
-                                onClick={() => handleInstall(skill.name, 'project', proj.path)}
-                                className="w-full text-left px-3 py-2 text-[12px] text-slate-300 hover:bg-slate-700 transition-colors truncate"
-                                title={proj.path}
-                              >
-                                📁 {proj.name}
-                              </button>
-                            ))}
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : !remoteLoading ? (
+                ))}
+                {filtered.length === 0 && <div className="text-center py-4 text-slate-500 text-[11px]">无匹配技能</div>}
+              </div>
+            );
+          })() : !remoteLoading ? (
             <div className="text-center py-6 text-slate-500 text-[11px]">{t('sync.no_remote')}</div>
           ) : null}
         </div>
