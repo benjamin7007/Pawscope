@@ -37,6 +37,7 @@ export function MySkillsPanel() {
   const [installingSkill, setInstallingSkill] = useState<string | null>(null);
   const [installMessage, setInstallMessage] = useState('');
   const [categorizing, setCategorizing] = useState(false);
+  const [syncRepoDir, setSyncRepoDir] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const reload = async () => {
@@ -107,9 +108,14 @@ export function MySkillsPanel() {
   const loadRemoteSkills = async () => {
     setRemoteLoading(true);
     try {
-      const [rs, ps] = await Promise.all([fetchRemoteSkills(), fetchProjects()]);
+      const [rs, ps, info] = await Promise.all([
+        fetchRemoteSkills(),
+        fetchProjects(),
+        fetch('/api/sync/info').then(r => r.json()),
+      ]);
       setRemoteSkills(rs.skills);
       setProjects(ps.projects);
+      if (info.sync_repo_dir) setSyncRepoDir(info.sync_repo_dir);
     } catch {
       // silently ignore
     } finally {
@@ -337,6 +343,7 @@ export function MySkillsPanel() {
           </div>
           <div className="text-[10px] text-slate-600 flex items-center gap-3 px-1">
             <span>📁 ~/.claude/skills/</span>
+            {syncRepoDir && <><span>·</span><span>📂 {syncRepoDir}</span></>}
             <span>·</span>
             <a href={`https://github.com/${authState.sync_repo}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400 transition-colors">🔗 github.com/{authState.sync_repo}</a>
           </div>

@@ -120,6 +120,7 @@ pub fn build_app(adapter: Arc<dyn AgentAdapter>) -> (Router, AppState) {
         .route("/api/sync/pull", post(sync::pull))
         .route("/api/sync/sync", post(sync::sync_all))
         .route("/api/sync/remote-skills", get(sync::remote_skills))
+        .route("/api/sync/info", get(sync::sync_info))
         .route("/api/skills/install", post(sync::install_skill))
         .route("/api/projects", get(api::list_projects))
         .route("/api/events", get(sse::sse_handler))

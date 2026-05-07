@@ -122,6 +122,31 @@ async fn run_git_bare(
     }
 }
 
+/// Persistent local path for the sync repo clone.
+fn sync_repo_dir() -> PathBuf {
+    dirs::home_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(".pawscope")
+        .join("sync-repo")
+}
+
+/// Ensure the sync repo is cloned and up-to-date. Re-uses existing clone (git pull) or fresh-clones.
+async fn ensure_clone(token: &str, repo: &str, repo_dir: &Path) -> Result<(), String> {
+    if repo_dir.join(".git").is_dir() {
+        // Already cloned — reset and pull latest
+        run_git_bare(repo_dir, &["fetch", "--depth", "1", "origin", "master"]).await.ok();
+        run_git_bare(repo_dir, &["reset", "--hard", "origin/master"]).await.ok();
+        run_git_bare(repo_dir, &["clean", "-fdx"]).await.ok();
+        Ok(())
+    } else {
+        // Fresh clone
+        if repo_dir.exists() {
+            std::fs::remove_dir_all(repo_dir).ok();
+        }
+        clone_repo(token, repo, repo_dir).await
+    }
+}
+
 /// Clone the sync repo into `dest` using token auth.
 async fn clone_repo(token: &str, repo: &str, dest: &Path) -> Result<(), String> {
     let dest_str = dest
@@ -381,10 +406,8 @@ async fn do_push(
     device_id: &str,
     skills: &[MySkill],
 ) -> Result<PushResult, String> {
-    let tmp = tempfile::tempdir().map_err(|e| format!("tempdir: {e}"))?;
-    let repo_dir = tmp.path().join("repo");
-
-    clone_repo(token, repo, &repo_dir).await?;
+    let repo_dir = sync_repo_dir();
+    ensure_clone(token, repo, &repo_dir).await?;
 
     // Configure git user
     run_git_bare(&repo_dir, &["config", "user.name", "Pawscope"]).await?;
@@ -478,10 +501,8 @@ async fn do_pull(
     repo: &str,
     local_skills: &[MySkill],
 ) -> Result<(PullResult, Vec<MySkill>), String> {
-    let tmp = tempfile::tempdir().map_err(|e| format!("tempdir: {e}"))?;
-    let repo_dir = tmp.path().join("repo");
-
-    clone_repo(token, repo, &repo_dir).await?;
+    let repo_dir = sync_repo_dir();
+    ensure_clone(token, repo, &repo_dir).await?;
 
     // Read remote metadata
     let meta_path = repo_dir.join("pawscope-my-skills.json");
@@ -1047,4 +1068,12 @@ pub async fn sync_all(State(s): State<AppState>) -> impl IntoResponse {
         "pushed_files": push_result.pushed_files,
     }))
     .into_response()
+}
+
+/// GET /api/sync/info — returns the local sync repo directory path
+pub async fn sync_info() -> impl IntoResponse {
+    let repo_dir = sync_repo_dir();
+    Json(serde_json::json!({
+        "sync_repo_dir": repo_dir.to_string_lossy(),
+    }))
 }
