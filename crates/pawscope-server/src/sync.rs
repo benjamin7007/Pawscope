@@ -631,7 +631,10 @@ pub async fn remote_skills(State(s): State<AppState>) -> impl IntoResponse {
             .into_response();
     }
 
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(15))
+        .build()
+        .unwrap_or_default();
     let repo = &auth.sync_repo;
     let token = &auth.github_token;
 
@@ -651,8 +654,8 @@ pub async fn remote_skills(State(s): State<AppState>) -> impl IntoResponse {
     let tree_json = match github_api_get(&client, &tree_url, token).await {
         Ok(v) => v,
         Err(_) => {
-            // Empty repo or other error — return empty list
-            return Json(serde_json::json!({"skills": []})).into_response();
+            // Network failure — fall back to local my-skills as "remote" list
+            return fallback_remote_from_local(&s).await.into_response();
         }
     };
 
@@ -663,17 +666,22 @@ pub async fn remote_skills(State(s): State<AppState>) -> impl IntoResponse {
         }
     };
 
-    // Find entries matching skills/{name}/SKILL.md
-    let skill_md_re = regex::Regex::new(r"^skills/([^/]+)/SKILL\.md$").unwrap();
-    let mut skill_names: Vec<String> = Vec::new();
+    // Find entries matching skills/{name}/SKILL.md or skills/{category}/{name}/SKILL.md
+    let skill_md_flat = regex::Regex::new(r"^skills/([^/]+)/SKILL\.md$").unwrap();
+    let skill_md_nested = regex::Regex::new(r"^skills/[^/]+/([^/]+)/SKILL\.md$").unwrap();
+    let mut skill_entries: Vec<(String, String)> = Vec::new(); // (name, full_path)
+    let mut seen_names: HashSet<String> = HashSet::new();
     for entry in tree {
         if let Some(path) = entry["path"].as_str() {
-            if let Some(caps) = skill_md_re.captures(path) {
-                if let Some(name) = caps.get(1) {
-                    let name = name.as_str().to_string();
-                    if is_valid_skill_name(&name) {
-                        skill_names.push(name);
-                    }
+            let name_opt = skill_md_flat
+                .captures(path)
+                .or_else(|| skill_md_nested.captures(path))
+                .and_then(|caps| caps.get(1))
+                .map(|m| m.as_str().to_string());
+            if let Some(name) = name_opt {
+                if is_valid_skill_name(&name) && !seen_names.contains(&name) {
+                    seen_names.insert(name.clone());
+                    skill_entries.push((name, path.to_string()));
                 }
             }
         }
@@ -685,15 +693,16 @@ pub async fn remote_skills(State(s): State<AppState>) -> impl IntoResponse {
 
     // Fetch descriptions in parallel
     let mut handles = Vec::new();
-    for name in &skill_names {
+    for (name, skill_path) in &skill_entries {
         let client = client.clone();
         let token = token.clone();
         let repo = repo.clone();
         let branch = branch.clone();
         let name = name.clone();
+        let skill_path = skill_path.clone();
         handles.push(tokio::spawn(async move {
             let contents_url = format!(
-                "https://api.github.com/repos/{repo}/contents/skills/{name}/SKILL.md?ref={branch}"
+                "https://api.github.com/repos/{repo}/contents/{skill_path}?ref={branch}"
             );
             let description = match github_api_get(&client, &contents_url, &token).await {
                 Ok(content_json) => {
@@ -731,6 +740,28 @@ pub async fn remote_skills(State(s): State<AppState>) -> impl IntoResponse {
     entries.sort_by(|a, b| a.name.cmp(&b.name));
 
     Json(serde_json::json!({"skills": entries})).into_response()
+}
+
+/// Fallback: use local my-skills metadata as "remote" skills list when API is unreachable.
+async fn fallback_remote_from_local(s: &AppState) -> Json<serde_json::Value> {
+    let data = s.my_skills.snapshot().await;
+    let home = dirs::home_dir().unwrap_or_default();
+    let local_base = home.join(".claude").join("skills");
+
+    let entries: Vec<serde_json::Value> = data
+        .skills
+        .iter()
+        .map(|skill| {
+            let installed = local_base.join(&skill.name).is_dir();
+            serde_json::json!({
+                "name": skill.name,
+                "description": skill.description,
+                "installed": installed,
+            })
+        })
+        .collect();
+
+    Json(serde_json::json!({"skills": entries, "source": "local_fallback"}))
 }
 
 // ---------------------------------------------------------------------------
