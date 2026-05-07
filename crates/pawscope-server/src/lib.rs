@@ -123,6 +123,7 @@ pub fn build_app(adapter: Arc<dyn AgentAdapter>) -> (Router, AppState) {
         .route("/api/sync/info", get(sync::sync_info))
         .route("/api/skills/install", post(sync::install_skill))
         .route("/api/projects", get(api::list_projects))
+        .route("/api/open-dir", post(api::open_dir))
         .route("/api/events", get(sse::sse_handler))
         .route("/ws", get(ws::ws_handler))
         .fallback(assets::static_handler)

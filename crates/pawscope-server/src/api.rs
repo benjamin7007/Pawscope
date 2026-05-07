@@ -3205,3 +3205,24 @@ pub async fn list_projects(State(s): State<AppState>) -> impl IntoResponse {
 
     Json(serde_json::json!({ "projects": projects }))
 }
+
+// ---------------------------------------------------------------------------
+// Open directory in system file manager
+// ---------------------------------------------------------------------------
+
+#[derive(Deserialize)]
+pub struct OpenDirBody {
+    pub path: String,
+}
+
+pub async fn open_dir(Json(body): Json<OpenDirBody>) -> impl IntoResponse {
+    let path = std::path::Path::new(&body.path);
+    if !path.is_dir() {
+        return (StatusCode::BAD_REQUEST, Json(serde_json::json!({"error": "Not a directory"}))).into_response();
+    }
+    let result = std::process::Command::new("open").arg(&body.path).spawn();
+    match result {
+        Ok(_) => Json(serde_json::json!({"ok": true})).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error": e.to_string()}))).into_response(),
+    }
+}

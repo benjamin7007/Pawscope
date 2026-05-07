@@ -38,6 +38,7 @@ export function MySkillsPanel() {
   const [installMessage, setInstallMessage] = useState('');
   const [categorizing, setCategorizing] = useState(false);
   const [syncRepoDir, setSyncRepoDir] = useState('');
+  const [skillsDir, setSkillsDir] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const reload = async () => {
@@ -116,6 +117,7 @@ export function MySkillsPanel() {
       setRemoteSkills(rs.skills);
       setProjects(ps.projects);
       if (info.sync_repo_dir) setSyncRepoDir(info.sync_repo_dir);
+      if (info.skills_dir) setSkillsDir(info.skills_dir);
     } catch {
       // silently ignore
     } finally {
@@ -341,9 +343,9 @@ export function MySkillsPanel() {
               <span className="text-[11px] text-slate-500">({remoteSkills.length} {t('sync.available')})</span>
             )}
           </div>
-          <div className="text-[10px] text-slate-600 flex items-center gap-3 px-1">
-            <span>📁 ~/.claude/skills/</span>
-            {syncRepoDir && <><span>·</span><span>📂 {syncRepoDir}</span></>}
+          <div className="text-[10px] text-slate-500 flex items-center gap-3 px-1 flex-wrap">
+            <button onClick={() => fetch('/api/open-dir', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({path: skillsDir || '~/.claude/skills'})})} className="hover:text-emerald-400 cursor-pointer transition-colors">📁 {skillsDir || '~/.claude/skills/'}</button>
+            {syncRepoDir && <><span>·</span><button onClick={() => fetch('/api/open-dir', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({path: syncRepoDir})})} className="hover:text-emerald-400 cursor-pointer transition-colors">📂 {syncRepoDir}</button></>}
             <span>·</span>
             <a href={`https://github.com/${authState.sync_repo}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400 transition-colors">🔗 github.com/{authState.sync_repo}</a>
           </div>

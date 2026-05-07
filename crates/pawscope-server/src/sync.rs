@@ -1073,7 +1073,9 @@ pub async fn sync_all(State(s): State<AppState>) -> impl IntoResponse {
 /// GET /api/sync/info — returns the local sync repo directory path
 pub async fn sync_info() -> impl IntoResponse {
     let repo_dir = sync_repo_dir();
+    let skills_dir = local_skills_dir().unwrap_or_default();
     Json(serde_json::json!({
         "sync_repo_dir": repo_dir.to_string_lossy(),
+        "skills_dir": skills_dir.to_string_lossy(),
     }))
 }

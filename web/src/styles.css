@@ -2,7 +2,7 @@
 
 /* Slightly larger base font for readability. Tailwind text-* sizes scale
    off rem, so bumping the root size scales the whole app uniformly. */
-html { font-size: 17px; }
+html { font-size: 19px; }
 
 /* ----- Light theme overrides ----------------------------------------------
  * The app is built with hard-coded dark slate-* classes. Rather than rewrite
