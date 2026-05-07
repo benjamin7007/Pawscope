@@ -31,6 +31,7 @@ and renders it as a single, live-updating dashboard:
 - **See what it touched.** Tools called, skills loaded, files mentioned, prompts asked.
 - **Catch problems early.** Hot files, dangerous tools, dormant sessions, peak hours, cost outliers.
 - **Manage your skills.** Browse 328+ community skills, install per-project or globally, with categories.
+- **Sync across devices.** Push your favorites to GitHub, pull on another machine. Categorized, with badges.
 - **Organize sessions.** Hide, delete (trash), rename, star, tag, and compare sessions.
 
 No telemetry. No cloud. No login. The binary boots, scans your home directory, opens your browser. That's it.
@@ -83,8 +84,8 @@ One click exports a Markdown digest for the last 24h or 7d — activity, cost, h
 <tr>
 <td width="33%" valign="top">
 
-### 🏪 Skill Store
-Browse **328+ community skills** from [awesome-copilot](https://github.com/github/awesome-copilot). **13 categories**, install per-project (`.github/skills/`) or globally. Search, filter, preview SKILL.md inline.
+### 🏪 Skill Store & Sync
+Browse **328+ community skills** from [awesome-copilot](https://github.com/github/awesome-copilot). **13 categories**, install per-project or globally. Push favorites to a GitHub repo, pull on any machine — categorized card grid with ☁️ sync badges.
 
 </td>
 <td width="33%" valign="top">
@@ -237,6 +238,11 @@ pawscope serve                  # opens http://127.0.0.1:7777 in your browser
 | v1.2 | Skill Store (328+ skills, 13 categories) · agent type icons | ✅ |
 | **v1.3** | **Session management (hide/delete/rename) · 6-agent support · project-level skill install** | ✅ |
 | **v1.4** | **Session instructions & persona · multi-agent config cards · system prompt display** | ✅ |
+| v1.5 | My Skills library (favorites, categories, reorder) · Analytics dashboard | ✅ |
+| v1.6 | Collapsible overview · session context (plan, checkpoints, todos) | ✅ |
+| v1.7 | GitHub sync (login, push/pull favorites to repo) · SSH-first clone | ✅ |
+| v1.8 | Persistent sync clone · categorized push · stub SKILL.md for favorites | ✅ |
+| **v1.9** | **Remote skills card grid · visual separation · sync badges · delete confirmation** | ✅ |
 
 ---
 
