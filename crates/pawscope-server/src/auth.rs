@@ -4,12 +4,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::AppState;
-use axum::{
-    Json,
-    extract::State,
-    http::StatusCode,
-    response::IntoResponse,
-};
+use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
 use chrono::{DateTime, Utc};
 
 // ---------------------------------------------------------------------------
@@ -130,10 +125,7 @@ pub struct LoginBody {
 }
 
 /// POST /api/auth/login
-pub async fn login(
-    State(s): State<AppState>,
-    Json(body): Json<LoginBody>,
-) -> impl IntoResponse {
+pub async fn login(State(s): State<AppState>, Json(body): Json<LoginBody>) -> impl IntoResponse {
     let client = reqwest::Client::new();
 
     // Validate token

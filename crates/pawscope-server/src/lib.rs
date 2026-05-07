@@ -63,10 +63,7 @@ pub fn build_app(adapter: Arc<dyn AgentAdapter>) -> (Router, AppState) {
             "/api/sessions/{id}/conversation",
             get(api::get_conversation),
         )
-        .route(
-            "/api/sessions/{id}/context",
-            get(api::get_session_context),
-        )
+        .route("/api/sessions/{id}/context", get(api::get_session_context))
         .route("/api/overview", get(api::overview))
         .route("/api/activity", get(api::activity))
         .route("/api/activity/grid", get(api::activity_grid))

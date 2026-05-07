@@ -329,23 +329,37 @@ fn classify_skill(name: &str, description: &str) -> &'static str {
     let text = format!("{} {}", n, d);
 
     // Social media publishing
-    if n.contains("post-to") || n.contains("wechat") || n.contains("weibo")
-        || n.contains("xiaohongshu") || n.contains("x-to-") || n.contains("twitter")
-        || text.contains("发布") || text.contains("publish to")
+    if n.contains("post-to")
+        || n.contains("wechat")
+        || n.contains("weibo")
+        || n.contains("xiaohongshu")
+        || n.contains("x-to-")
+        || n.contains("twitter")
+        || text.contains("发布")
+        || text.contains("publish to")
     {
         return "📱 社交媒体";
     }
     // Image / visual design
-    if n.contains("image") || n.contains("cover") || n.contains("comic")
-        || n.contains("infographic") || n.contains("illustrat") || n.contains("slide")
-        || n.contains("card") || n.contains("diagram")
+    if n.contains("image")
+        || n.contains("cover")
+        || n.contains("comic")
+        || n.contains("infographic")
+        || n.contains("illustrat")
+        || n.contains("slide")
+        || n.contains("card")
+        || n.contains("diagram")
         || (text.contains("visual") && !text.contains("visual studio"))
     {
         return "🎨 图片设计";
     }
     // Content writing / creation
-    if n.contains("writ") || n.contains("article") || text.contains("write article")
-        || text.contains("blog") || text.contains("tutorial") || text.contains("newsletter")
+    if n.contains("writ")
+        || n.contains("article")
+        || text.contains("write article")
+        || text.contains("blog")
+        || text.contains("tutorial")
+        || text.contains("newsletter")
     {
         return "📝 内容创作";
     }
@@ -354,8 +368,11 @@ fn classify_skill(name: &str, description: &str) -> &'static str {
         return "🌐 翻译";
     }
     // Content processing / conversion
-    if n.contains("format") || n.contains("markdown") || n.contains("html")
-        || n.contains("convert") || n.contains("url-to")
+    if n.contains("format")
+        || n.contains("markdown")
+        || n.contains("html")
+        || n.contains("convert")
+        || n.contains("url-to")
     {
         return "🔄 内容处理";
     }
@@ -364,17 +381,28 @@ fn classify_skill(name: &str, description: &str) -> &'static str {
         return "📄 文档处理";
     }
     // Development tools
-    if n.contains("comment") || n.contains("governance") || n.contains("owasp")
-        || n.contains("security") || n.contains("debug") || n.contains("lint")
-        || n.contains("review") || n.contains("refactor") || n.contains("test")
-        || text.contains("code quality") || text.contains("compliance")
+    if n.contains("comment")
+        || n.contains("governance")
+        || n.contains("owasp")
+        || n.contains("security")
+        || n.contains("debug")
+        || n.contains("lint")
+        || n.contains("review")
+        || n.contains("refactor")
+        || n.contains("test")
+        || text.contains("code quality")
+        || text.contains("compliance")
     {
         return "🛠️ 开发工具";
     }
     // Automation / workflow
-    if n.contains("daily") || n.contains("auto") || n.contains("insight")
-        || n.contains("cron") || n.contains("schedule")
-        || text.contains("automat") || text.contains("workflow")
+    if n.contains("daily")
+        || n.contains("auto")
+        || n.contains("insight")
+        || n.contains("cron")
+        || n.contains("schedule")
+        || text.contains("automat")
+        || text.contains("workflow")
     {
         return "🤖 自动化";
     }

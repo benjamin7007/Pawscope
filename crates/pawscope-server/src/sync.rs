@@ -53,16 +53,13 @@ fn git_command(repo_dir: &Path, token: &str) -> std::process::Command {
     let mut cmd = std::process::Command::new("git");
     cmd.current_dir(repo_dir);
     cmd.env("GIT_TERMINAL_PROMPT", "0");
-    cmd.arg("-c")
-        .arg(format!("http.https://github.com/.extraheader={extraheader}"));
+    cmd.arg("-c").arg(format!(
+        "http.https://github.com/.extraheader={extraheader}"
+    ));
     cmd
 }
 
-async fn run_git(
-    repo_dir: &Path,
-    token: &str,
-    args: &[&str],
-) -> Result<String, String> {
+async fn run_git(repo_dir: &Path, token: &str, args: &[&str]) -> Result<String, String> {
     let mut cmd = git_command(repo_dir, token);
     for a in args {
         cmd.arg(a);
@@ -71,11 +68,14 @@ async fn run_git(
     cmd.stderr(std::process::Stdio::piped());
 
     let dir = repo_dir.to_path_buf();
-    let output = tokio::time::timeout(GIT_TIMEOUT, tokio::task::spawn_blocking(move || cmd.output()))
-        .await
-        .map_err(|_| "git operation timed out (>60s)".to_string())?
-        .map_err(|e| format!("spawn error: {e}"))?
-        .map_err(|e| format!("git exec error: {e} (dir={dir:?})"))?;
+    let output = tokio::time::timeout(
+        GIT_TIMEOUT,
+        tokio::task::spawn_blocking(move || cmd.output()),
+    )
+    .await
+    .map_err(|_| "git operation timed out (>60s)".to_string())?
+    .map_err(|e| format!("spawn error: {e}"))?
+    .map_err(|e| format!("git exec error: {e} (dir={dir:?})"))?;
 
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
@@ -90,10 +90,7 @@ async fn run_git(
 }
 
 /// Run a simple git command that doesn't need token auth in extraheader.
-async fn run_git_bare(
-    repo_dir: &Path,
-    args: &[&str],
-) -> Result<String, String> {
+async fn run_git_bare(repo_dir: &Path, args: &[&str]) -> Result<String, String> {
     let mut cmd = std::process::Command::new("git");
     cmd.current_dir(repo_dir);
     cmd.env("GIT_TERMINAL_PROMPT", "0");
@@ -104,11 +101,14 @@ async fn run_git_bare(
     cmd.stderr(std::process::Stdio::piped());
 
     let dir = repo_dir.to_path_buf();
-    let output = tokio::time::timeout(GIT_TIMEOUT, tokio::task::spawn_blocking(move || cmd.output()))
-        .await
-        .map_err(|_| "git operation timed out (>60s)".to_string())?
-        .map_err(|e| format!("spawn error: {e}"))?
-        .map_err(|e| format!("git exec error: {e} (dir={dir:?})"))?;
+    let output = tokio::time::timeout(
+        GIT_TIMEOUT,
+        tokio::task::spawn_blocking(move || cmd.output()),
+    )
+    .await
+    .map_err(|_| "git operation timed out (>60s)".to_string())?
+    .map_err(|e| format!("spawn error: {e}"))?
+    .map_err(|e| format!("git exec error: {e} (dir={dir:?})"))?;
 
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
@@ -134,8 +134,12 @@ fn sync_repo_dir() -> PathBuf {
 async fn ensure_clone(token: &str, repo: &str, repo_dir: &Path) -> Result<(), String> {
     if repo_dir.join(".git").is_dir() {
         // Already cloned — reset and pull latest
-        run_git_bare(repo_dir, &["fetch", "--depth", "1", "origin", "master"]).await.ok();
-        run_git_bare(repo_dir, &["reset", "--hard", "origin/master"]).await.ok();
+        run_git_bare(repo_dir, &["fetch", "--depth", "1", "origin", "master"])
+            .await
+            .ok();
+        run_git_bare(repo_dir, &["reset", "--hard", "origin/master"])
+            .await
+            .ok();
         run_git_bare(repo_dir, &["clean", "-fdx"]).await.ok();
         Ok(())
     } else {
@@ -194,7 +198,9 @@ async fn clone_repo(token: &str, repo: &str, dest: &Path) -> Result<(), String> 
             std::process::Command::new("git")
                 .env("GIT_TERMINAL_PROMPT", "0")
                 .arg("-c")
-                .arg(format!("http.https://github.com/.extraheader={extraheader}"))
+                .arg(format!(
+                    "http.https://github.com/.extraheader={extraheader}"
+                ))
                 .arg("clone")
                 .arg("--depth")
                 .arg("1")
@@ -326,7 +332,9 @@ fn collect_skill_dirs(skills_dir: &Path) -> Vec<PathBuf> {
             // Not a valid skill name → likely a category folder, descend one level
             if let Ok(sub_entries) = std::fs::read_dir(&path) {
                 for sub in sub_entries.flatten() {
-                    let Ok(sub_ft) = sub.file_type() else { continue };
+                    let Ok(sub_ft) = sub.file_type() else {
+                        continue;
+                    };
                     if sub_ft.is_dir() && !sub_ft.is_symlink() {
                         result.push(sub.path());
                     }
@@ -377,10 +385,7 @@ fn generate_readme(skills: &[MySkill]) -> String {
         for skill in items {
             let desc = skill.description.replace('|', "\\|");
             let link = format!("skills/{}/{}", cat, skill.name);
-            md.push_str(&format!(
-                "| [{}]({}) | {} |\n",
-                skill.name, link, desc
-            ));
+            md.push_str(&format!("| [{}]({}) | {} |\n", skill.name, link, desc));
         }
         md.push_str("\n");
     }
@@ -435,8 +440,7 @@ async fn do_push(
             skill.category.clone()
         };
         let cat_dir = skills_dir.join(&category);
-        std::fs::create_dir_all(&cat_dir)
-            .map_err(|e| format!("mkdir category {category}: {e}"))?;
+        std::fs::create_dir_all(&cat_dir).map_err(|e| format!("mkdir category {category}: {e}"))?;
         let dst = cat_dir.join(&skill.name);
 
         if let Some(src) = find_skill_source(&skill.name) {
@@ -452,8 +456,7 @@ async fn do_push(
             }
         } else {
             // No local directory — create a stub SKILL.md so it appears in remote listing
-            std::fs::create_dir_all(&dst)
-                .map_err(|e| format!("mkdir stub {}: {e}", skill.name))?;
+            std::fs::create_dir_all(&dst).map_err(|e| format!("mkdir stub {}: {e}", skill.name))?;
             let stub = format!(
                 "---\nname: {}\ndescription: \"{}\"\n---\n\n# {}\n\n{}\n",
                 skill.name,
@@ -524,10 +527,9 @@ async fn do_pull(
     // Read remote metadata
     let meta_path = repo_dir.join("pawscope-my-skills.json");
     let remote_skills: Vec<MySkill> = if meta_path.exists() {
-        let raw = std::fs::read_to_string(&meta_path)
-            .map_err(|e| format!("read metadata: {e}"))?;
-        let envelope: SyncEnvelope = serde_json::from_str(&raw)
-            .map_err(|e| format!("parse metadata: {e}"))?;
+        let raw = std::fs::read_to_string(&meta_path).map_err(|e| format!("read metadata: {e}"))?;
+        let envelope: SyncEnvelope =
+            serde_json::from_str(&raw).map_err(|e| format!("parse metadata: {e}"))?;
         envelope.skills
     } else {
         Vec::new()
@@ -549,8 +551,8 @@ async fn do_pull(
     let mut pulled_skills = 0usize;
 
     if remote_skills_dir.is_dir() {
-        let local_base = local_skills_dir()
-            .ok_or_else(|| "cannot determine home directory".to_string())?;
+        let local_base =
+            local_skills_dir().ok_or_else(|| "cannot determine home directory".to_string())?;
 
         // Collect skill directories (may be nested under category folders)
         let skill_dirs = collect_skill_dirs(&remote_skills_dir);
@@ -678,7 +680,13 @@ pub async fn remote_skills(State(s): State<AppState>) -> impl IntoResponse {
     let token = &auth.github_token;
 
     // Try to get the default branch first
-    let branch = match github_api_get(&client, &format!("https://api.github.com/repos/{repo}"), token).await {
+    let branch = match github_api_get(
+        &client,
+        &format!("https://api.github.com/repos/{repo}"),
+        token,
+    )
+    .await
+    {
         Ok(repo_json) => repo_json["default_branch"]
             .as_str()
             .unwrap_or("main")
@@ -687,9 +695,7 @@ pub async fn remote_skills(State(s): State<AppState>) -> impl IntoResponse {
     };
 
     // Get the repo tree
-    let tree_url = format!(
-        "https://api.github.com/repos/{repo}/git/trees/{branch}?recursive=true"
-    );
+    let tree_url = format!("https://api.github.com/repos/{repo}/git/trees/{branch}?recursive=true");
     let tree_json = match github_api_get(&client, &tree_url, token).await {
         Ok(v) => v,
         Err(_) => {
@@ -714,14 +720,23 @@ pub async fn remote_skills(State(s): State<AppState>) -> impl IntoResponse {
         if let Some(path) = entry["path"].as_str() {
             // Try nested first (category/name)
             if let Some(caps) = skill_md_nested.captures(path) {
-                let category = caps.get(1).map(|m| m.as_str().to_string()).unwrap_or_default();
-                let name = caps.get(2).map(|m| m.as_str().to_string()).unwrap_or_default();
+                let category = caps
+                    .get(1)
+                    .map(|m| m.as_str().to_string())
+                    .unwrap_or_default();
+                let name = caps
+                    .get(2)
+                    .map(|m| m.as_str().to_string())
+                    .unwrap_or_default();
                 if is_valid_skill_name(&name) && !seen_names.contains(&name) {
                     seen_names.insert(name.clone());
                     skill_entries.push((name, path.to_string(), category));
                 }
             } else if let Some(caps) = skill_md_flat.captures(path) {
-                let name = caps.get(1).map(|m| m.as_str().to_string()).unwrap_or_default();
+                let name = caps
+                    .get(1)
+                    .map(|m| m.as_str().to_string())
+                    .unwrap_or_default();
                 if is_valid_skill_name(&name) && !seen_names.contains(&name) {
                     seen_names.insert(name.clone());
                     skill_entries.push((name, path.to_string(), "📦其他".to_string()));
@@ -745,9 +760,8 @@ pub async fn remote_skills(State(s): State<AppState>) -> impl IntoResponse {
         let skill_path = skill_path.clone();
         let category = category.clone();
         handles.push(tokio::spawn(async move {
-            let contents_url = format!(
-                "https://api.github.com/repos/{repo}/contents/{skill_path}?ref={branch}"
-            );
+            let contents_url =
+                format!("https://api.github.com/repos/{repo}/contents/{skill_path}?ref={branch}");
             let description = match github_api_get(&client, &contents_url, &token).await {
                 Ok(content_json) => {
                     if let Some(b64) = content_json["content"].as_str() {
@@ -817,7 +831,7 @@ async fn fallback_remote_from_local(s: &AppState) -> Json<serde_json::Value> {
 #[derive(Deserialize)]
 pub struct InstallSkillBody {
     pub skill_name: String,
-    pub target: String,           // "global" or "project"
+    pub target: String, // "global" or "project"
     pub project_path: Option<String>,
 }
 
@@ -846,7 +860,8 @@ pub async fn install_skill(
     // Determine install target directory
     let install_dir = match body.target.as_str() {
         "global" => {
-            let home = dirs::home_dir().ok_or_else(|| "Cannot determine home directory".to_string());
+            let home =
+                dirs::home_dir().ok_or_else(|| "Cannot determine home directory".to_string());
             match home {
                 Ok(h) => h.join(".claude").join("skills").join(&body.skill_name),
                 Err(e) => {
@@ -928,14 +943,12 @@ pub async fn install_skill(
 
     // Copy skill to target
     match copy_skill_dir(&skill_src, &install_dir) {
-        Ok(files) => {
-            Json(serde_json::json!({
-                "ok": true,
-                "installed_to": install_dir.display().to_string(),
-                "files": files,
-            }))
-            .into_response()
-        }
+        Ok(files) => Json(serde_json::json!({
+            "ok": true,
+            "installed_to": install_dir.display().to_string(),
+            "files": files,
+        }))
+        .into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({"error": format!("Copy failed: {e}")})),
