@@ -68,3 +68,26 @@ test('05-prompts', async ({ page }) => {
   await clickTopNav(page, /Prompts|提示/);
   await page.screenshot({ path: path.join(OUT, '05-prompts.png'), fullPage: false });
 });
+
+test('06-config', async ({ page }) => {
+  await setup(page);
+  await clickTopNav(page, /Config|配置/);
+  await page.waitForTimeout(1000);
+  await page.screenshot({ path: path.join(OUT, '06-config.png'), fullPage: false });
+});
+
+test('07-store', async ({ page }) => {
+  await setup(page);
+  await clickTopNav(page, /Store|商店/);
+  await page.waitForTimeout(2000);
+  await page.screenshot({ path: path.join(OUT, '07-store.png'), fullPage: false });
+});
+
+test('08-instructions', async ({ page }) => {
+  await setup(page);
+  // Click a session and capture the detail view showing system prompt
+  const card = page.getByText('Add Stripe webhook handler').first();
+  await card.click();
+  await page.waitForTimeout(2000);
+  await page.screenshot({ path: path.join(OUT, '08-instructions.png'), fullPage: false });
+});
