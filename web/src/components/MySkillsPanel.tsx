@@ -92,14 +92,22 @@ export function MySkillsPanel() {
     setSyncing(true);
     setSyncMessage('');
     try {
+      // Count local-only skills that will be synced
+      const remoteNames = new Set(remoteSkills.map(s => s.name));
+      const localOnly = skills.filter(s => !remoteNames.has(s.name));
+
       const result = await syncAll();
-      setSyncMessage(`${t('sync.success')} — ⬇${result.pulled} ⬆${result.pushed}`);
+      let msg = `${t('sync.success')} — ⬇${result.pulled} ⬆${result.pushed}`;
+      if (localOnly.length > 0) {
+        msg += ` (新推送 ${localOnly.length} 个收藏)`;
+      }
+      setSyncMessage(msg);
       await reload();
       const status = await authStatus();
       setAuthState(status);
       await loadRemoteSkills();
-      setTimeout(() => setSyncMessage(''), 4000);
-      toast.success(t('sync.sync_complete_toast'));
+      setTimeout(() => setSyncMessage(''), 5000);
+      toast.success(msg);
     } catch (e) {
       setSyncMessage(`❌ ${e}`);
       toast.error(`${t('sync.sync_failed')}: ${e}`);
@@ -178,6 +186,8 @@ export function MySkillsPanel() {
     }
   };
 
+  const [confirmRemoveSkill, setConfirmRemoveSkill] = useState<string | null>(null);
+
   const handleRemoveRemote = async (name: string) => {
     // Find the my-skill entry by name and remove it
     const skill = skills.find(s => s.name === name);
@@ -189,7 +199,8 @@ export function MySkillsPanel() {
     }
     // Remove from remote display immediately
     setRemoteSkills(prev => prev.filter(s => s.name !== name));
-    toast.info(`👎 ${name} 已移除，下次同步后从 GitHub 删除`);
+    setConfirmRemoveSkill(null);
+    toast.info(`🗑️ ${name} 已移除，下次同步后从 GitHub 删除`);
   };
 
   const sorted = useMemo(() => {
@@ -464,13 +475,31 @@ export function MySkillsPanel() {
                           <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">{skill.description}</p>
                         </div>
                         <div className="flex-shrink-0 flex items-center gap-1 relative" onClick={e => e.stopPropagation()}>
-                          <button
-                            onClick={() => handleRemoveRemote(skill.name)}
-                            className="px-1.5 py-1 text-[11px] rounded text-slate-600 hover:text-rose-400 transition-colors"
-                            title="不喜欢 — 下次同步时从 GitHub 移除"
-                          >
-                            👎
-                          </button>
+                          {confirmRemoveSkill === skill.name ? (
+                            <div className="flex items-center gap-1">
+                              <span className="text-[10px] text-rose-300">确认删除?</span>
+                              <button
+                                onClick={() => handleRemoveRemote(skill.name)}
+                                className="px-1.5 py-0.5 text-[10px] rounded bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 border border-rose-500/30 transition-colors"
+                              >
+                                确认
+                              </button>
+                              <button
+                                onClick={() => setConfirmRemoveSkill(null)}
+                                className="px-1.5 py-0.5 text-[10px] rounded bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-700 transition-colors"
+                              >
+                                取消
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setConfirmRemoveSkill(skill.name)}
+                              className="px-1.5 py-1 text-[11px] rounded text-slate-600 hover:text-rose-400 transition-colors"
+                              title="移除 — 下次同步时从 GitHub 删除"
+                            >
+                              🗑️
+                            </button>
+                          )}
                           {installingSkill === skill.name ? (
                             <span className="px-2 py-1 text-[11px] text-slate-500">...</span>
                           ) : (
