@@ -178,6 +178,20 @@ export function MySkillsPanel() {
     }
   };
 
+  const handleRemoveRemote = async (name: string) => {
+    // Find the my-skill entry by name and remove it
+    const skill = skills.find(s => s.name === name);
+    if (skill) {
+      try {
+        await removeMySkill(skill.id);
+        setSkills(prev => prev.filter(s => s.id !== skill.id));
+      } catch { /* ignore */ }
+    }
+    // Remove from remote display immediately
+    setRemoteSkills(prev => prev.filter(s => s.name !== name));
+    toast.info(`👎 ${name} 已移除，下次同步后从 GitHub 删除`);
+  };
+
   const sorted = useMemo(() => {
     let list = [...skills];
     // Hide skills already synced to remote (when logged in and remote skills loaded)
@@ -449,7 +463,14 @@ export function MySkillsPanel() {
                           </div>
                           <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">{skill.description}</p>
                         </div>
-                        <div className="flex-shrink-0 relative" onClick={e => e.stopPropagation()}>
+                        <div className="flex-shrink-0 flex items-center gap-1 relative" onClick={e => e.stopPropagation()}>
+                          <button
+                            onClick={() => handleRemoveRemote(skill.name)}
+                            className="px-1.5 py-1 text-[11px] rounded text-slate-600 hover:text-rose-400 transition-colors"
+                            title="不喜欢 — 下次同步时从 GitHub 移除"
+                          >
+                            👎
+                          </button>
                           {installingSkill === skill.name ? (
                             <span className="px-2 py-1 text-[11px] text-slate-500">...</span>
                           ) : (

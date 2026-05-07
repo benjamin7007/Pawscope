@@ -429,16 +429,18 @@ async fn do_push(
             tracing::warn!("skipping skill with invalid name: {:?}", skill.name);
             continue;
         }
+        let category = if skill.category.is_empty() {
+            "📦 其他".to_string()
+        } else {
+            skill.category.clone()
+        };
+        let cat_dir = skills_dir.join(&category);
+        std::fs::create_dir_all(&cat_dir)
+            .map_err(|e| format!("mkdir category {category}: {e}"))?;
+        let dst = cat_dir.join(&skill.name);
+
         if let Some(src) = find_skill_source(&skill.name) {
-            let category = if skill.category.is_empty() {
-                "📦 其他".to_string()
-            } else {
-                skill.category.clone()
-            };
-            let cat_dir = skills_dir.join(&category);
-            std::fs::create_dir_all(&cat_dir)
-                .map_err(|e| format!("mkdir category {category}: {e}"))?;
-            let dst = cat_dir.join(&skill.name);
+            // Copy existing skill directory
             match copy_skill_dir(&src, &dst) {
                 Ok(n) => {
                     pushed_skills += 1;
@@ -448,6 +450,21 @@ async fn do_push(
                     tracing::warn!("failed to copy skill {}: {e}", skill.name);
                 }
             }
+        } else {
+            // No local directory — create a stub SKILL.md so it appears in remote listing
+            std::fs::create_dir_all(&dst)
+                .map_err(|e| format!("mkdir stub {}: {e}", skill.name))?;
+            let stub = format!(
+                "---\nname: {}\ndescription: \"{}\"\n---\n\n# {}\n\n{}\n",
+                skill.name,
+                skill.description.replace('"', "\\\""),
+                skill.name,
+                skill.description,
+            );
+            std::fs::write(dst.join("SKILL.md"), stub.as_bytes())
+                .map_err(|e| format!("write stub SKILL.md: {e}"))?;
+            pushed_skills += 1;
+            pushed_files += 1;
         }
     }
 
