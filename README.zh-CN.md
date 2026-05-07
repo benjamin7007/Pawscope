@@ -154,6 +154,14 @@ curl -fsSL https://raw.githubusercontent.com/benjamin7007/Pawscope/master/instal
 
 自动识别平台、抓最新 release、校验 SHA-256，把二进制放到 `~/.local/bin`（或 `/usr/local/bin`，若可写）。环境变量：`PAWSCOPE_VERSION=v1.0.0` 锁版本，`PAWSCOPE_PREFIX=/opt/bin` 改安装目录。
 
+### 一键安装（Windows PowerShell）
+
+```powershell
+irm https://raw.githubusercontent.com/benjamin7007/Pawscope/master/install.ps1 | iex
+```
+
+下载最新 release、校验 SHA-256、安装到 `%LOCALAPPDATA%\pawscope` 并加入用户 PATH。锁定版本：`$env:PAWSCOPE_VERSION="v1.9.1"`。
+
 卸载：
 
 ```bash

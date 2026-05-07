@@ -154,6 +154,14 @@ curl -fsSL https://raw.githubusercontent.com/benjamin7007/Pawscope/master/instal
 
 Detects your platform, downloads the latest release, verifies SHA-256, drops the binary into `~/.local/bin` (or `/usr/local/bin` if writable). Pin a version with `PAWSCOPE_VERSION=v1.0.0`, change the prefix with `PAWSCOPE_PREFIX=/opt/bin`.
 
+### One-line install (Windows PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/benjamin7007/Pawscope/master/install.ps1 | iex
+```
+
+Downloads the latest release, verifies SHA-256, installs to `%LOCALAPPDATA%\pawscope`, and adds to user PATH. Pin a version with `$env:PAWSCOPE_VERSION="v1.9.1"`.
+
 To remove it later:
 
 ```bash
