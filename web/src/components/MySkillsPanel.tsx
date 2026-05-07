@@ -235,7 +235,7 @@ export function MySkillsPanel() {
               <img src={authState.user.avatar_url} alt="" className="w-6 h-6 rounded-full" />
               <span className="text-slate-300 text-xs">{authState.user.login}</span>
               <span className="text-slate-600 text-xs">·</span>
-              <span className="text-slate-500 text-xs">{t('sync.connected')} {authState.sync_repo}</span>
+              <a href={`https://github.com/${authState.sync_repo}`} target="_blank" rel="noopener noreferrer" className="text-slate-400 text-xs hover:text-emerald-300 underline underline-offset-2 decoration-slate-600 hover:decoration-emerald-400 transition-colors">📂 {authState.sync_repo}</a>
               {authState.last_sync && (
                 <>
                   <span className="text-slate-600 text-xs">·</span>
@@ -334,6 +334,11 @@ export function MySkillsPanel() {
             ) : (
               <span className="text-[11px] text-slate-500">({remoteSkills.length} {t('sync.available')})</span>
             )}
+          </div>
+          <div className="text-[10px] text-slate-600 flex items-center gap-3 px-1">
+            <span>📁 ~/.claude/skills/</span>
+            <span>·</span>
+            <a href={`https://github.com/${authState.sync_repo}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400 transition-colors">🔗 github.com/{authState.sync_repo}</a>
           </div>
           {installMessage && (
             <div className={`text-[11px] px-3 py-1.5 rounded ${installMessage.startsWith('❌') ? 'bg-rose-500/10 text-rose-300 border border-rose-500/30' : 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30'}`}>
